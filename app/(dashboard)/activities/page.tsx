@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
+import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { useUIStore } from "@/lib/stores/uiStore"
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -74,21 +75,16 @@ export default function ActivitiesPage() {
     async function fetchTasks() {
       const supabase = createClient()
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      // Shared cache avoids the auth-token lock race with other
+      // hooks that mount at the same time (kanban, drawer, sidebar).
+      const { user, profile } = await getCachedUserAndProfile()
       if (!user) {
         setLoading(false)
         return
       }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single()
-
-      const isManager = ["admin", "manager", "founder"].includes(profile?.role ?? "")
+      const role = (profile?.role as string | undefined) ?? ""
+      const isManager = ["admin", "manager", "founder"].includes(role)
 
       let query = supabase
         .from("tasks")
@@ -201,7 +197,84 @@ export default function ActivitiesPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: "40px", color: "#9090A8" }}>Loading tasks…</div>
+      <div style={{ padding: "24px", maxWidth: "800px" }}>
+        <div
+          className="animate-pulse"
+          style={{
+            height: 28,
+            width: 140,
+            borderRadius: 6,
+            background: "#1A1A24",
+            marginBottom: 12,
+          }}
+        />
+        <div
+          className="animate-pulse"
+          style={{
+            height: 14,
+            width: 100,
+            borderRadius: 4,
+            background: "#1A1A24",
+            marginBottom: 32,
+          }}
+        />
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            key={i}
+            className="animate-pulse"
+            style={{
+              background: "#111118",
+              border: "1px solid #2A2A3C",
+              borderLeft: "3px solid #2A2A3C",
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 8,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  height: 14,
+                  width: "60%",
+                  background: "#1A1A24",
+                  borderRadius: 4,
+                  marginBottom: 6,
+                }}
+              />
+              <div
+                style={{
+                  height: 12,
+                  width: "45%",
+                  background: "#1A1A24",
+                  borderRadius: 4,
+                  marginBottom: 4,
+                }}
+              />
+              <div
+                style={{
+                  height: 10,
+                  width: "30%",
+                  background: "#1A1A24",
+                  borderRadius: 4,
+                }}
+              />
+            </div>
+            <div
+              style={{
+                height: 22,
+                width: 60,
+                background: "#1A1A24",
+                borderRadius: 6,
+                flexShrink: 0,
+              }}
+            />
+          </div>
+        ))}
+      </div>
     )
   }
 

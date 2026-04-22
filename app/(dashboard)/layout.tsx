@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Toaster } from "sonner"
 
@@ -10,9 +10,9 @@ import { DemoModeBanner } from "@/components/dashboard/DemoModeBanner"
 import { LeadDrawer } from "@/components/leads/LeadDrawer"
 import { NewLeadModal } from "@/components/leads/NewLeadModal"
 import { BulkImportModal } from "@/components/leads/BulkImportModal"
-import { createClient } from "@/lib/supabase/client"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { useSidebarCounts } from "@/lib/hooks/useSidebarCounts"
+import { useUser } from "@/lib/hooks/useUser"
 
 function getDisplayName(fullName?: string | null, email?: string | null) {
   if (fullName) {
@@ -28,45 +28,20 @@ function getDisplayName(fullName?: string | null, email?: string | null) {
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { isSidebarCollapsed } = useUIStore()
-  const [fullName, setFullName] = useState("User")
+
+  // Single shared auth call — every other hook/page on this route
+  // reads from the same cache, avoiding the auth-token lock race.
+  const { user, profile, loading } = useUser()
+
+  const fullName = getDisplayName(
+    (profile?.full_name as string | undefined) ?? null,
+    user?.email ?? null
+  )
   // Empty string = profile not loaded yet; sidebar treats this as "show all"
-  const [role, setRole] = useState("")
-  const [userId, setUserId] = useState<string | null>(null)
-
-  useEffect(() => {
-    let isMounted = true
-
-    const loadProfile = async () => {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!isMounted || !user) {
-        return
-      }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, role")
-        .eq("id", user.id)
-        .maybeSingle()
-
-      if (!isMounted) {
-        return
-      }
-
-      setFullName(getDisplayName(profile?.full_name, user.email))
-      setRole(profile?.role ?? "sales_rep")
-      setUserId(user.id)
-    }
-
-    loadProfile()
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
+  const role = loading
+    ? ""
+    : ((profile?.role as string | undefined) ?? "sales_rep")
+  const userId = user?.id ?? null
 
   const { data: counts } = useSidebarCounts(userId)
 

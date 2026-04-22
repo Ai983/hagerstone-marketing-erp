@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { createClient } from "@/lib/supabase/server"
 
 const WRITE_ROLES = new Set(["admin", "manager", "marketing"])
@@ -101,27 +102,87 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 // ── DELETE: remove campaign (only if no active enrollments) ──────
+//
+// interactions.campaign_id FK has no ON DELETE CASCADE, so a bare
+// DELETE on campaigns errors out. We clear the FK from interactions
+// first, then remove enrollments + messages + the campaign itself.
+// Uses service role because interactions has no UPDATE RLS policy.
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
-  const { supabase, user, role } = await requireUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  if (!role || !WRITE_ROLES.has(role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  try {
+    const { supabase, user, role } = await requireUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!role || !WRITE_ROLES.has(role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const campaignId = params.id
+
+    const { count } = await supabase
+      .from("campaign_enrollments")
+      .select("id", { count: "exact", head: true })
+      .eq("campaign_id", campaignId)
+      .eq("status", "active")
+
+    if ((count ?? 0) > 0) {
+      return NextResponse.json(
+        { error: `Cannot delete: ${count} active enrollments. Pause or unenroll first.` },
+        { status: 409 }
+      )
+    }
+
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !serviceKey) {
+      return NextResponse.json(
+        { error: "Service role not configured" },
+        { status: 503 }
+      )
+    }
+    const admin = createServiceClient(url, serviceKey)
+
+    // Step 1: clear campaign reference from interactions (FK is not CASCADE)
+    const { error: interactionsError } = await admin
+      .from("interactions")
+      .update({ campaign_id: null })
+      .eq("campaign_id", campaignId)
+    if (interactionsError) {
+      console.error("interactions update failed:", interactionsError)
+      return NextResponse.json({ error: interactionsError.message }, { status: 500 })
+    }
+
+    // Step 2: delete enrollments
+    const { error: enrollmentsError } = await admin
+      .from("campaign_enrollments")
+      .delete()
+      .eq("campaign_id", campaignId)
+    if (enrollmentsError) {
+      console.error("campaign_enrollments delete failed:", enrollmentsError)
+      return NextResponse.json({ error: enrollmentsError.message }, { status: 500 })
+    }
+
+    // Step 3: delete messages
+    const { error: messagesError } = await admin
+      .from("campaign_messages")
+      .delete()
+      .eq("campaign_id", campaignId)
+    if (messagesError) {
+      console.error("campaign_messages delete failed:", messagesError)
+      return NextResponse.json({ error: messagesError.message }, { status: 500 })
+    }
+
+    // Step 4: delete the campaign
+    const { error } = await admin
+      .from("campaigns")
+      .delete()
+      .eq("id", campaignId)
+    if (error) {
+      console.error("Campaign delete error:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error("Delete campaign error:", err)
+    return NextResponse.json({ error: String(err) }, { status: 500 })
   }
-
-  const { count } = await supabase
-    .from("campaign_enrollments")
-    .select("id", { count: "exact", head: true })
-    .eq("campaign_id", params.id)
-    .eq("status", "active")
-
-  if ((count ?? 0) > 0) {
-    return NextResponse.json(
-      { error: `Cannot delete: ${count} active enrollments. Pause or unenroll first.` },
-      { status: 409 }
-    )
-  }
-
-  const { error } = await supabase.from("campaigns").delete().eq("id", params.id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
 }

@@ -2,9 +2,29 @@
 
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
-import { Loader2, Megaphone, Plus } from "lucide-react"
+import { Megaphone, Plus } from "lucide-react"
 
 import { CampaignCard, type CampaignCardData } from "@/components/campaigns/CampaignCard"
+
+function CampaignCardSkeleton() {
+  return (
+    <div className="h-[180px] animate-pulse rounded-xl border border-[#2A2A3C] bg-[#111118] p-5">
+      <div className="flex items-start justify-between">
+        <div className="flex-1 space-y-2">
+          <div className="h-4 w-3/5 rounded bg-[#1A1A24]" />
+          <div className="h-3 w-2/5 rounded bg-[#1A1A24]" />
+        </div>
+        <div className="h-5 w-14 rounded-full bg-[#1A1A24]" />
+      </div>
+      <div className="mt-6 grid grid-cols-3 gap-3">
+        <div className="h-10 rounded bg-[#1A1A24]" />
+        <div className="h-10 rounded bg-[#1A1A24]" />
+        <div className="h-10 rounded bg-[#1A1A24]" />
+      </div>
+      <div className="mt-5 h-3 w-1/3 rounded bg-[#1A1A24]" />
+    </div>
+  )
+}
 
 interface CampaignsResponse {
   campaigns: CampaignCardData[]
@@ -52,8 +72,10 @@ export default function CampaignsPage() {
 
         {/* Body */}
         {isLoading ? (
-          <div className="flex h-64 items-center justify-center">
-            <Loader2 className="size-6 animate-spin text-[#9090A8]" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <CampaignCardSkeleton key={i} />
+            ))}
           </div>
         ) : isError ? (
           <div className="rounded-xl border border-[#7F1D1D]/50 bg-[#2A1215]/40 p-4 text-sm text-[#F87171]">

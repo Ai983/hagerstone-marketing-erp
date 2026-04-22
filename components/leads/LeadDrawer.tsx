@@ -26,6 +26,7 @@ import {
 
 import { useUIStore } from "@/lib/stores/uiStore"
 import { useActivities } from "@/lib/hooks/useActivities"
+import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { createClient } from "@/lib/supabase/client"
 import { LeadTimeline } from "@/components/leads/LeadTimeline"
 import { LogCallModal } from "@/components/leads/LogCallModal"
@@ -57,24 +58,90 @@ async function fetchLeadDetail(id: string): Promise<Lead | null> {
 }
 
 async function fetchCurrentProfile(): Promise<Profile | null> {
-  const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use the shared cache — this runs as a React Query queryFn and
+  // would otherwise race the auth-token lock with every other hook
+  // on the same page.
+  const { user, profile } = await getCachedUserAndProfile()
   if (!user) return null
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle()
-  if (error) throw error
-  return data as Profile | null
+  return (profile as Profile | null) ?? null
 }
 
 // ── Tab definitions ─────────────────────────────────────────────────
 
 const tabs = ["Overview", "Timeline", "Tasks", "Campaigns", "AI"] as const
 type TabName = (typeof tabs)[number]
+
+// ── Tab transition variants ─────────────────────────────────────────
+//
+// `mode="wait"` + `key={activeTab}` drives the swap. easeOut 200ms on
+// enter, 150ms on exit — snappy enough that rapid tab clicking doesn't
+// feel laggy.
+const tabVariants = {
+  initial: { opacity: 0, x: 20 },
+  animate: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.2, ease: "easeOut" as const },
+  },
+  exit: {
+    opacity: 0,
+    x: -20,
+    transition: { duration: 0.15 },
+  },
+}
+
+// ── Skeleton ────────────────────────────────────────────────────────
+
+function LeadDrawerSkeleton() {
+  return (
+    <div className="thin-scrollbar flex-1 animate-pulse overflow-y-auto">
+      {/* Stage row */}
+      <div className="flex items-center justify-between border-b border-[#2A2A3C] px-4 py-3">
+        <div className="h-5 w-28 rounded-full bg-[#1A1A24]" />
+        <div className="h-6 w-20 rounded-lg bg-[#1A1A24]" />
+      </div>
+
+      {/* Assigned row */}
+      <div className="flex items-center justify-between border-b border-[#2A2A3C] px-4 py-3">
+        <div className="h-4 w-32 rounded bg-[#1A1A24]" />
+        <div className="h-4 w-16 rounded bg-[#1A1A24]" />
+      </div>
+
+      {/* Score block */}
+      <div className="space-y-3 border-b border-[#2A2A3C] px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="h-4 w-24 rounded bg-[#1A1A24]" />
+          <div className="h-7 w-16 rounded bg-[#1A1A24]" />
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-2.5 w-full rounded-full bg-[#1A1A24]" />
+          ))}
+        </div>
+      </div>
+
+      {/* Field grid — 2 columns × 4 rows = 8 fields */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-4 p-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i}>
+            <div className="h-3 w-20 rounded bg-[#1A1A24]" />
+            <div className="mt-2 h-4 w-28 rounded bg-[#1A1A24]" />
+          </div>
+        ))}
+      </div>
+
+      {/* Quick actions */}
+      <div className="border-t border-[#2A2A3C] p-4">
+        <div className="mb-3 h-3 w-24 rounded bg-[#1A1A24]" />
+        <div className="grid grid-cols-2 gap-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-10 rounded-lg bg-[#1A1A24]" />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -1155,80 +1222,104 @@ export function LeadDrawer() {
                 </button>
               </div>
 
-              {/* Tab bar */}
+              {/* Tab bar — animated underline via layoutId */}
               <div className="flex border-b border-[#2A2A3C]">
                 {tabs.map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={cn(
-                      "flex-1 px-2 py-2.5 text-xs font-medium transition",
+                      "relative flex-1 px-2 py-2.5 text-xs font-medium transition",
                       activeTab === tab
-                        ? "border-b-2 border-[#3B82F6] text-[#3B82F6]"
+                        ? "text-[#3B82F6]"
                         : "text-[#9090A8] hover:text-[#F0F0FA]"
                     )}
                   >
                     {tab}
+                    {activeTab === tab && (
+                      <motion.div
+                        layoutId="lead-drawer-tab-indicator"
+                        className="absolute bottom-0 left-0 right-0 h-0.5 rounded-sm bg-[#3B82F6]"
+                        transition={{
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 30,
+                        }}
+                      />
+                    )}
                   </button>
                 ))}
               </div>
 
-              {/* Tab content */}
+              {/* Tab content — AnimatePresence swap on tab change */}
               <div className="flex flex-1 flex-col overflow-hidden">
-                {activeTab === "Overview" && lead && (
-                  <OverviewTab
-                    lead={lead}
-                    interactions={interactions}
-                    currentUserRole={(profileQuery.data?.role as UserRole | undefined) ?? null}
-                    onLogCall={() => setShowLogCall(true)}
-                    onScheduleFollowUp={() => setShowFollowUp(true)}
-                    onAddNote={() => setActiveTab("Timeline")}
-                    onSendWhatsApp={() => setShowWhatsApp(true)}
-                    onMoveStage={(toStage) => setPendingToStage(toStage)}
-                    onReassign={handleReassign}
-                    isReassigning={isReassigning}
-                  />
-                )}
-                {activeTab === "Overview" && !lead && (
-                  <div className="flex flex-1 items-center justify-center">
-                    <Loader2 className="size-6 animate-spin text-[#9090A8]" />
-                  </div>
-                )}
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={activeTab}
+                    variants={tabVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    className="flex flex-1 flex-col overflow-hidden"
+                  >
+                    {activeTab === "Overview" &&
+                      (lead ? (
+                        <OverviewTab
+                          lead={lead}
+                          interactions={interactions}
+                          currentUserRole={
+                            (profileQuery.data?.role as UserRole | undefined) ?? null
+                          }
+                          onLogCall={() => setShowLogCall(true)}
+                          onScheduleFollowUp={() => setShowFollowUp(true)}
+                          onAddNote={() => setActiveTab("Timeline")}
+                          onSendWhatsApp={() => setShowWhatsApp(true)}
+                          onMoveStage={(toStage) => setPendingToStage(toStage)}
+                          onReassign={handleReassign}
+                          isReassigning={isReassigning}
+                        />
+                      ) : (
+                        <LeadDrawerSkeleton />
+                      ))}
 
-                {activeTab === "Timeline" && (
-                  <LeadTimeline
-                    interactions={interactions}
-                    isLoading={isLoadingInteractions}
-                    onAddNote={addNote}
-                    isAddingNote={isAddingNote}
-                  />
-                )}
+                    {activeTab === "Timeline" && (
+                      <LeadTimeline
+                        interactions={interactions}
+                        isLoading={isLoadingInteractions}
+                        onAddNote={addNote}
+                        isAddingNote={isAddingNote}
+                      />
+                    )}
 
-                {activeTab === "Tasks" && (
-                  <TasksTab
-                    tasks={tasks}
-                    isLoading={isLoadingTasks}
-                    teamMembers={teamMembers}
-                    onComplete={completeTask}
-                    onCreate={createTask}
-                    isCreating={isCreatingTask}
-                  />
-                )}
+                    {activeTab === "Tasks" && (
+                      <TasksTab
+                        tasks={tasks}
+                        isLoading={isLoadingTasks}
+                        teamMembers={teamMembers}
+                        onComplete={completeTask}
+                        onCreate={createTask}
+                        isCreating={isCreatingTask}
+                      />
+                    )}
 
-                {activeTab === "Campaigns" && (
-                  <CampaignsTab
-                    enrollments={enrollments}
-                    isLoading={isLoadingEnrollments}
-                    userRole={profileQuery.data?.role}
-                  />
-                )}
+                    {activeTab === "Campaigns" && (
+                      <CampaignsTab
+                        enrollments={enrollments}
+                        isLoading={isLoadingEnrollments}
+                        userRole={profileQuery.data?.role}
+                      />
+                    )}
 
-                {activeTab === "AI" && lead && <AITab lead={lead} />}
-                {activeTab === "AI" && !lead && (
-                  <div className="flex flex-1 items-center justify-center">
-                    <Loader2 className="size-6 animate-spin text-[#9090A8]" />
-                  </div>
-                )}
+                    {activeTab === "AI" &&
+                      (lead ? (
+                        <AITab lead={lead} />
+                      ) : (
+                        <div className="flex flex-1 items-center justify-center">
+                          <Loader2 className="size-6 animate-spin text-[#9090A8]" />
+                        </div>
+                      ))}
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </motion.aside>
           </>

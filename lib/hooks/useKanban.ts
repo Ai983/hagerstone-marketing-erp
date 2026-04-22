@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { createClient } from "@/lib/supabase/client"
+import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import type { LeadSource, PipelineStage, Profile, ServiceLine, UserRole } from "@/lib/types"
 
@@ -130,27 +131,11 @@ async function fetchKanbanLeads() {
 }
 
 async function fetchCurrentProfile() {
-  const supabase = createClient()
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
-
-  if (userError || !user) {
-    return null
-  }
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle()
-
-  if (error) {
-    throw error
-  }
-
-  return data as Profile | null
+  // Use the shared cache — every other hook on the same page hits this
+  // same helper, so resolving auth once avoids the token-lock race.
+  const { user, profile } = await getCachedUserAndProfile()
+  if (!user) return null
+  return (profile as Profile | null) ?? null
 }
 
 async function fetchTeamMembers() {

@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { AnimatePresence, motion } from "framer-motion"
 import { format, formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 import {
@@ -23,7 +24,7 @@ import {
 } from "lucide-react"
 
 import { useUIStore } from "@/lib/stores/uiStore"
-import { createClient } from "@/lib/supabase/client"
+import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import {
   MessageSequenceBuilder,
   type MessageDraft,
@@ -82,6 +83,22 @@ interface DetailResponse {
 const tabs = ["Messages", "Enrolled Leads", "Settings"] as const
 type TabName = (typeof tabs)[number]
 
+// Slide direction depends on whether we're moving forward or backward
+// through the tab list. `custom` feeds the direction into the variants.
+const tabContentVariants = {
+  initial: (dir: number) => ({ opacity: 0, x: dir * 20 }),
+  animate: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.2, ease: "easeOut" as const },
+  },
+  exit: (dir: number) => ({
+    opacity: 0,
+    x: dir * -20,
+    transition: { duration: 0.15 },
+  }),
+}
+
 const statusStyles: Record<string, string> = {
   draft: "bg-[#1A1A24] text-[#9090A8]",
   active: "bg-[#163322] text-[#34D399]",
@@ -107,28 +124,27 @@ async function fetchDetail(id: string): Promise<DetailResponse> {
 }
 
 async function fetchRole(): Promise<string | null> {
-  const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { user, profile } = await getCachedUserAndProfile()
   if (!user) return null
-  const { data } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle()
-  return data?.role ?? null
+  return (profile?.role as string | undefined) ?? null
 }
 
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>()
-  const router = useRouter()
   const queryClient = useQueryClient()
   const { setLeadDrawerId } = useUIStore()
   const id = params?.id
 
   const [activeTab, setActiveTab] = useState<TabName>("Messages")
   const [enrollOpen, setEnrollOpen] = useState(false)
+
+  // Track direction for tab slide animation — forward = +1, back = -1
+  const tabIndex = tabs.indexOf(activeTab)
+  const prevTabIndex = useRef(tabIndex)
+  const direction = tabIndex >= prevTabIndex.current ? 1 : -1
+  useEffect(() => {
+    prevTabIndex.current = tabIndex
+  }, [tabIndex])
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["campaign-detail", id],
@@ -226,55 +242,72 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — animated underline via layoutId */}
         <div className="mb-4 flex border-b border-[#2A2A3C]">
           {tabs.map((t) => (
             <button
               key={t}
               onClick={() => setActiveTab(t)}
               className={cn(
-                "px-4 py-2.5 text-xs font-medium transition",
+                "relative px-4 py-2.5 text-xs font-medium transition",
                 activeTab === t
-                  ? "border-b-2 border-[#3B82F6] text-[#3B82F6]"
+                  ? "text-[#3B82F6]"
                   : "text-[#9090A8] hover:text-[#F0F0FA]"
               )}
             >
               {t}
+              {activeTab === t && (
+                <motion.div
+                  layoutId="campaign-tab-indicator"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 rounded-sm bg-[#3B82F6]"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
             </button>
           ))}
         </div>
 
-        {/* ── Messages Tab ──────────────────────────────────────── */}
-        {activeTab === "Messages" && (
-          <MessageSequenceBuilder
-            campaignId={campaign.id}
-            initialMessages={initialMessages}
-            canEdit={canEdit}
-          />
-        )}
+        {/* Tab content — sliding swap, direction based on tab index */}
+        <AnimatePresence mode="wait" custom={direction} initial={false}>
+          <motion.div
+            key={activeTab}
+            custom={direction}
+            variants={tabContentVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            {activeTab === "Messages" && (
+              <MessageSequenceBuilder
+                campaignId={campaign.id}
+                initialMessages={initialMessages}
+                canEdit={canEdit}
+              />
+            )}
 
-        {/* ── Enrolled Leads Tab ────────────────────────────────── */}
-        {activeTab === "Enrolled Leads" && (
-          <EnrolledLeadsTab
-            campaignId={campaign.id}
-            enrollments={enrollments}
-            canEdit={canEdit}
-            onOpenEnroll={() => setEnrollOpen(true)}
-            onOpenLead={(leadId) => setLeadDrawerId(leadId)}
-            onRefresh={refresh}
-          />
-        )}
+            {activeTab === "Enrolled Leads" && (
+              <EnrolledLeadsTab
+                campaignId={campaign.id}
+                enrollments={enrollments}
+                canEdit={canEdit}
+                onOpenEnroll={() => setEnrollOpen(true)}
+                onOpenLead={(leadId) => setLeadDrawerId(leadId)}
+                onRefresh={refresh}
+              />
+            )}
 
-        {/* ── Settings Tab ──────────────────────────────────────── */}
-        {activeTab === "Settings" && (
-          <SettingsTab
-            campaign={campaign}
-            canEdit={canEdit}
-            activeEnrollmentCount={enrollments.filter((e) => e.status === "active").length}
-            onSaved={refresh}
-            onDeleted={() => router.push("/campaigns")}
-          />
-        )}
+            {activeTab === "Settings" && (
+              <SettingsTab
+                campaign={campaign}
+                canEdit={canEdit}
+                activeEnrollmentCount={
+                  enrollments.filter((e) => e.status === "active").length
+                }
+                onSaved={refresh}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <EnrollLeadsModal
@@ -486,20 +519,19 @@ function SettingsTab({
   canEdit,
   activeEnrollmentCount,
   onSaved,
-  onDeleted,
 }: {
   campaign: Campaign
   canEdit: boolean
   activeEnrollmentCount: number
   onSaved: () => void
-  onDeleted: () => void
 }) {
+  const router = useRouter()
+  const queryClient = useQueryClient()
   const [name, setName] = useState(campaign.name)
   const [description, setDescription] = useState(campaign.description ?? "")
   const [status, setStatus] = useState(campaign.status)
   const [goal, setGoal] = useState(campaign.audience_filters?.goal ?? "lead_nurture")
   const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     setName(campaign.name)
@@ -532,22 +564,33 @@ function SettingsTab({
     }
   }
 
-  const handleDelete = async () => {
-    if (!confirm(`Delete campaign "${campaign.name}"? This cannot be undone.`)) return
-    setDeleting(true)
-    try {
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
       const res = await fetch(`/api/campaigns/${campaign.id}`, { method: "DELETE" })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Delete failed")
-      toast.success("Campaign deleted")
-      onDeleted()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Delete failed")
-      setDeleting(false)
-    }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to delete")
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns-list"] })
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] })
+      toast.success("Campaign deleted successfully")
+      router.push("/campaigns")
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to delete campaign")
+    },
+  })
+
+  const handleDelete = () => {
+    if (!confirm(`Delete campaign "${campaign.name}"? This cannot be undone.`)) return
+    deleteMutation.mutate()
   }
 
   const canDelete = activeEnrollmentCount === 0
+  const deleting = deleteMutation.isPending
 
   return (
     <div className="space-y-5">

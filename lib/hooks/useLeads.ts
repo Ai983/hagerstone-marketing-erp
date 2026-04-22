@@ -2,6 +2,7 @@
 
 import type { Lead, PipelineStage, Profile } from "@/lib/types"
 import { createClient } from "@/lib/supabase/client"
+import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 
 export interface DuplicateLeadMatch {
   id: string
@@ -167,27 +168,10 @@ export function useLeads() {
   }
 
   const getCurrentProfile = async (): Promise<Profile | null> => {
-    const supabase = createClient()
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      return null
-    }
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle()
-
-    if (error) {
-      throw error
-    }
-
-    return data as Profile | null
+    // Use the shared cache to avoid racing the auth-token lock.
+    const { user, profile } = await getCachedUserAndProfile()
+    if (!user) return null
+    return (profile as Profile | null) ?? null
   }
 
   const getTeamMembers = async (): Promise<Profile[]> => {
@@ -209,10 +193,13 @@ export function useLeads() {
   const getOverdueLeadIds = async (): Promise<string[]> => {
     const supabase = createClient()
 
+    // `is_overdue` is computed by the overdue_tasks VIEW, not a column
+    // on the tasks table. Querying tasks.is_overdue fails with 42703.
     const { data, error } = await supabase
-      .from("tasks")
+      .from("overdue_tasks")
       .select("lead_id")
       .eq("is_overdue", true)
+      .is("completed_at", null)
 
     if (error) {
       throw error

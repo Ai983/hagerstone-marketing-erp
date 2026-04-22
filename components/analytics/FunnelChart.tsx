@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { ChevronRight, Loader2 } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
 interface FunnelStageRow {
@@ -32,8 +32,16 @@ export function FunnelChart() {
 
   if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-[#9090A8]" />
+      <div className="space-y-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex animate-pulse items-center gap-3">
+            <div className="h-4 w-32 shrink-0 rounded bg-[#1A1A24]" />
+            <div
+              className="h-7 rounded-md bg-[#1A1A24]"
+              style={{ width: `${100 - i * 12}%` }}
+            />
+          </div>
+        ))}
       </div>
     )
   }

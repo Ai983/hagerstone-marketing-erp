@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
+import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { FunnelChart } from "@/components/analytics/FunnelChart"
 import { LeadSourceChart } from "@/components/analytics/LeadSourceChart"
 import { RepProductivityTable } from "@/components/analytics/RepProductivityTable"
@@ -140,18 +141,9 @@ async function fetchKpis(from: Date, to: Date) {
 }
 
 async function fetchCurrentProfile(): Promise<Profile | null> {
-  const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { user, profile } = await getCachedUserAndProfile()
   if (!user) return null
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle()
-  if (error) throw error
-  return data as Profile | null
+  return (profile as Profile | null) ?? null
 }
 
 function formatCurrency(value: number) {

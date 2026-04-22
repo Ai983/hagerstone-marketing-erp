@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
+import { getCachedUser } from "@/lib/hooks/useUser"
 import type { Interaction, Task, Campaign, Profile } from "@/lib/types"
 
 // ── Interactions ────────────────────────────────────────────────────
@@ -83,10 +84,7 @@ async function fetchTeamMembers(): Promise<Pick<Profile, "id" | "full_name">[]> 
 // ── Current user ────────────────────────────────────────────────────
 
 async function fetchCurrentUserId(): Promise<string | null> {
-  const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCachedUser()
   return user?.id ?? null
 }
 

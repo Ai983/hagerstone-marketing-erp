@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { format, subDays, startOfDay, addDays } from "date-fns"
-import { Loader2 } from "lucide-react"
 import {
   Bar,
   BarChart,
@@ -105,9 +104,19 @@ export function LeadSourceChart() {
   })
 
   if (isLoading) {
+    // Simulated bar-chart skeleton with varying bar heights
+    const barHeights = [60, 45, 80, 35, 90, 50, 70, 40, 65, 55, 75, 30]
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-[#9090A8]" />
+      <div className="h-64 animate-pulse">
+        <div className="flex h-full items-end gap-1.5">
+          {barHeights.map((h, i) => (
+            <div
+              key={i}
+              className="flex-1 rounded-sm bg-[#1A1A24]"
+              style={{ height: `${h}%` }}
+            />
+          ))}
+        </div>
       </div>
     )
   }

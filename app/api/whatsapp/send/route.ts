@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
+/**
+ * Normalise an Indian phone number for Maytapi.
+ * Always aims to return 12 digits starting with "91".
+ *   - strip every non-digit (also drops leading `+`)
+ *   - 91xxxxxxxxxx (12 digits) → unchanged
+ *   - xxxxxxxxxx  (10 digits)  → prepend "91"
+ *   - 0xxxxxxxxxx (11 digits with leading 0) → drop 0, prepend "91"
+ *   - anything else returned as-is
+ *
+ * Keep this in sync with app/api/campaigns/[id]/send-test/route.ts.
+ */
+function normalisePhone(raw: string): string {
+  let digits = String(raw).replace(/\D/g, "")
+  digits = digits.replace(/^\+/, "")
+
+  if (digits.startsWith("91") && digits.length === 12) return digits
+  if (digits.length === 10) return `91${digits}`
+  if (digits.startsWith("0") && digits.length === 11) return `91${digits.slice(1)}`
+  return digits
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json()
   const { to_number, message, lead_name } = body
@@ -23,8 +44,8 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Clean phone number — strip spaces, dashes; ensure country code
-  const cleanNumber = to_number.replace(/[\s\-()]/g, "")
+  // Normalise phone number — always ends up as 12 digits with "91" prefix
+  const cleanNumber = normalisePhone(to_number)
 
   try {
     const maytapiRes = await fetch(

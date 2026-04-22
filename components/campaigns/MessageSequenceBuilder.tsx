@@ -38,6 +38,7 @@ import {
   X,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { getCachedUser } from "@/lib/hooks/useUser"
 import { cn } from "@/lib/utils"
 
 const BUCKET_NAME = "campaign-media"
@@ -157,19 +158,16 @@ function SortableMessageRow({
 
     setUploading(true)
     try {
-      const supabase = createClient()
-
       // Sanity check: make sure we still have a session. An expired JWT
       // produces cryptic storage RLS errors — catch that up-front.
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser()
-      if (authError || !user) {
+      // Uses the shared cache so we don't race the auth-token lock.
+      const user = await getCachedUser()
+      if (!user) {
         toast.error("Session expired — please refresh and sign in again")
         return
       }
 
+      const supabase = createClient()
       const mediaType = detectMediaType(file)
       const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")
 

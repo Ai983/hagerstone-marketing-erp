@@ -9,8 +9,8 @@ import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 
-import { createClient } from "@/lib/supabase/client"
 import { useLeads, type CreateLeadInput, type DuplicateLeadMatch } from "@/lib/hooks/useLeads"
+import { getCachedUser } from "@/lib/hooks/useUser"
 import { cn } from "@/lib/utils"
 
 const companySizeOptions = ["1-10", "11-50", "51-200", "201-500", "500+"] as const
@@ -202,13 +202,9 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
     setPendingLeadData(null)
 
     try {
-      const supabase = createClient()
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser()
-
-      if (userError || !user) {
+      // Resolve user from the shared cache (no auth-token lock races)
+      const user = await getCachedUser()
+      if (!user) {
         setFormError("Your session has expired. Please sign in again.")
         return
       }

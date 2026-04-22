@@ -4,16 +4,23 @@ import { createClient } from "@/lib/supabase/server"
 const WRITE_ROLES = new Set(["admin", "manager", "marketing"])
 
 /**
- * Normalise an Indian phone number for Maytapi:
- *   - strip spaces / dashes / parens / plus
- *   - if 10 digits → prepend "91"
- *   - if already 12 digits starting "91" → leave alone
+ * Normalise an Indian phone number for Maytapi.
+ * Always aims to return 12 digits starting with "91".
+ *   - strip every non-digit (also drops leading `+`)
+ *   - 91xxxxxxxxxx (12 digits) → unchanged
+ *   - xxxxxxxxxx  (10 digits)  → prepend "91"
+ *   - 0xxxxxxxxxx (11 digits with leading 0) → drop 0, prepend "91"
+ *   - anything else returned as-is (Maytapi will reject it, we log the reason)
  */
 function normalisePhone(raw: string): string {
-  let digits = raw.replace(/[\s\-()+]/g, "")
-  digits = digits.replace(/\D/g, "")
+  let digits = String(raw).replace(/\D/g, "")
+  // Strip any remaining leading plus (already gone from \D above, but
+  // kept for clarity in case raw is pre-normalised).
+  digits = digits.replace(/^\+/, "")
+
+  if (digits.startsWith("91") && digits.length === 12) return digits
   if (digits.length === 10) return `91${digits}`
-  if (digits.length === 12 && digits.startsWith("91")) return digits
+  if (digits.startsWith("0") && digits.length === 11) return `91${digits.slice(1)}`
   return digits
 }
 

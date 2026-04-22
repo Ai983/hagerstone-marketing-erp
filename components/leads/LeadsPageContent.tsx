@@ -193,6 +193,11 @@ export function LeadsPageContent() {
     (canFilterAssignedTo && teamMembersQuery.isLoading)
 
   if (leadsQuery.isError || stagesQuery.isError || profileQuery.isError || overdueLeadIdsQuery.isError) {
+    if (leadsQuery.error) console.error("Leads fetch error (leads):", leadsQuery.error)
+    if (stagesQuery.error) console.error("Leads fetch error (stages):", stagesQuery.error)
+    if (profileQuery.error) console.error("Leads fetch error (profile):", profileQuery.error)
+    if (overdueLeadIdsQuery.error)
+      console.error("Leads fetch error (overdue):", overdueLeadIdsQuery.error)
     return (
       <main className="px-6 py-8 sm:px-8">
         <div className="rounded-xl border border-[#7F1D1D] bg-[#2A1215] px-4 py-3 text-sm text-[#F87171]">

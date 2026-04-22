@@ -6,6 +6,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js"
 import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
+import { getCachedUser } from "@/lib/hooks/useUser"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import type { KanbanLead } from "@/lib/hooks/useKanban"
 import type { PipelineStage, Profile } from "@/lib/types"
@@ -99,10 +100,11 @@ export function useRealtime(callbacks: RealtimeCallbacks) {
   useEffect(() => {
     const supabase = createClient()
 
-    // Get current user id synchronously from cached query
+    // Get current user id from the shared cache (avoids racing the
+    // auth-token lock that other hooks on the page are also hitting).
     let currentUserId: string | null = null
-    supabase.auth.getUser().then(({ data }) => {
-      currentUserId = data.user?.id ?? null
+    getCachedUser().then((user) => {
+      currentUserId = user?.id ?? null
     })
 
     const channel = supabase

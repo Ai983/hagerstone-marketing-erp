@@ -15,6 +15,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core"
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable"
+import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
 
 import { DroppableColumn } from "@/components/kanban/DroppableColumn"
@@ -28,24 +29,33 @@ import { useRealtime } from "@/lib/hooks/useRealtime"
 
 function LoadingState() {
   return (
-    <div className="thin-scrollbar flex h-full gap-3 overflow-x-auto overflow-y-hidden p-4">
-      {Array.from({ length: 3 }).map((_, columnIndex) => (
-        <div
-          key={columnIndex}
-          className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118]"
-        >
-          <div className="border-b border-[#2A2A3C] bg-[#0F0F15] px-4 py-3">
-            <div className="h-4 w-24 animate-pulse rounded bg-[#1A1A24]" />
-            <div className="mt-2 h-3 w-32 animate-pulse rounded bg-[#1A1A24]" />
+    <AnimatePresence mode="wait">
+      <motion.div
+        key="kanban-loading"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        className="thin-scrollbar flex h-full gap-3 overflow-x-auto overflow-y-hidden p-4"
+      >
+        {Array.from({ length: 3 }).map((_, columnIndex) => (
+          <div
+            key={columnIndex}
+            className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118]"
+          >
+            <div className="border-b border-[#2A2A3C] bg-[#0F0F15] px-4 py-3">
+              <div className="h-4 w-24 animate-pulse rounded bg-[#1A1A24]" />
+              <div className="mt-2 h-3 w-32 animate-pulse rounded bg-[#1A1A24]" />
+            </div>
+            <div className="space-y-3 p-3">
+              {Array.from({ length: 4 }).map((__, cardIndex) => (
+                <LeadCardSkeleton key={cardIndex} />
+              ))}
+            </div>
           </div>
-          <div className="space-y-3 p-3">
-            {Array.from({ length: 4 }).map((__, cardIndex) => (
-              <LeadCardSkeleton key={cardIndex} />
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </motion.div>
+    </AnimatePresence>
   )
 }
 

@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { Inbox, Loader2, UserPlus, Check, Shield } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
+import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { useUIStore } from "@/lib/stores/uiStore"
 import type { LeadSource, Profile, ServiceLine } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -24,8 +25,9 @@ interface InboxLead {
 
 async function fetchInboxData() {
   const supabase = createClient()
-  const [userRes, leadsRes, teamRes] = await Promise.all([
-    supabase.auth.getUser(),
+  // Resolve auth from the shared cache in parallel with the data queries.
+  const [authResult, leadsRes, teamRes] = await Promise.all([
+    getCachedUserAndProfile(),
     supabase
       .from("leads")
       .select("id, full_name, company_name, source, city, service_line, created_at")
@@ -38,15 +40,8 @@ async function fetchInboxData() {
       .order("full_name", { ascending: true }),
   ])
 
-  let role: string | null = null
-  if (userRes.data.user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userRes.data.user.id)
-      .maybeSingle()
-    role = profile?.role ?? null
-  }
+  const role =
+    (authResult.profile?.role as string | undefined) ?? null
 
   return {
     leads: (leadsRes.data ?? []) as InboxLead[],
