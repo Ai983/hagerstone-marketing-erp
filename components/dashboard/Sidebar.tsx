@@ -46,6 +46,7 @@ const primaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/campaigns", label: "Campaigns", icon: Megaphone, roles: ["admin", "manager", "marketing", "founder"] },
   { href: "/analytics", label: "Analytics", icon: BarChart2, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/ai-agent", label: "AI Agent", icon: Sparkles, roles: ["admin", "manager", "founder"] },
+  { href: "/ai-leads", label: "AI Lead Gen", icon: Sparkles, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/profile", label: "My Profile", icon: UserIcon, roles: ALL_ROLES },
 ]
 
