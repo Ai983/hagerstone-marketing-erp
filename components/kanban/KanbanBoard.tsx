@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import {
   closestCorners,
@@ -16,6 +16,7 @@ import {
 } from "@dnd-kit/core"
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable"
 import { AnimatePresence, motion } from "framer-motion"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
 
 import { DroppableColumn } from "@/components/kanban/DroppableColumn"
@@ -26,6 +27,8 @@ import { StageChangeModal } from "@/components/kanban/StageChangeModal"
 import { useKanban } from "@/lib/hooks/useKanban"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import { useRealtime } from "@/lib/hooks/useRealtime"
+
+const SCROLL_STEP = 300
 
 function LoadingState() {
   return (
@@ -75,6 +78,68 @@ export function KanbanBoard() {
   const [recentlyMovedLeadId, setRecentlyMovedLeadId] = useState<string | null>(null)
   const [realtimeInsertedId, setRealtimeInsertedId] = useState<string | null>(null)
   const [realtimeFlashedId, setRealtimeFlashedId] = useState<string | null>(null)
+
+  // ── Horizontal-scroll plumbing ────────────────────────────────────
+  const boardRef = useRef<HTMLDivElement>(null)
+  const [showLeftArrow, setShowLeftArrow] = useState(false)
+  const [showRightArrow, setShowRightArrow] = useState(false)
+
+  const updateArrowVisibility = useCallback(() => {
+    const board = boardRef.current
+    if (!board) return
+    const { scrollLeft, scrollWidth, clientWidth } = board
+    setShowLeftArrow(scrollLeft > 4)
+    setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 4)
+  }, [])
+
+  // Convert vertical wheel to horizontal scroll, unless wheeling over
+  // a vertically-scrollable column list that actually has overflow.
+  useEffect(() => {
+    const board = boardRef.current
+    if (!board) return
+
+    const handleWheel = (e: WheelEvent) => {
+      const target = e.target as HTMLElement | null
+      const scrollable = target?.closest("[data-scrollable]") as HTMLElement | null
+      if (scrollable && scrollable.scrollHeight > scrollable.clientHeight) {
+        return
+      }
+      if (e.deltaY === 0) return
+      e.preventDefault()
+      board.scrollLeft += e.deltaY * 1.5
+    }
+
+    board.addEventListener("wheel", handleWheel, { passive: false })
+    return () => board.removeEventListener("wheel", handleWheel)
+  }, [])
+
+  // Recompute arrow visibility on mount and window resize.
+  useEffect(() => {
+    updateArrowVisibility()
+    window.addEventListener("resize", updateArrowVisibility)
+    return () => window.removeEventListener("resize", updateArrowVisibility)
+  }, [updateArrowVisibility])
+
+  // Also recompute when column/lead count changes — new cards can shift
+  // scrollWidth so the right-arrow visibility needs to refresh without
+  // the user scrolling first.
+  useEffect(() => {
+    updateArrowVisibility()
+  }, [columns.length, leads.length, updateArrowVisibility])
+
+  const scrollBoardBy = (delta: number) => {
+    boardRef.current?.scrollBy({ left: delta, behavior: "smooth" })
+  }
+
+  const handleBoardKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "ArrowRight") {
+      e.preventDefault()
+      scrollBoardBy(SCROLL_STEP)
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault()
+      scrollBoardBy(-SCROLL_STEP)
+    }
+  }
 
   // ── Realtime callbacks ────────────────────────────────────────────
   const onLeadInserted = useCallback((leadId: string) => {
@@ -290,19 +355,66 @@ export function KanbanBoard() {
           onDragEnd={handleDragEnd}
           onDragCancel={clearDragState}
         >
-          <div className="thin-scrollbar flex-1 overflow-x-auto overflow-y-hidden">
-            <div className="flex h-full gap-3 p-4">
-              {columns.map((column) => (
-                <DroppableColumn
-                  key={column.stage.id}
-                  column={column}
-                  isActiveDropTarget={overStageId === column.stage.id}
-                  recentlyMovedLeadId={recentlyMovedLeadId}
-                  realtimeInsertedId={realtimeInsertedId}
-                  realtimeFlashedId={realtimeFlashedId}
-                />
-              ))}
+          <div className="relative flex-1 overflow-hidden">
+            {/* Left arrow */}
+            <AnimatePresence>
+              {showLeftArrow && (
+                <motion.button
+                  key="kanban-scroll-left"
+                  type="button"
+                  aria-label="Scroll pipeline left"
+                  onClick={() => scrollBoardBy(-SCROLL_STEP)}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-2 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-[#2A2A3C] bg-[#1A1A24]/95 text-[#F0F0FA] shadow-lg backdrop-blur transition hover:bg-[#1F1F2E]"
+                >
+                  <ChevronLeft className="size-4" />
+                </motion.button>
+              )}
+            </AnimatePresence>
+
+            <div
+              ref={boardRef}
+              tabIndex={0}
+              onScroll={updateArrowVisibility}
+              onKeyDown={handleBoardKeyDown}
+              className="kanban-board h-full overflow-x-auto overflow-y-hidden outline-none"
+              style={{ scrollBehavior: "smooth", touchAction: "pan-x" }}
+            >
+              <div className="flex h-full gap-3 p-4">
+                {columns.map((column) => (
+                  <DroppableColumn
+                    key={column.stage.id}
+                    column={column}
+                    isActiveDropTarget={overStageId === column.stage.id}
+                    recentlyMovedLeadId={recentlyMovedLeadId}
+                    realtimeInsertedId={realtimeInsertedId}
+                    realtimeFlashedId={realtimeFlashedId}
+                  />
+                ))}
+              </div>
             </div>
+
+            {/* Right arrow */}
+            <AnimatePresence>
+              {showRightArrow && (
+                <motion.button
+                  key="kanban-scroll-right"
+                  type="button"
+                  aria-label="Scroll pipeline right"
+                  onClick={() => scrollBoardBy(SCROLL_STEP)}
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 8 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-2 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-[#2A2A3C] bg-[#1A1A24]/95 text-[#F0F0FA] shadow-lg backdrop-blur transition hover:bg-[#1F1F2E]"
+                >
+                  <ChevronRight className="size-4" />
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
           <DragOverlay>
             {activeLead ? (

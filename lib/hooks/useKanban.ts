@@ -196,7 +196,7 @@ export function useKanban() {
   }, [setStages, stagesQuery.data])
 
   const filteredLeads = useMemo(() => {
-    return leads.filter((lead) => {
+    const out = leads.filter((lead) => {
       const matchesMyLeads =
         !filters.myLeadsOnly || lead.assigned_to === currentProfileQuery.data?.id
       const matchesOverdue = !filters.overdueOnly || lead.has_overdue_follow_up
@@ -217,6 +217,12 @@ export function useKanban() {
         matchesAssignedTo
       )
     })
+    console.log("[useKanban] filteredLeads:", {
+      filters,
+      inputCount: leads.length,
+      outputCount: out.length,
+    })
+    return out
   }, [currentProfileQuery.data?.id, filters, leads])
 
   const columns = useMemo<KanbanBoardColumn[]>(() => {

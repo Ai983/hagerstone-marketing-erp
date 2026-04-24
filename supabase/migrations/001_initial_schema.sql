@@ -309,19 +309,22 @@ CREATE TABLE ai_suggestions (
 -- VIEWS (for analytics & AI)
 -- ============================================
 
--- Pipeline overview (used by AI agent)
+-- Pipeline overview (used by AI agent + FunnelChart)
 CREATE OR REPLACE VIEW pipeline_overview AS
 SELECT
+  ps.id AS stage_id,
   ps.name AS stage_name,
   ps.slug AS stage_slug,
-  ps.position,
+  ps.color AS stage_color,
+  ps.stage_type,
+  ps.position AS stage_position,
   COUNT(l.id) AS lead_count,
   AVG(EXTRACT(EPOCH FROM (NOW() - l.stage_entered_at))/86400) AS avg_days_in_stage,
   COUNT(CASE WHEN EXTRACT(EPOCH FROM (NOW() - l.stage_entered_at))/86400 > 7 THEN 1 END) AS stale_count
 FROM pipeline_stages ps
 LEFT JOIN leads l ON l.stage_id = ps.id AND l.closed_at IS NULL
 WHERE ps.is_terminal = FALSE
-GROUP BY ps.id, ps.name, ps.slug, ps.position
+GROUP BY ps.id, ps.name, ps.slug, ps.color, ps.stage_type, ps.position
 ORDER BY ps.position;
 
 -- Lead source performance

@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
-import { Bell, Upload } from "lucide-react"
+import { Bell, Search, Upload } from "lucide-react"
 
+import { LeadSearchModal } from "@/components/dashboard/LeadSearchModal"
 import { NotificationCenter } from "@/components/dashboard/NotificationCenter"
 import { useNotifications } from "@/lib/hooks/useNotifications"
 import { useUIStore } from "@/lib/stores/uiStore"
@@ -51,6 +52,8 @@ export function TopBar({ fullName, role }: TopBarProps) {
   const pathname = usePathname()
   const title = useMemo(() => getPageTitle(pathname), [pathname])
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isMac, setIsMac] = useState(false)
   const notificationRef = useRef<HTMLDivElement>(null)
   const { unreadCount } = useNotifications()
   const openNewLeadModal = useUIStore((s) => s.openNewLeadModal)
@@ -67,14 +70,48 @@ export function TopBar({ fullName, role }: TopBarProps) {
     return () => document.removeEventListener("mousedown", handlePointerDown)
   }, [])
 
+  // Detect platform for the correct ⌘ / Ctrl hint in the button.
+  useEffect(() => {
+    if (typeof navigator === "undefined") return
+    setIsMac(/Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent))
+  }, [])
+
+  // Global Cmd+K / Ctrl+K to open the search modal
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault()
+        setIsSearchOpen(true)
+      }
+    }
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [])
+
   return (
     <header className="h-14 border-b border-[#2A2A3C] bg-[#111118]">
-      <div className="flex h-full items-center justify-between px-6">
-        <div>
+      <div className="flex h-full items-center gap-4 px-6">
+        <div className="shrink-0">
           <h1 className="text-lg font-semibold text-[#F0F0FA]">{title}</h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Search trigger — click or ⌘K opens modal */}
+        <div className="flex flex-1 justify-center">
+          <button
+            type="button"
+            onClick={() => setIsSearchOpen(true)}
+            aria-label="Search leads"
+            className="flex h-9 w-full max-w-sm items-center gap-2 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 text-sm text-[#9090A8] transition hover:border-[#3A3A52] hover:text-[#F0F0FA]"
+          >
+            <Search className="size-4 shrink-0" />
+            <span className="flex-1 truncate text-left">Search leads...</span>
+            <kbd className="hidden shrink-0 rounded border border-[#2A2A3C] bg-[#111118] px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#9090A8] sm:inline-block">
+              {isMac ? "⌘K" : "Ctrl+K"}
+            </kbd>
+          </button>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-3">
           <button
             type="button"
             onClick={() => openBulkImportModal()}
@@ -124,6 +161,11 @@ export function TopBar({ fullName, role }: TopBarProps) {
           </div>
         </div>
       </div>
+
+      <LeadSearchModal
+        open={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+      />
     </header>
   )
 }

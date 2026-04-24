@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/client"
@@ -95,10 +96,13 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#0A0A0F] px-6 py-12">
       <div className="w-full max-w-md rounded-2xl border border-[#2A2A3C] bg-[#111118] p-8 shadow-[0_0_0_1px_rgba(42,42,60,0.2)]">
-        <div className="mb-8 text-center">
-          <p className="font-heading text-3xl font-semibold tracking-tight text-[#F0F0FA]">
-            Hagerstone ERP
-          </p>
+        <div className="mb-8 flex flex-col items-center text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="Hagerstone International"
+            style={{ width: "380px", height: "auto", objectFit: "contain" }}
+          />
           <p className="mt-2 text-sm text-[#9090A8]">
             Sign in with your email and password
           </p>
@@ -153,6 +157,16 @@ export default function LoginPage() {
               "Sign in"
             )}
           </button>
+
+          <p className="pt-2 text-center text-sm text-[#9090A8]">
+            New team member?{" "}
+            <Link
+              href="/signup"
+              className="font-medium text-[#3B82F6] hover:underline"
+            >
+              Create your account →
+            </Link>
+          </p>
         </form>
       </div>
     </main>

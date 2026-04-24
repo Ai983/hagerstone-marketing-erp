@@ -76,7 +76,7 @@ export function KanbanColumn({
         </p>
       </div>
 
-      <div className="thin-scrollbar flex-1 overflow-y-auto p-3">
+      <div data-scrollable className="thin-scrollbar flex-1 overflow-y-auto p-3">
         {column.leads.length > 0 ? (
           <AnimatePresence initial={false} mode="popLayout">
             <div className="space-y-3">

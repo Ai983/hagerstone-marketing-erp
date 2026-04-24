@@ -97,13 +97,15 @@ export const useKanbanStore = create<KanbanStoreState>((set) => ({
         ),
       }
     }),
-  setFilter: (key, value) =>
+  setFilter: (key, value) => {
+    console.log("[kanbanStore] setFilter:", key, value)
     set((state) => ({
       filters: {
         ...state.filters,
         [key]: value,
       },
-    })),
+    }))
+  },
   clearFilters: () =>
     set({
       filters: {

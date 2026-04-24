@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
-const PUBLIC_PATHS = new Set(["/login"])
+const PUBLIC_PATHS = new Set(["/login", "/signup"])
 
 export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname === "/") {
@@ -59,7 +59,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/pipeline", request.url))
     }
 
-    if (request.nextUrl.pathname === "/login") {
+    if (
+      request.nextUrl.pathname === "/login" ||
+      request.nextUrl.pathname === "/signup"
+    ) {
       return NextResponse.redirect(
         new URL(hasProfile ? "/pipeline" : "/onboarding", request.url)
       )

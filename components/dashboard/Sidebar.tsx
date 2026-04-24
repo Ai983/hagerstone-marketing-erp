@@ -115,16 +115,39 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
         sidebarWidth
       )}
     >
-      <div className="flex h-14 items-center px-3">
+      <div className="flex min-h-16 items-center px-2">
         <div
           className={cn(
             "flex w-full items-center",
             isSidebarCollapsed ? "justify-center" : "justify-start"
           )}
+          style={{ gap: "10px" }}
         >
-          <span className="font-heading text-xl font-semibold tracking-tight text-[#F0F0FA]">
-            {isSidebarCollapsed ? "H" : "Hagerstone ERP"}
-          </span>
+          {isSidebarCollapsed ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="/logo.png"
+              alt="Hagerstone"
+              style={{
+                width: "40px",
+                height: "40px",
+                objectFit: "cover",
+                objectPosition: "left center",
+              }}
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="/logo.png"
+              alt="Hagerstone International"
+              style={{
+                width: "220px",
+                height: "auto",
+                objectFit: "contain",
+                objectPosition: "left center",
+              }}
+            />
+          )}
         </div>
       </div>
 

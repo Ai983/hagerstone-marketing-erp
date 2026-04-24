@@ -53,6 +53,7 @@ function Dropdown({
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const isActive = values.length > 0
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -70,13 +71,24 @@ function Dropdown({
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="flex h-9 items-center gap-2 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] transition hover:bg-[#1A1A24]"
+        className={cn(
+          "flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm transition",
+          isActive
+            ? "border-[#3B82F6] text-[#3B82F6]"
+            : "border-[#3A3A52] bg-[#1F1F2E] text-[#F0F0FA] hover:bg-[#1A1A24]"
+        )}
+        style={isActive ? { backgroundColor: "#3B82F620" } : undefined}
       >
+        {isActive && (
+          <span className="size-1.5 rounded-full bg-[#3B82F6]" aria-hidden />
+        )}
         <span>
           {label}
           {values.length > 0 ? ` (${values.length})` : ""}
         </span>
-        <ChevronDown className="size-4 text-[#9090A8]" />
+        <ChevronDown
+          className={cn("size-4", isActive ? "text-[#3B82F6]" : "text-[#9090A8]")}
+        />
       </button>
 
       <div
@@ -85,6 +97,18 @@ function Dropdown({
           open ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"
         )}
       >
+        {isActive && (
+          <>
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-medium text-[#F87171] transition hover:bg-[#2A1215]/60"
+            >
+              Clear selection
+            </button>
+            <div className="my-1 border-t border-[#2A2A3C]" />
+          </>
+        )}
         <div className="thin-scrollbar max-h-64 overflow-y-auto">
           {options.map((option) => {
             const checked = values.includes(option.value)
@@ -164,13 +188,19 @@ export function KanbanFilters({
           label="Service Line"
           values={filters.serviceLines}
           options={serviceLineOptions}
-          onChange={(values) => setFilter("serviceLines", values as ServiceLine[])}
+          onChange={(values) => {
+            console.log("[KanbanFilters] Filter changed:", "serviceLines", values)
+            setFilter("serviceLines", values as ServiceLine[])
+          }}
         />
         <Dropdown
           label="Source"
           values={filters.sources}
           options={sourceOptions}
-          onChange={(values) => setFilter("sources", values as typeof filters.sources)}
+          onChange={(values) => {
+            console.log("[KanbanFilters] Filter changed:", "sources", values)
+            setFilter("sources", values as typeof filters.sources)
+          }}
         />
         {canFilterAssignedTo ? (
           <Dropdown
@@ -180,7 +210,10 @@ export function KanbanFilters({
               label: member.full_name,
               value: member.id,
             }))}
-            onChange={(values) => setFilter("assignedTo", values)}
+            onChange={(values) => {
+              console.log("[KanbanFilters] Filter changed:", "assignedTo", values)
+              setFilter("assignedTo", values)
+            }}
           />
         ) : null}
       </div>
