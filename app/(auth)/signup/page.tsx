@@ -3,7 +3,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CheckCircle2, Loader2, Lock } from "lucide-react"
+import { Eye, EyeOff, Loader2, Lock } from "lucide-react"
+import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
@@ -40,11 +41,12 @@ export default function SignupPage() {
   const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // Redirect already-signed-in users away from /signup
   useEffect(() => {
@@ -85,29 +87,65 @@ export default function SignupPage() {
 
     setIsSubmitting(true)
     try {
-      const res = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: fullName.trim(),
-          email: email.trim(),
-          phone: phone.trim(),
-          password,
-        }),
+      const supabase = createClient()
+
+      // Step 1: Create the auth user via standard signUp.
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
       })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(data.error || "Failed to create account")
+
+      console.log("Auth signup result:", authData, authError)
+
+      if (authError) {
+        toast.error(authError.message)
+        setError(authError.message)
         setIsSubmitting(false)
         return
       }
 
-      setSuccessMessage(
-        "Account created! Please wait for admin to assign leads to you. You can now sign in."
-      )
-      setTimeout(() => router.push("/login"), 3000)
+      if (!authData.user) {
+        const msg = "Failed to create account. Please try again."
+        toast.error(msg)
+        setError(msg)
+        setIsSubmitting(false)
+        return
+      }
+
+      // Step 2: Create the sales_rep profile via service-role API route
+      // (role is enforced server-side regardless of what we send).
+      const profileRes = await fetch("/api/auth/create-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: authData.user.id,
+          full_name: fullName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          role: "sales_rep",
+        }),
+      })
+
+      const profileResult = await profileRes.json().catch(() => ({}))
+      console.log("Profile creation result:", profileResult)
+
+      if (!profileResult.success) {
+        const msg =
+          profileResult.error ||
+          "Account created but profile setup failed. Contact admin."
+        toast.error(msg)
+        setError(msg)
+        setIsSubmitting(false)
+        return
+      }
+
+      toast.success("Account created successfully! You can now sign in.")
+      setTimeout(() => router.push("/login"), 2000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create account")
+      console.error("Signup error:", err)
+      const msg = err instanceof Error ? err.message : "Something went wrong. Please try again."
+      toast.error(msg)
+      setError(msg)
       setIsSubmitting(false)
     }
   }
@@ -135,20 +173,7 @@ export default function SignupPage() {
           </p>
         </div>
 
-        {successMessage ? (
-          <div className="rounded-xl border border-[#34D399]/40 bg-[#163322]/60 p-4 text-sm text-[#34D399]">
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-              <div>
-                <p className="font-medium">{successMessage}</p>
-                <p className="mt-1 text-xs text-[#34D399]/80">
-                  Redirecting to sign in…
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={handleSubmit}>
             {/* Role badge — not a form field, purely informational */}
             <div
               className="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium"
@@ -214,17 +239,28 @@ export default function SignupPage() {
               <label className="text-sm text-[#F0F0FA]" htmlFor="password">
                 Password
               </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-                className="h-11 w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
-                placeholder="At least 8 characters"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  className="h-11 w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] pl-3 pr-11 text-sm text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
+                  placeholder="At least 8 characters"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                  className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded p-1.5 text-[#9090A8] transition hover:text-[#F0F0FA]"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
 
               {/* Strength bar */}
               <div className="flex items-center gap-2">
@@ -258,22 +294,39 @@ export default function SignupPage() {
               >
                 Confirm Password
               </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                minLength={8}
-                className={cn(
-                  "h-11 w-full rounded-lg border bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none transition focus:ring-2",
-                  passwordsMismatch
-                    ? "border-[#F87171] focus:border-[#F87171] focus:ring-[#F87171]/20"
-                    : "border-[#3A3A52] focus:border-[#3B82F6] focus:ring-[#3B82F6]/20"
-                )}
-                placeholder="Re-enter password"
-              />
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  className={cn(
+                    "h-11 w-full rounded-lg border bg-[#1F1F2E] pl-3 pr-11 text-sm text-[#F0F0FA] outline-none transition focus:ring-2",
+                    passwordsMismatch
+                      ? "border-[#F87171] focus:border-[#F87171] focus:ring-[#F87171]/20"
+                      : "border-[#3A3A52] focus:border-[#3B82F6] focus:ring-[#3B82F6]/20"
+                  )}
+                  placeholder="Re-enter password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  aria-label={
+                    showConfirmPassword ? "Hide password" : "Show password"
+                  }
+                  tabIndex={-1}
+                  className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded p-1.5 text-[#9090A8] transition hover:text-[#F0F0FA]"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff size={18} />
+                  ) : (
+                    <Eye size={18} />
+                  )}
+                </button>
+              </div>
               {passwordsMismatch && (
                 <p className="text-xs text-[#F87171]">Passwords do not match</p>
               )}
@@ -306,7 +359,6 @@ export default function SignupPage() {
               </Link>
             </p>
           </form>
-        )}
       </div>
     </main>
   )

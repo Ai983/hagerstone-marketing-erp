@@ -15,6 +15,7 @@ import {
   Megaphone,
   Settings,
   Sparkles,
+  User as UserIcon,
   Users,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -45,6 +46,7 @@ const primaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/campaigns", label: "Campaigns", icon: Megaphone, roles: ["admin", "manager", "marketing"] },
   { href: "/analytics", label: "Analytics", icon: BarChart2, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/ai-agent", label: "AI Agent", icon: Sparkles, roles: ["admin", "manager", "founder"] },
+  { href: "/profile", label: "My Profile", icon: UserIcon, roles: ALL_ROLES },
 ]
 
 const secondaryNavigation: ReadonlyArray<NavItem> = [
@@ -274,27 +276,38 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
           )}
         </button>
 
-        <div
+        <Link
+          href="/profile"
           className={cn(
-            "flex items-center rounded-xl",
+            "group flex items-center rounded-xl transition hover:bg-[#1A1A24]",
             isSidebarCollapsed ? "justify-center py-2" : "gap-3 px-2 py-2"
           )}
-          title={isSidebarCollapsed ? `${fullName}${role ? ` (${role})` : ""}` : undefined}
+          title={
+            isSidebarCollapsed
+              ? `View Profile — ${fullName}${role ? ` (${role})` : ""}`
+              : "View Profile"
+          }
         >
           <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#1E3A5F] text-sm font-semibold text-[#3B82F6]">
             {getInitials(fullName)}
           </div>
           {!isSidebarCollapsed ? (
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-[#F0F0FA]">{fullName}</p>
-              {role ? (
-                <p className="truncate text-xs capitalize text-[#9090A8]">
-                  {role.replace("_", " ")}
-                </p>
-              ) : null}
-            </div>
+            <>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-[#F0F0FA]">{fullName}</p>
+                {role ? (
+                  <p className="truncate text-xs capitalize text-[#9090A8]">
+                    {role.replace("_", " ")}
+                  </p>
+                ) : null}
+              </div>
+              <Settings
+                className="size-3.5 shrink-0 text-[#5A5A72] transition group-hover:text-[#9090A8]"
+                aria-hidden
+              />
+            </>
           ) : null}
-        </div>
+        </Link>
       </div>
     </aside>
   )

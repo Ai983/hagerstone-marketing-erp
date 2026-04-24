@@ -1,11 +1,18 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ChevronDown } from "lucide-react"
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { createClient } from "@/lib/supabase/client"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
-import type { Profile, ServiceLine } from "@/lib/types"
+import type { LeadSource, Profile, ServiceLine } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 interface KanbanFiltersProps {
@@ -14,25 +21,25 @@ interface KanbanFiltersProps {
   teamMembers: Profile[]
 }
 
-interface Option {
-  label: string
-  value: string
-}
+// Radix Select reserves "" for the empty/placeholder state, so a
+// SelectItem can't use "" as its value. We use this sentinel for
+// the "All …" option and translate it to an empty filter array.
+const ALL = "__all__"
 
-const serviceLineOptions: Option[] = [
+const serviceLineOptions: Array<{ label: string; value: ServiceLine }> = [
   { label: "Office Interiors", value: "office_interiors" },
   { label: "MEP", value: "mep" },
-  { label: "Facade & Glazing", value: "facade_glazing" },
+  { label: "Facade / Glazing", value: "facade_glazing" },
   { label: "PEB Construction", value: "peb_construction" },
   { label: "Civil Works", value: "civil_works" },
   { label: "Multiple", value: "multiple" },
   { label: "Unknown", value: "unknown" },
 ]
 
-const sourceOptions: Option[] = [
+const sourceOptions: Array<{ label: string; value: LeadSource }> = [
   { label: "Website", value: "website" },
   { label: "Manual Sales", value: "manual_sales" },
-  { label: "WhatsApp Inbound", value: "whatsapp_inbound" },
+  { label: "WhatsApp", value: "whatsapp_inbound" },
   { label: "Referral", value: "referral" },
   { label: "Google Ads", value: "google_ads" },
   { label: "LinkedIn", value: "linkedin" },
@@ -40,112 +47,46 @@ const sourceOptions: Option[] = [
   { label: "Other", value: "other" },
 ]
 
-function Dropdown({
-  label,
-  values,
-  options,
-  onChange,
-}: {
-  label: string
-  values: string[]
-  options: Option[]
-  onChange: (values: string[]) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const isActive = values.length > 0
-
-  useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) {
-        setOpen(false)
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown)
-    return () => document.removeEventListener("mousedown", handlePointerDown)
-  }, [])
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className={cn(
-          "flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm transition",
-          isActive
-            ? "border-[#3B82F6] text-[#3B82F6]"
-            : "border-[#3A3A52] bg-[#1F1F2E] text-[#F0F0FA] hover:bg-[#1A1A24]"
-        )}
-        style={isActive ? { backgroundColor: "#3B82F620" } : undefined}
-      >
-        {isActive && (
-          <span className="size-1.5 rounded-full bg-[#3B82F6]" aria-hidden />
-        )}
-        <span>
-          {label}
-          {values.length > 0 ? ` (${values.length})` : ""}
-        </span>
-        <ChevronDown
-          className={cn("size-4", isActive ? "text-[#3B82F6]" : "text-[#9090A8]")}
-        />
-      </button>
-
-      <div
-        className={cn(
-          "absolute left-0 top-11 z-30 min-w-[220px] rounded-xl border border-[#2A2A3C] bg-[#111118] p-2 transition duration-200",
-          open ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"
-        )}
-      >
-        {isActive && (
-          <>
-            <button
-              type="button"
-              onClick={() => onChange([])}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-medium text-[#F87171] transition hover:bg-[#2A1215]/60"
-            >
-              Clear selection
-            </button>
-            <div className="my-1 border-t border-[#2A2A3C]" />
-          </>
-        )}
-        <div className="thin-scrollbar max-h-64 overflow-y-auto">
-          {options.map((option) => {
-            const checked = values.includes(option.value)
-
-            return (
-              <label
-                key={option.value}
-                className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-[#F0F0FA] transition hover:bg-[#1A1A24]"
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={(event) => {
-                    if (event.target.checked) {
-                      onChange([...values, option.value])
-                    } else {
-                      onChange(values.filter((value) => value !== option.value))
-                    }
-                  }}
-                  className="size-4 rounded border-[#3A3A52] bg-[#1F1F2E] accent-[#3B82F6]"
-                />
-                <span>{option.label}</span>
-              </label>
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export function KanbanFilters({
   canFilterAssignedTo,
   currentUserId,
   teamMembers,
 }: KanbanFiltersProps) {
   const { filters, setFilter, clearFilters } = useKanbanStore()
+
+  // Self-fetch active profiles so the Assigned To dropdown works
+  // regardless of parent prop load order. Falls back to teamMembers
+  // while the self-fetch is in flight.
+  const [profiles, setProfiles] = useState<
+    Array<Pick<Profile, "id" | "full_name" | "role">>
+  >([])
+
+  useEffect(() => {
+    if (!canFilterAssignedTo) return
+    let mounted = true
+    const fetchProfiles = async () => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, role")
+        .eq("is_active", true)
+        .order("full_name", { ascending: true })
+      if (!mounted) return
+      if (error) {
+        console.error("[KanbanFilters] profiles fetch error:", error)
+        return
+      }
+      setProfiles(
+        (data ?? []) as Array<Pick<Profile, "id" | "full_name" | "role">>
+      )
+    }
+    fetchProfiles()
+    return () => {
+      mounted = false
+    }
+  }, [canFilterAssignedTo])
+
+  const assignableMembers = profiles.length > 0 ? profiles : teamMembers
 
   const activeFilterCount =
     (filters.myLeadsOnly ? 1 : 0) +
@@ -155,6 +96,18 @@ export function KanbanFilters({
     filters.assignedTo.length
 
   const hasFilters = activeFilterCount > 0
+
+  // Helpers to translate between the store's string[] shape and the
+  // single-value shape Select expects. "__all__" means "no filter".
+  const serviceLineValue = filters.serviceLines[0] ?? ALL
+  const sourceValue = filters.sources[0] ?? ALL
+  const assignedToValue = filters.assignedTo[0] ?? ALL
+
+  const serviceLineActive = filters.serviceLines.length > 0
+  const sourceActive = filters.sources.length > 0
+  const assignedToActive = filters.assignedTo.length > 0
+
+  const activeTriggerClass = "border-[#3B82F6] text-[#3B82F6]"
 
   return (
     <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#2A2A3C] bg-[#111118] px-4">
@@ -184,37 +137,97 @@ export function KanbanFilters({
         >
           Overdue Only
         </button>
-        <Dropdown
-          label="Service Line"
-          values={filters.serviceLines}
-          options={serviceLineOptions}
-          onChange={(values) => {
-            console.log("[KanbanFilters] Filter changed:", "serviceLines", values)
-            setFilter("serviceLines", values as ServiceLine[])
+
+        {/* Service Line */}
+        <Select
+          value={serviceLineValue}
+          onValueChange={(next) => {
+            console.log("[KanbanFilters] Filter changed: serviceLines", next)
+            if (next === ALL) {
+              setFilter("serviceLines", [])
+            } else {
+              setFilter("serviceLines", [next as ServiceLine])
+            }
           }}
-        />
-        <Dropdown
-          label="Source"
-          values={filters.sources}
-          options={sourceOptions}
-          onChange={(values) => {
-            console.log("[KanbanFilters] Filter changed:", "sources", values)
-            setFilter("sources", values as typeof filters.sources)
+        >
+          <SelectTrigger
+            className={cn(
+              "h-9 w-[160px] shrink-0",
+              serviceLineActive && activeTriggerClass
+            )}
+          >
+            <SelectValue placeholder="Service Line" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All Service Lines</SelectItem>
+            {serviceLineOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Source */}
+        <Select
+          value={sourceValue}
+          onValueChange={(next) => {
+            console.log("[KanbanFilters] Filter changed: sources", next)
+            if (next === ALL) {
+              setFilter("sources", [])
+            } else {
+              setFilter("sources", [next as LeadSource])
+            }
           }}
-        />
+        >
+          <SelectTrigger
+            className={cn(
+              "h-9 w-[140px] shrink-0",
+              sourceActive && activeTriggerClass
+            )}
+          >
+            <SelectValue placeholder="Source" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All Sources</SelectItem>
+            {sourceOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Assigned To — manager/admin only */}
         {canFilterAssignedTo ? (
-          <Dropdown
-            label="Assigned To"
-            values={filters.assignedTo}
-            options={teamMembers.map((member) => ({
-              label: member.full_name,
-              value: member.id,
-            }))}
-            onChange={(values) => {
-              console.log("[KanbanFilters] Filter changed:", "assignedTo", values)
-              setFilter("assignedTo", values)
+          <Select
+            value={assignedToValue}
+            onValueChange={(next) => {
+              console.log("[KanbanFilters] Filter changed: assignedTo", next)
+              if (next === ALL) {
+                setFilter("assignedTo", [])
+              } else {
+                setFilter("assignedTo", [next])
+              }
             }}
-          />
+          >
+            <SelectTrigger
+              className={cn(
+                "h-9 w-[160px] shrink-0",
+                assignedToActive && activeTriggerClass
+              )}
+            >
+              <SelectValue placeholder="Assigned To" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All Reps</SelectItem>
+              {assignableMembers.map((member) => (
+                <SelectItem key={member.id} value={member.id}>
+                  {member.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         ) : null}
       </div>
 

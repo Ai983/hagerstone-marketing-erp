@@ -140,9 +140,11 @@ async function fetchCurrentProfile() {
 
 async function fetchTeamMembers() {
   const supabase = createClient()
+  // Minimal column set — only what the Assigned To filter actually
+  // reads. Keeps the query 400-proof against schema drift.
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, email, phone, role, avatar_url, is_active, created_at")
+    .select("id, full_name, role, is_active")
     .eq("is_active", true)
     .order("full_name", { ascending: true })
 
@@ -207,7 +209,7 @@ export function useKanban() {
         filters.sources.length === 0 || filters.sources.includes(lead.source)
       const matchesAssignedTo =
         filters.assignedTo.length === 0 ||
-        (lead.assigned_to ? filters.assignedTo.includes(lead.assigned_to) : false)
+        filters.assignedTo.includes(lead.assigned_to ?? "")
 
       return (
         matchesMyLeads &&
@@ -217,6 +219,15 @@ export function useKanban() {
         matchesAssignedTo
       )
     })
+    // When an Assigned To filter is active, log a sample of leads so
+    // we can verify the UUIDs being compared. Only the first 3 are
+    // logged to avoid flooding the console.
+    if (filters.assignedTo.length > 0) {
+      console.log("[useKanban] assignedTo filter active:", filters.assignedTo)
+      leads.slice(0, 3).forEach((lead) => {
+        console.log("Lead assigned_to:", lead.id, "→", lead.assigned_to)
+      })
+    }
     console.log("[useKanban] filteredLeads:", {
       filters,
       inputCount: leads.length,
