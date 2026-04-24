@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-const WRITE_ROLES = new Set(["admin", "manager", "marketing"])
+const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
 
 /**
  * Normalise an Indian phone number for Maytapi.

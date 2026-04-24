@@ -33,7 +33,7 @@ import { EnrollLeadsModal } from "@/components/campaigns/EnrollLeadsModal"
 import { getScoreLabel } from "@/lib/utils/lead-scoring"
 import { cn } from "@/lib/utils"
 
-const WRITE_ROLES = new Set(["admin", "manager", "marketing"])
+const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
 
 interface Campaign {
   id: string
