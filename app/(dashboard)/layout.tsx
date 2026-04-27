@@ -45,10 +45,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const { data: counts } = useSidebarCounts(userId)
 
+  // Below lg, sidebar is an overlay so the main content uses 0 left
+  // offset. At lg+, content is shifted by the static sidebar width.
+  // CSS variable + Tailwind responsive class keeps this in sync without
+  // JS-side viewport detection (no SSR mismatch).
   const sidebarWidth = isSidebarCollapsed ? 56 : 240
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F] text-[#F0F0FA]">
+    <div
+      className="min-h-screen bg-[#0A0A0F] text-[#F0F0FA]"
+      style={{ ["--sidebar-w" as string]: `${sidebarWidth}px` }}
+    >
       <Sidebar
         fullName={fullName}
         role={role}
@@ -57,14 +64,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           activities: counts?.overdueTasks,
         }}
       />
-      <div
-        className="min-h-screen bg-transparent transition-[margin] duration-200"
-        style={{ marginLeft: `${sidebarWidth}px` }}
-      >
-        <div
-          className="fixed top-0 z-20 transition-[left,width] duration-200"
-          style={{ left: `${sidebarWidth}px`, width: `calc(100% - ${sidebarWidth}px)` }}
-        >
+      <div className="min-h-screen bg-transparent lg:ml-[var(--sidebar-w)] lg:transition-[margin] lg:duration-200">
+        <div className="fixed left-0 right-0 top-0 z-20 lg:left-[var(--sidebar-w)] lg:transition-[left] lg:duration-200">
           <TopBar fullName={fullName} role={role} />
           <DemoModeBanner />
         </div>

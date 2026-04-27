@@ -4,12 +4,16 @@ import { create } from "zustand"
 
 interface UIState {
   isSidebarCollapsed: boolean
+  isMobileNavOpen: boolean
   isLeadDrawerOpen: boolean
   leadDrawerId: string | null
   isNewLeadModalOpen: boolean
   isBulkImportModalOpen: boolean
   setSidebarCollapsed: (collapsed: boolean) => void
   toggleSidebar: () => void
+  openMobileNav: () => void
+  closeMobileNav: () => void
+  toggleMobileNav: () => void
   setLeadDrawerOpen: (open: boolean) => void
   setLeadDrawerId: (id: string | null) => void
   openNewLeadModal: () => void
@@ -20,6 +24,7 @@ interface UIState {
 
 export const useUIStore = create<UIState>((set) => ({
   isSidebarCollapsed: false,
+  isMobileNavOpen: false,
   isLeadDrawerOpen: false,
   leadDrawerId: null,
   isNewLeadModalOpen: false,
@@ -27,6 +32,10 @@ export const useUIStore = create<UIState>((set) => ({
   setSidebarCollapsed: (collapsed) => set({ isSidebarCollapsed: collapsed }),
   toggleSidebar: () =>
     set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
+  openMobileNav: () => set({ isMobileNavOpen: true }),
+  closeMobileNav: () => set({ isMobileNavOpen: false }),
+  toggleMobileNav: () =>
+    set((state) => ({ isMobileNavOpen: !state.isMobileNavOpen })),
   setLeadDrawerOpen: (open) => set({ isLeadDrawerOpen: open }),
   setLeadDrawerId: (id) =>
     set({

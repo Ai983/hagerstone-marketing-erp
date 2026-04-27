@@ -1,7 +1,35 @@
 import { NextResponse } from "next/server"
+import { createClient as createServiceClient } from "@supabase/supabase-js"
 
 import { createClient as createUserClient } from "@/lib/supabase/server"
 import { CLAUDE_MODEL } from "@/lib/utils/claude"
+
+// Strip Claude's web-search citation markup before persisting/returning.
+function cleanText(text: string): string {
+  return text
+    .replace(/<cite[^>]*>/gi, "")
+    .replace(/<\/cite>/gi, "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+interface RawLead {
+  company_name?: string
+  contact_name?: string | null
+  phone?: string | null
+  email?: string | null
+  website?: string | null
+  linkedin_url?: string | null
+  city?: string | null
+  industry?: string | null
+  service_line?: string | null
+  company_size?: string | null
+  estimated_budget?: string | null
+  score?: number | null
+  ai_insight?: string | null
+  source_url?: string | null
+}
 
 // Web search is a server-side tool — Claude runs the searches itself
 // and returns a final assistant message that mixes text blocks with
@@ -18,32 +46,43 @@ const SYSTEM_PROMPT = `You are a B2B lead research specialist for Hagerstone Int
 
 Your job is to find REAL companies that would genuinely need these services. Use the web_search tool to find actual businesses matching the criteria.
 
-Return ONLY valid JSON, no markdown, no preamble. Shape:
+Return a JSON object with key 'leads' containing an array. Each lead MUST follow this exact structure:
 {
-  "leads": [
-    {
-      "company_name": "Actual company name",
-      "contact_name": "Decision maker name if found, else null",
-      "phone": "Phone number if found, else null",
-      "email": "Email if found, else null",
-      "website": "Company website if found, else null",
-      "city": "City name",
-      "industry": "Industry type",
-      "service_line": "office_interiors|mep|facade_glazing|peb_construction|civil_works|multiple",
-      "company_size": "estimated employee count range",
-      "estimated_budget": "<25L|25L-50L|50L-1Cr|1Cr-2Cr|2Cr+",
-      "score": 0-100,
-      "ai_insight": "1-2 sentence explanation of why this company needs Hagerstone services right now",
-      "source_url": "URL where this info was found"
-    }
-  ]
+  "company_name": "Company Name",
+  "contact_name": "Decision maker full name or null",
+  "phone": "Phone number with country code or null",
+  "email": "official email address or null",
+  "website": "https://companywebsite.com or null",
+  "linkedin_url": "https://linkedin.com/company/... or null",
+  "city": "City name",
+  "industry": "Industry type",
+  "service_line": "office_interiors OR mep OR facade_glazing OR peb_construction OR civil_works OR multiple",
+  "company_size": "e.g. 100-500",
+  "estimated_budget": "<25L OR 25L-50L OR 50L-1Cr OR 1Cr-2Cr OR 2Cr+",
+  "score": "number between 0-100",
+  "ai_insight": "2-3 sentences plain text only. Absolutely NO HTML, NO <cite> tags, NO XML tags.",
+  "source_url": "URL where this info was found"
 }
+
+IMPORTANT: ai_insight must be plain text only — no tags of any kind.
+
+Return ONLY valid JSON, no markdown, no preamble.
 
 Rules:
 - Return ONLY real companies found via web search. Do NOT invent companies.
 - Return 6-10 leads per request.
 - Prioritize companies showing signals of growth, relocation, renovation, or new office opening.
-- Score higher if: large company, Delhi NCR location, recent growth signals, matches service line exactly.`
+- Score higher if: large company, Delhi NCR location, recent growth signals, matches service line exactly.
+
+CRITICAL REQUIREMENT:
+Only return companies where you have found AT LEAST ONE of:
+- A real phone number
+- A real email address
+- A LinkedIn company page URL
+
+If you cannot find any contact info for a company, DO NOT include it in results.
+Return 4-5 leads with contact info rather than 10 leads with no contact info.
+Quality over quantity.`
 
 export async function POST(request: Request) {
   try {
@@ -141,29 +180,158 @@ export async function POST(request: Request) {
     }
 
     const cleaned = textContent.replace(/```json|```/g, "").trim()
+    let parsedLeads: RawLead[] = []
     try {
-      const parsed = JSON.parse(cleaned) as { leads?: unknown[] }
-      return NextResponse.json({ leads: parsed.leads ?? [] })
+      const parsed = JSON.parse(cleaned) as { leads?: RawLead[] }
+      parsedLeads = parsed.leads ?? []
     } catch {
-      // Last-resort: try extracting the first { ... } block
       const firstBrace = cleaned.indexOf("{")
       const lastBrace = cleaned.lastIndexOf("}")
       if (firstBrace >= 0 && lastBrace > firstBrace) {
         try {
           const parsed = JSON.parse(
             cleaned.slice(firstBrace, lastBrace + 1)
-          ) as { leads?: unknown[] }
-          return NextResponse.json({ leads: parsed.leads ?? [] })
+          ) as { leads?: RawLead[] }
+          parsedLeads = parsed.leads ?? []
         } catch {
           /* fall through */
         }
       }
-      console.error("generate-leads: failed to parse AI response as JSON")
-      return NextResponse.json(
-        { leads: [], error: "Failed to parse AI response as JSON" },
-        { status: 200 }
-      )
+      if (parsedLeads.length === 0) {
+        console.error("generate-leads: failed to parse AI response as JSON")
+        return NextResponse.json(
+          { leads: [], error: "Failed to parse AI response as JSON" },
+          { status: 200 }
+        )
+      }
     }
+
+    // ── Filter to contactable leads BEFORE persisting ───────────
+    // A lead is contactable if at least one of phone/email/linkedin
+    // is present and non-empty. Non-contactable leads are not saved.
+    const contactableLeads = parsedLeads.filter((lead) => {
+      const phone = lead.phone?.trim() ?? ""
+      const email = lead.email?.trim() ?? ""
+      const linkedin = lead.linkedin_url?.trim() ?? ""
+      return phone !== "" || email !== "" || linkedin !== ""
+    })
+
+    // ── Persist to ai_generated_leads via service role ──────────
+    const serviceUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!serviceUrl || !serviceKey) {
+      console.warn("generate-leads: service role missing, skipping DB persist")
+      return NextResponse.json({ leads: contactableLeads })
+    }
+    const admin = createServiceClient(serviceUrl, serviceKey)
+
+    const enriched: Array<
+      RawLead & {
+        dbId: string | null
+        isDuplicate: boolean
+        existingLeadId: string | null
+        isNew: boolean
+      }
+    > = []
+
+    for (const lead of contactableLeads) {
+      if (!lead.company_name) continue
+
+      const cleanedInsight = cleanText(lead.ai_insight ?? "")
+      const cityForCheck = lead.city?.trim() ?? ""
+
+      // Step 1 — already in our AI database?
+      const aiQuery = admin
+        .from("ai_generated_leads")
+        .select("id, status, pipeline_lead_id")
+        .ilike("company_name", lead.company_name)
+      const { data: existingAI } = cityForCheck
+        ? await aiQuery.ilike("city", cityForCheck).limit(1).maybeSingle()
+        : await aiQuery.limit(1).maybeSingle()
+
+      if (existingAI) {
+        enriched.push({
+          ...lead,
+          ai_insight: cleanedInsight,
+          dbId: (existingAI as { id: string }).id,
+          isDuplicate: true,
+          existingLeadId:
+            (existingAI as { pipeline_lead_id: string | null })
+              .pipeline_lead_id ?? null,
+          isNew: false,
+        })
+        continue
+      }
+
+      // Step 2 — already in pipeline (leads table)?
+      const { data: existingPipeline } = await admin
+        .from("leads")
+        .select("id")
+        .ilike("company_name", lead.company_name)
+        .limit(1)
+        .maybeSingle()
+
+      const baseRow = {
+        company_name: lead.company_name,
+        contact_name: lead.contact_name ?? null,
+        phone: lead.phone ?? null,
+        email: lead.email ?? null,
+        website: lead.website ?? null,
+        linkedin_url: lead.linkedin_url ?? null,
+        city: lead.city ?? null,
+        industry: lead.industry ?? null,
+        service_line: lead.service_line ?? null,
+        company_size: lead.company_size ?? null,
+        estimated_budget: lead.estimated_budget ?? null,
+        score: typeof lead.score === "number" ? lead.score : 0,
+        ai_insight: cleanedInsight,
+        source_url: lead.source_url ?? null,
+        search_query: prompt,
+      }
+
+      if (existingPipeline) {
+        const { data: inserted, error: insErr } = await admin
+          .from("ai_generated_leads")
+          .insert({
+            ...baseRow,
+            status: "duplicate",
+            pipeline_lead_id: (existingPipeline as { id: string }).id,
+          })
+          .select("id")
+          .maybeSingle()
+        if (insErr) console.error("ai_generated_leads insert (dup):", insErr)
+        enriched.push({
+          ...lead,
+          ai_insight: cleanedInsight,
+          dbId: (inserted as { id: string } | null)?.id ?? null,
+          isDuplicate: true,
+          existingLeadId: (existingPipeline as { id: string }).id,
+          isNew: false,
+        })
+        continue
+      }
+
+      // Step 3 — net-new lead
+      const { data: inserted, error: insErr } = await admin
+        .from("ai_generated_leads")
+        .insert({ ...baseRow, status: "new" })
+        .select("id")
+        .maybeSingle()
+      if (insErr) console.error("ai_generated_leads insert (new):", insErr)
+
+      enriched.push({
+        ...lead,
+        ai_insight: cleanedInsight,
+        dbId: (inserted as { id: string } | null)?.id ?? null,
+        isDuplicate: false,
+        existingLeadId: null,
+        isNew: true,
+      })
+    }
+
+    // All `enriched` rows are guaranteed contactable because we
+    // filtered before the persist loop.
+    return NextResponse.json({ leads: enriched })
   } catch (err) {
     console.error("generate-leads error:", err)
     return NextResponse.json({ error: String(err) }, { status: 500 })

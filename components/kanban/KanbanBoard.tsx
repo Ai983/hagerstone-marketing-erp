@@ -7,7 +7,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -44,7 +45,7 @@ function LoadingState() {
         {Array.from({ length: 3 }).map((_, columnIndex) => (
           <div
             key={columnIndex}
-            className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118]"
+            className="flex h-full w-[220px] shrink-0 flex-col overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118] lg:w-[280px]"
           >
             <div className="border-b border-[#2A2A3C] bg-[#0F0F15] px-4 py-3">
               <div className="h-4 w-24 animate-pulse rounded bg-[#1A1A24]" />
@@ -162,10 +163,24 @@ export function KanbanBoard() {
     onLeadDeleted,
   })
 
+  // Separate sensors per input type so each can have its own
+  // activation. PointerSensor (which we used before) handled both
+  // mouse and touch via Pointer Events — that meant touch scrolls
+  // were activating drag at 8px before the long-press timer fired.
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    // Desktop mouse — instant drag after small movement
+    useSensor(MouseSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    // Touch — long-press required. 1.5s feels like an intentional
+    // grab rather than an accidental hold. 10px tolerance absorbs
+    // natural finger tremor during the wait without cancelling.
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 1500,
+        tolerance: 10,
       },
     }),
     useSensor(KeyboardSensor, {

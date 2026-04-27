@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { Filter } from "lucide-react"
 
 import {
   Select,
@@ -109,9 +110,54 @@ export function KanbanFilters({
 
   const activeTriggerClass = "border-[#3B82F6] text-[#3B82F6]"
 
+  // Mobile-only: filters are hidden behind a Filters toggle. On lg+
+  // the filter row is always visible.
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
+
   return (
-    <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#2A2A3C] bg-[#111118] px-4">
-      <div className="thin-scrollbar flex items-center gap-2 overflow-x-auto">
+    <div className="shrink-0 border-b border-[#2A2A3C] bg-[#111118]">
+      {/* Mobile-only header — Filters toggle + view-mode switch */}
+      <div className="flex h-12 items-center justify-between px-4 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setShowMobileFilters((s) => !s)}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition",
+            hasFilters
+              ? "border-[#3B82F6] bg-[#1E3A5F] text-[#3B82F6]"
+              : "border-[#3A3A52] bg-[#1F1F2E] text-[#F0F0FA]"
+          )}
+          aria-expanded={showMobileFilters}
+        >
+          <Filter className="size-4" />
+          Filters
+          {hasFilters && (
+            <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#3B82F6] px-1.5 text-[10px] font-semibold text-white">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+        <div className="flex items-center rounded-lg border border-[#3A3A52] bg-[#1F1F2E] p-1">
+          <span className="inline-flex h-7 items-center rounded-md bg-[#1E3A5F] px-3 text-xs text-[#3B82F6]">
+            Board
+          </span>
+          <Link
+            href="/leads"
+            className="inline-flex h-7 items-center rounded-md px-3 text-xs text-[#9090A8] transition hover:text-[#F0F0FA]"
+          >
+            List
+          </Link>
+        </div>
+      </div>
+
+      {/* Filter row — always visible on lg+, conditional on mobile */}
+      <div
+        className={cn(
+          "border-t border-[#2A2A3C] p-3 lg:flex lg:h-12 lg:items-center lg:justify-between lg:border-t-0 lg:p-0 lg:px-4",
+          showMobileFilters ? "block" : "hidden lg:flex"
+        )}
+      >
+        <div className="thin-scrollbar flex flex-wrap items-center gap-2 lg:flex-nowrap lg:overflow-x-auto">
         <button
           type="button"
           onClick={() => setFilter("myLeadsOnly", !filters.myLeadsOnly)}
@@ -231,9 +277,9 @@ export function KanbanFilters({
         ) : null}
       </div>
 
-      <div className="ml-4 flex items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2 lg:ml-4 lg:mt-0">
         {hasFilters ? (
-          <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-[#1E3A5F] px-2 text-xs font-medium text-[#3B82F6]">
+          <span className="hidden h-7 min-w-7 items-center justify-center rounded-full bg-[#1E3A5F] px-2 text-xs font-medium text-[#3B82F6] lg:inline-flex">
             {activeFilterCount}
           </span>
         ) : null}
@@ -246,7 +292,8 @@ export function KanbanFilters({
             Clear
           </button>
         ) : null}
-        <div className="flex items-center rounded-lg border border-[#3A3A52] bg-[#1F1F2E] p-1">
+        {/* Board/List toggle — desktop only (mobile has it in the header) */}
+        <div className="hidden items-center rounded-lg border border-[#3A3A52] bg-[#1F1F2E] p-1 lg:flex">
           <span className="inline-flex h-7 items-center rounded-md bg-[#1E3A5F] px-3 text-sm text-[#3B82F6]">
             Board
           </span>
@@ -257,6 +304,7 @@ export function KanbanFilters({
             List
           </Link>
         </div>
+      </div>
       </div>
     </div>
   )

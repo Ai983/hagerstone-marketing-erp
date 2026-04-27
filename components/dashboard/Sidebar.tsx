@@ -3,11 +3,13 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import { AnimatePresence, motion } from "framer-motion"
 import {
   BarChart2,
   CheckSquare,
   ChevronLeft,
   ChevronRight,
+  Database,
   Inbox,
   Kanban,
   Loader2,
@@ -17,6 +19,7 @@ import {
   Sparkles,
   User as UserIcon,
   Users,
+  X,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -47,6 +50,7 @@ const primaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/analytics", label: "Analytics", icon: BarChart2, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/ai-agent", label: "AI Agent", icon: Sparkles, roles: ["admin", "manager", "founder"] },
   { href: "/ai-leads", label: "AI Lead Gen", icon: Sparkles, roles: ["admin", "manager", "founder", "marketing"] },
+  { href: "/ai-leads/database", label: "Lead Database", icon: Database, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/profile", label: "My Profile", icon: UserIcon, roles: ALL_ROLES },
 ]
 
@@ -73,10 +77,114 @@ function getInitials(name: string) {
 }
 
 export function Sidebar({ fullName, role, badges }: SidebarProps) {
-  const pathname = usePathname()
   const router = useRouter()
   const { isSidebarCollapsed, toggleSidebar } = useUIStore()
+  const isMobileNavOpen = useUIStore((s) => s.isMobileNavOpen)
+  const closeMobileNav = useUIStore((s) => s.closeMobileNav)
   const [isSigningOut, setIsSigningOut] = useState(false)
+
+  const handleLogout = async () => {
+    if (isSigningOut) return
+    setIsSigningOut(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      router.push("/login")
+      router.refresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to sign out")
+      setIsSigningOut(false)
+    }
+  }
+
+  const desktopWidth = isSidebarCollapsed ? "w-14" : "w-60"
+
+  return (
+    <>
+      {/* ── Desktop sidebar (lg+) ──────────────────────────────── */}
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-30 hidden h-screen flex-col border-r border-[#2A2A3C] bg-[#111118] transition-[width] duration-200 lg:flex",
+          desktopWidth
+        )}
+      >
+        <SidebarBody
+          collapsed={isSidebarCollapsed}
+          fullName={fullName}
+          role={role}
+          badges={badges}
+          isSigningOut={isSigningOut}
+          onLogout={handleLogout}
+          onToggleCollapse={toggleSidebar}
+        />
+      </aside>
+
+      {/* ── Mobile / tablet overlay (below lg) ─────────────────── */}
+      <AnimatePresence>
+        {isMobileNavOpen && (
+          <>
+            <motion.div
+              key="mobile-nav-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={closeMobileNav}
+              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            />
+            <motion.aside
+              key="mobile-nav-panel"
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="fixed left-0 top-0 z-50 flex h-screen w-[280px] flex-col border-r border-[#2A2A3C] bg-[#111118] shadow-2xl lg:hidden"
+            >
+              <SidebarBody
+                collapsed={false}
+                fullName={fullName}
+                role={role}
+                badges={badges}
+                isSigningOut={isSigningOut}
+                onLogout={handleLogout}
+                onItemClick={closeMobileNav}
+                onCloseMobile={closeMobileNav}
+              />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
+
+// ── Sidebar body — shared between desktop + mobile ────────────────
+
+interface SidebarBodyProps {
+  collapsed: boolean
+  fullName: string
+  role: string
+  badges?: { inbox?: number; activities?: number }
+  isSigningOut: boolean
+  onLogout: () => void
+  onToggleCollapse?: () => void
+  onItemClick?: () => void
+  onCloseMobile?: () => void
+}
+
+function SidebarBody({
+  collapsed,
+  fullName,
+  role,
+  badges,
+  isSigningOut,
+  onLogout,
+  onToggleCollapse,
+  onItemClick,
+  onCloseMobile,
+}: SidebarBodyProps) {
+  const pathname = usePathname()
 
   // If role hasn't loaded yet (empty/falsy), fall back to showing every item
   // so the menu doesn't briefly hide nav items the user actually has access to.
@@ -94,39 +202,17 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
     return value && value > 0 ? value : undefined
   }
 
-  const handleLogout = async () => {
-    if (isSigningOut) return
-    setIsSigningOut(true)
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      router.push("/login")
-      router.refresh()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to sign out")
-      setIsSigningOut(false)
-    }
-  }
-
-  const sidebarWidth = isSidebarCollapsed ? "w-14" : "w-60"
-
   return (
-    <aside
-      className={cn(
-        "fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-[#2A2A3C] bg-[#111118] transition-[width] duration-200",
-        sidebarWidth
-      )}
-    >
+    <>
       <div className="flex min-h-16 items-center px-2">
         <div
           className={cn(
             "flex w-full items-center",
-            isSidebarCollapsed ? "justify-center" : "justify-start"
+            collapsed ? "justify-center" : "justify-start"
           )}
           style={{ gap: "10px" }}
         >
-          {isSidebarCollapsed ? (
+          {collapsed ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src="/logo.png"
@@ -152,9 +238,20 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
             />
           )}
         </div>
+        {/* Mobile-only close button */}
+        {onCloseMobile && (
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            aria-label="Close menu"
+            className="ml-auto flex size-8 shrink-0 items-center justify-center rounded-lg text-[#9090A8] transition hover:bg-[#1A1A24] hover:text-[#F0F0FA]"
+          >
+            <X className="size-4" />
+          </button>
+        )}
       </div>
 
-      <nav className="flex-1 space-y-1 px-2 py-4">
+      <nav className="thin-scrollbar flex-1 space-y-1 overflow-y-auto px-2 py-4">
         {visiblePrimary.map((item) => {
           const Icon = item.icon
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -165,18 +262,19 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onItemClick}
               className={cn(
-                "relative flex h-10 items-center rounded-xl border-l-2 text-sm transition-colors duration-200",
-                isSidebarCollapsed ? "justify-center px-0" : "gap-3 px-3",
+                "relative flex h-11 items-center rounded-xl border-l-2 text-sm transition-colors duration-200",
+                collapsed ? "justify-center px-0" : "gap-3 px-3",
                 isActive
                   ? "border-[#3B82F6] bg-[#1E3A5F] text-[#3B82F6]"
                   : "border-transparent text-[#9090A8] hover:bg-[#1A1A24] hover:text-[#F0F0FA]"
               )}
-              title={isSidebarCollapsed ? item.label : undefined}
+              title={collapsed ? item.label : undefined}
             >
               <div className="relative">
                 <Icon className="size-4 shrink-0" />
-                {isSidebarCollapsed && badgeCount != null && (
+                {collapsed && badgeCount != null && (
                   <span
                     className={cn(
                       "absolute -right-1.5 -top-1.5 flex min-w-[14px] items-center justify-center rounded-full px-1 text-[9px] font-semibold text-white",
@@ -187,7 +285,7 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
                   </span>
                 )}
               </div>
-              {!isSidebarCollapsed ? (
+              {!collapsed ? (
                 <>
                   <span>{item.label}</span>
                   {badgeCount != null && (
@@ -217,35 +315,38 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={onItemClick}
                   className={cn(
-                    "flex h-10 items-center rounded-xl border-l-2 text-sm transition-colors duration-200",
-                    isSidebarCollapsed ? "justify-center px-0" : "gap-3 px-3",
+                    "flex h-11 items-center rounded-xl border-l-2 text-sm transition-colors duration-200",
+                    collapsed ? "justify-center px-0" : "gap-3 px-3",
                     isActive
                       ? "border-[#3B82F6] bg-[#1E3A5F] text-[#3B82F6]"
                       : "border-transparent text-[#9090A8] hover:bg-[#1A1A24] hover:text-[#F0F0FA]"
                   )}
-                  title={isSidebarCollapsed ? item.label : undefined}
+                  title={collapsed ? item.label : undefined}
                 >
                   <Icon className="size-4 shrink-0" />
-                  {!isSidebarCollapsed ? <span>{item.label}</span> : null}
+                  {!collapsed ? <span>{item.label}</span> : null}
                 </Link>
               )
             })}
           </>
         )}
 
-        {/* Logout */}
         <div className="my-3 border-t border-[#2A2A3C]" />
 
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={() => {
+            onItemClick?.()
+            onLogout()
+          }}
           disabled={isSigningOut}
           className={cn(
-            "flex h-10 w-full items-center rounded-xl text-sm text-[#9090A8] transition-colors duration-200 hover:bg-[#1A1A24] hover:text-[#EF4444] disabled:opacity-50",
-            isSidebarCollapsed ? "justify-center px-0" : "gap-3 px-3"
+            "flex h-11 w-full items-center rounded-xl text-sm text-[#9090A8] transition-colors duration-200 hover:bg-[#1A1A24] hover:text-[#EF4444] disabled:opacity-50",
+            collapsed ? "justify-center px-0" : "gap-3 px-3"
           )}
-          title={isSidebarCollapsed ? "Logout" : undefined}
+          title={collapsed ? "Logout" : undefined}
           aria-label="Logout"
         >
           {isSigningOut ? (
@@ -253,38 +354,42 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
           ) : (
             <LogOut className="size-4 shrink-0" />
           )}
-          {!isSidebarCollapsed ? <span>Logout</span> : null}
+          {!collapsed ? <span>Logout</span> : null}
         </button>
       </nav>
 
       <div className="border-t border-[#2A2A3C] p-2">
-        <button
-          type="button"
-          onClick={toggleSidebar}
-          className={cn(
-            "mb-2 flex h-10 w-full items-center rounded-xl text-sm text-[#9090A8] transition-colors duration-200 hover:bg-[#1A1A24] hover:text-[#F0F0FA]",
-            isSidebarCollapsed ? "justify-center" : "gap-3 px-3"
-          )}
-          aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isSidebarCollapsed ? (
-            <ChevronRight className="size-4" />
-          ) : (
-            <>
-              <ChevronLeft className="size-4" />
-              <span>Collapse</span>
-            </>
-          )}
-        </button>
+        {/* Collapse toggle is desktop-only */}
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className={cn(
+              "mb-2 flex h-10 w-full items-center rounded-xl text-sm text-[#9090A8] transition-colors duration-200 hover:bg-[#1A1A24] hover:text-[#F0F0FA]",
+              collapsed ? "justify-center" : "gap-3 px-3"
+            )}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? (
+              <ChevronRight className="size-4" />
+            ) : (
+              <>
+                <ChevronLeft className="size-4" />
+                <span>Collapse</span>
+              </>
+            )}
+          </button>
+        )}
 
         <Link
           href="/profile"
+          onClick={onItemClick}
           className={cn(
             "group flex items-center rounded-xl transition hover:bg-[#1A1A24]",
-            isSidebarCollapsed ? "justify-center py-2" : "gap-3 px-2 py-2"
+            collapsed ? "justify-center py-2" : "gap-3 px-2 py-2"
           )}
           title={
-            isSidebarCollapsed
+            collapsed
               ? `View Profile — ${fullName}${role ? ` (${role})` : ""}`
               : "View Profile"
           }
@@ -292,10 +397,12 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
           <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#1E3A5F] text-sm font-semibold text-[#3B82F6]">
             {getInitials(fullName)}
           </div>
-          {!isSidebarCollapsed ? (
+          {!collapsed ? (
             <>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-[#F0F0FA]">{fullName}</p>
+                <p className="truncate text-sm font-medium text-[#F0F0FA]">
+                  {fullName}
+                </p>
                 {role ? (
                   <p className="truncate text-xs capitalize text-[#9090A8]">
                     {role.replace("_", " ")}
@@ -310,6 +417,6 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
           ) : null}
         </Link>
       </div>
-    </aside>
+    </>
   )
 }

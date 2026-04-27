@@ -53,7 +53,7 @@ export function KanbanColumn({
   return (
     <section
       className={cn(
-        "flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-xl border bg-[#111118] transition-colors duration-150",
+        "flex h-full w-[220px] shrink-0 flex-col overflow-hidden rounded-xl border bg-[#111118] transition-colors duration-150 lg:w-[280px]",
         isDragOver ? "bg-[#161620]" : "bg-[#111118]"
       )}
       style={{
@@ -76,7 +76,11 @@ export function KanbanColumn({
         </p>
       </div>
 
-      <div data-scrollable className="thin-scrollbar flex-1 overflow-y-auto p-3">
+      <div
+        data-scrollable
+        className="thin-scrollbar flex-1 overflow-y-auto p-3"
+        style={{ touchAction: "pan-y" }}
+      >
         {column.leads.length > 0 ? (
           <AnimatePresence initial={false} mode="popLayout">
             <div className="space-y-3">

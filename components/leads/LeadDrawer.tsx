@@ -71,6 +71,16 @@ async function fetchCurrentProfile(): Promise<Profile | null> {
 const tabs = ["Overview", "Timeline", "Tasks", "Campaigns", "AI"] as const
 type TabName = (typeof tabs)[number]
 
+// Shorter labels used on phone widths so all 5 tabs fit without
+// horizontal-scroll wrapping awkwardly.
+const tabShortLabels: Record<TabName, string> = {
+  Overview: "Info",
+  Timeline: "History",
+  Tasks: "Tasks",
+  Campaigns: "Campaigns",
+  AI: "AI",
+}
+
 // ── Tab transition variants ─────────────────────────────────────────
 //
 // `mode="wait"` + `key={activeTab}` drives the swap. easeOut 200ms on
@@ -1160,6 +1170,22 @@ export function LeadDrawer() {
     }
   }, [lead])
 
+  // Detect viewport once on mount + on resize so drawer slides from
+  // the bottom on phones and from the right on tablet/desktop.
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const mq = window.matchMedia("(max-width: 767px)")
+    const update = () => setIsMobile(mq.matches)
+    update()
+    mq.addEventListener("change", update)
+    return () => mq.removeEventListener("change", update)
+  }, [])
+
+  const drawerInitial = isMobile ? { y: "100%" } : { x: "100%" }
+  const drawerAnimate = isMobile ? { y: 0 } : { x: 0 }
+  const drawerExit = isMobile ? { y: "100%" } : { x: "100%" }
+
   return (
     <>
       <AnimatePresence>
@@ -1172,21 +1198,34 @@ export function LeadDrawer() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-40 bg-black/50"
-              style={{ top: 56 }}
+              className="fixed inset-0 z-40 bg-black/50 md:top-14"
               onClick={close}
             />
 
-            {/* Drawer panel */}
+            {/* Drawer panel — slides up from bottom on phones, in from
+                right on tablet+. Phone: full width + 90vh sheet with
+                rounded top + drag-handle pill. Tablet: full width.
+                Desktop: 480px from right edge. */}
             <motion.aside
               key="drawer-panel"
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
+              initial={drawerInitial}
+              animate={drawerAnimate}
+              exit={drawerExit}
               transition={{ duration: 0.25, ease: "easeOut" }}
-              className="fixed bottom-0 right-0 z-50 flex w-full flex-col border-l border-[#2A2A3C] bg-[#111118] shadow-2xl md:w-[480px]"
-              style={{ top: 56 }}
+              className={cn(
+                "fixed z-50 flex w-full flex-col border-[#2A2A3C] bg-[#111118] shadow-2xl",
+                // Phone: bottom sheet
+                "inset-x-0 bottom-0 h-[90vh] rounded-t-2xl border-t",
+                // Tablet+: right-anchored, full height below topbar
+                "md:inset-x-auto md:bottom-0 md:right-0 md:top-14 md:h-auto md:rounded-none md:border-l md:border-t-0",
+                // Desktop: capped at 480px
+                "lg:w-[480px]"
+              )}
             >
+              {/* Mobile-only drag handle */}
+              <div className="flex justify-center pt-2 md:hidden">
+                <span className="block h-1 w-10 rounded-full bg-[#3A3A52]" />
+              </div>
               {/* Header */}
               <div className="flex items-center justify-between border-b border-[#2A2A3C] px-4 py-3">
                 <div className="min-w-0 flex-1">
@@ -1222,20 +1261,22 @@ export function LeadDrawer() {
                 </button>
               </div>
 
-              {/* Tab bar — animated underline via layoutId */}
-              <div className="flex border-b border-[#2A2A3C]">
+              {/* Tab bar — animated underline via layoutId. On phones,
+                  scrolls horizontally if the tabs overflow. */}
+              <div className="thin-scrollbar flex overflow-x-auto border-b border-[#2A2A3C]">
                 {tabs.map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={cn(
-                      "relative flex-1 px-2 py-2.5 text-xs font-medium transition",
+                      "relative shrink-0 flex-1 px-2 py-2.5 text-xs font-medium transition md:shrink",
                       activeTab === tab
                         ? "text-[#3B82F6]"
                         : "text-[#9090A8] hover:text-[#F0F0FA]"
                     )}
                   >
-                    {tab}
+                    <span className="md:hidden">{tabShortLabels[tab]}</span>
+                    <span className="hidden md:inline">{tab}</span>
                     {activeTab === tab && (
                       <motion.div
                         layoutId="lead-drawer-tab-indicator"

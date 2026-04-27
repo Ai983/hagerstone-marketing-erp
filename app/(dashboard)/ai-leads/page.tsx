@@ -6,8 +6,10 @@ import { AnimatePresence, motion } from "framer-motion"
 import {
   Building2,
   Check,
+  ExternalLink,
   Globe,
   Loader2,
+  Mail,
   MapPin,
   Phone,
   Plus,
@@ -19,6 +21,7 @@ import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
+import { useUIStore } from "@/lib/stores/uiStore"
 import { cn } from "@/lib/utils"
 import type { UserRole } from "@/lib/types"
 
@@ -63,6 +66,7 @@ interface GeneratedLead {
   phone: string | null
   email: string | null
   website: string | null
+  linkedin_url?: string | null
   city: string | null
   industry: string | null
   service_line: string | null
@@ -71,6 +75,11 @@ interface GeneratedLead {
   score: number | null
   ai_insight: string | null
   source_url: string | null
+  // Server-side enrichment from /api/ai/generate-leads
+  dbId?: string | null
+  isDuplicate?: boolean
+  existingLeadId?: string | null
+  isNew?: boolean
 }
 
 interface LeadWithId extends GeneratedLead {
@@ -137,6 +146,7 @@ function formatLabel(value: string | null | undefined) {
 
 export default function AiLeadsPage() {
   const router = useRouter()
+  const setLeadDrawerId = useUIStore((s) => s.setLeadDrawerId)
 
   const [accessChecked, setAccessChecked] = useState(false)
 
@@ -152,6 +162,7 @@ export default function AiLeadsPage() {
   const [addStates, setAddStates] = useState<Record<string, AddState>>({})
   const [history, setHistory] = useState<string[]>([])
   const [newLeadStageId, setNewLeadStageId] = useState<string | null>(null)
+  const [lastSessionLeads, setLastSessionLeads] = useState<LeadWithId[]>([])
 
   // Role gate + initial data load
   useEffect(() => {
@@ -169,15 +180,47 @@ export default function AiLeadsPage() {
         return
       }
 
-      // Fetch new_lead stage id so Add-to-Pipeline is one round-trip.
+      // Fetch new_lead stage id + pending session leads in parallel.
       const supabase = createClient()
-      const { data: stage } = await supabase
-        .from("pipeline_stages")
-        .select("id")
-        .eq("slug", "new_lead")
-        .maybeSingle()
+      const [{ data: stage }, { data: pending }] = await Promise.all([
+        supabase
+          .from("pipeline_stages")
+          .select("id")
+          .eq("slug", "new_lead")
+          .maybeSingle(),
+        supabase
+          .from("ai_generated_leads")
+          .select("*")
+          .eq("status", "new")
+          .order("created_at", { ascending: false })
+          .limit(20),
+      ])
       if (!mounted) return
       setNewLeadStageId((stage?.id as string | undefined) ?? null)
+      if (pending && pending.length > 0) {
+        const withIds: LeadWithId[] = pending.map((row, i) => ({
+          company_name: row.company_name,
+          contact_name: row.contact_name ?? null,
+          phone: row.phone ?? null,
+          email: row.email ?? null,
+          website: row.website ?? null,
+          linkedin_url: row.linkedin_url ?? null,
+          city: row.city ?? null,
+          industry: row.industry ?? null,
+          service_line: row.service_line ?? null,
+          company_size: row.company_size ?? null,
+          estimated_budget: row.estimated_budget ?? null,
+          score: row.score ?? 0,
+          ai_insight: row.ai_insight ?? null,
+          source_url: row.source_url ?? null,
+          dbId: row.id,
+          isDuplicate: false,
+          existingLeadId: null,
+          isNew: false,
+          _id: `pending-${row.id ?? i}`,
+        }))
+        setLastSessionLeads(withIds)
+      }
       setHistory(loadHistory())
       setAccessChecked(true)
     }
@@ -312,12 +355,30 @@ export default function AiLeadsPage() {
         is_sample_data: false,
       }
 
-      const { error: insertError } = await supabase.from("leads").insert(payload)
+      const { data: insertedRow, error: insertError } = await supabase
+        .from("leads")
+        .insert(payload)
+        .select("id")
+        .maybeSingle()
       if (insertError) {
         console.error("AI lead insert error:", insertError)
         setAddStates((s) => ({ ...s, [lead._id]: "error" }))
         toast.error(insertError.message)
         return
+      }
+
+      // Update the AI database row to reflect the pipeline link.
+      if (lead.dbId) {
+        const newPipelineId =
+          (insertedRow as { id: string } | null)?.id ?? null
+        await supabase
+          .from("ai_generated_leads")
+          .update({
+            status: "added",
+            pipeline_lead_id: newPipelineId,
+            added_to_pipeline_at: new Date().toISOString(),
+          })
+          .eq("id", lead.dbId)
       }
 
       setAddStates((s) => ({ ...s, [lead._id]: "added" }))
@@ -328,9 +389,24 @@ export default function AiLeadsPage() {
     }
   }
 
-  // ── Skip (fade out) ──────────────────────────────────────────────
-  const handleSkip = (id: string) => {
+  // ── Skip (fade out + persist status) ─────────────────────────────
+  const handleSkip = async (id: string) => {
+    const lead = [...leads, ...lastSessionLeads].find((l) => l._id === id)
     setLeads((prev) => prev.filter((l) => l._id !== id))
+    setLastSessionLeads((prev) => prev.filter((l) => l._id !== id))
+    if (lead?.dbId) {
+      const supabase = createClient()
+      await supabase
+        .from("ai_generated_leads")
+        .update({ status: "skipped" })
+        .eq("id", lead.dbId)
+    }
+  }
+
+  // ── View existing pipeline lead (duplicate card action) ──────────
+  const handleViewExisting = (leadId: string) => {
+    setLeadDrawerId(leadId)
+    router.push("/pipeline")
   }
 
   const canSubmit = useMemo(
@@ -371,6 +447,28 @@ export default function AiLeadsPage() {
             Powered by Claude + Web Search
           </span>
         </div>
+
+        {/* Resume banner — shows if there are pending leads from a prior
+            session (status='new' in ai_generated_leads). Loads them
+            into the current view so the user can continue triaging. */}
+        {leads.length === 0 && lastSessionLeads.length > 0 && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[#2A2A3C] bg-[#111118] px-4 py-3">
+            <p className="text-sm font-medium text-[#F0F0FA]">
+              Continue from last session ({lastSessionLeads.length} leads
+              pending)
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setLeads(lastSessionLeads)
+                setLastSessionLeads([])
+              }}
+              className="inline-flex items-center gap-1.5 rounded-md border border-[#3B82F6]/40 bg-[#1E3A5F] px-3 py-1.5 text-xs font-medium text-[#3B82F6] transition hover:bg-[#3B82F6]/20"
+            >
+              Load These Leads
+            </button>
+          </div>
+        )}
 
         {/* Search card */}
         <section className="mb-6 rounded-xl border border-[#2A2A3C] bg-[#111118] p-5">
@@ -493,6 +591,11 @@ Examples:
                     state={addStates[lead._id] ?? "idle"}
                     onAdd={() => handleAdd(lead)}
                     onSkip={() => handleSkip(lead._id)}
+                    onViewExisting={
+                      lead.existingLeadId
+                        ? () => handleViewExisting(lead.existingLeadId!)
+                        : undefined
+                    }
                   />
                 </motion.div>
               ))}
@@ -540,16 +643,29 @@ function LeadCard({
   state,
   onAdd,
   onSkip,
+  onViewExisting,
 }: {
   lead: LeadWithId
   state: AddState
   onAdd: () => void
   onSkip: () => void
+  onViewExisting?: () => void
 }) {
   const badge = getScoreBadge(lead.score)
+  const isDuplicate = Boolean(lead.isDuplicate)
 
   return (
-    <div className="flex h-full flex-col rounded-xl border border-[#2A2A3C] bg-[#111118] p-5">
+    <div
+      className={cn(
+        "relative flex h-full flex-col rounded-xl border border-[#2A2A3C] bg-[#111118] p-5",
+        isDuplicate && "opacity-60"
+      )}
+    >
+      {isDuplicate && (
+        <div className="absolute right-2 top-2 z-10 rounded-full bg-[#374151] px-2 py-0.5 text-[11px] font-medium text-[#9CA3AF]">
+          Already exists
+        </div>
+      )}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
@@ -599,12 +715,6 @@ function LeadCard({
             )}
           </p>
         )}
-        {lead.phone && (
-          <p className="inline-flex items-center gap-1 font-mono">
-            <Phone className="size-3" />
-            {lead.phone}
-          </p>
-        )}
         {lead.website && (
           <p className="flex items-center gap-1 truncate">
             <Globe className="size-3 shrink-0" />
@@ -617,6 +727,42 @@ function LeadCard({
               {lead.website.replace(/^https?:\/\//, "")}
             </a>
           </p>
+        )}
+      </div>
+
+      {/* Contact quality badges — at-a-glance signal of how reachable
+          this lead is. Strikethrough on missing channels. */}
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {lead.phone ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#10B98120] px-2 py-0.5 text-[11px] text-[#10B981]">
+            <Phone className="size-3" />
+            {lead.phone}
+          </span>
+        ) : (
+          <span className="rounded-full bg-[#1F1F2E] px-2 py-0.5 text-[11px] text-[#5A5A72] line-through">
+            No phone
+          </span>
+        )}
+        {lead.email ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#3B82F620] px-2 py-0.5 text-[11px] text-[#3B82F6]">
+            <Mail className="size-3" />
+            {lead.email}
+          </span>
+        ) : (
+          <span className="rounded-full bg-[#1F1F2E] px-2 py-0.5 text-[11px] text-[#5A5A72] line-through">
+            No email
+          </span>
+        )}
+        {lead.linkedin_url && (
+          <a
+            href={lead.linkedin_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-full bg-[#0A66C220] px-2 py-0.5 text-[11px] font-semibold text-[#0A66C2] transition hover:bg-[#0A66C2]/30"
+          >
+            <span className="font-mono lowercase">in</span>
+            LinkedIn
+          </a>
         )}
       </div>
 
@@ -640,7 +786,18 @@ function LeadCard({
       )}
 
       <div className="mt-4 flex gap-2 border-t border-[#2A2A3C] pt-3">
-        <AddButton state={state} onClick={onAdd} />
+        {isDuplicate && onViewExisting ? (
+          <button
+            type="button"
+            onClick={onViewExisting}
+            className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-[#1A1A24] px-3 py-1.5 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1F1F2E]"
+          >
+            <ExternalLink className="size-3" />
+            View in Pipeline
+          </button>
+        ) : (
+          <AddButton state={state} onClick={onAdd} />
+        )}
         {state === "idle" && (
           <button
             type="button"
