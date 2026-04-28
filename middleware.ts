@@ -72,6 +72,12 @@ export async function middleware(request: NextRequest) {
   return response
 }
 
+// Skip middleware for Next internals AND any static asset extension
+// served from /public — otherwise unauthenticated requests for files
+// like /logo.png get redirected to /login, which the browser then
+// renders as a broken image.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff|woff2|ttf|otf|map)$).*)",
+  ],
 }
