@@ -65,6 +65,9 @@ export function LeadsPageContent() {
       sources: searchParams.getAll("source") as LeadSource[],
       serviceLines: searchParams.getAll("service") as ServiceLine[],
       assignedTo: searchParams.getAll("assigned"),
+      category:
+        (searchParams.get("category") as LeadsFilterState["category"] | null) ??
+        "all",
     }),
     [searchParams]
   )
@@ -81,6 +84,9 @@ export function LeadsPageContent() {
     nextFilters.serviceLines.forEach((value) => nextParams.append("service", value))
     if (canFilterAssignedTo) {
       nextFilters.assignedTo.forEach((value) => nextParams.append("assigned", value))
+    }
+    if (nextFilters.category !== "all") {
+      nextParams.set("category", nextFilters.category)
     }
 
     const queryString = nextParams.toString()
@@ -112,13 +118,19 @@ export function LeadsPageContent() {
       const matchesAssignedTo =
         filters.assignedTo.length === 0 ||
         filters.assignedTo.includes(lead.assigned_to ?? "")
+      const matchesCategory =
+        filters.category === "all" ||
+        (filters.category === "uncategorized"
+          ? lead.category == null
+          : lead.category === filters.category)
 
       return (
         matchesSearch &&
         matchesStage &&
         matchesSource &&
         matchesServiceLine &&
-        matchesAssignedTo
+        matchesAssignedTo &&
+        matchesCategory
       )
     })
   }, [filters, leadsQuery.data])

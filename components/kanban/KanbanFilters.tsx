@@ -94,7 +94,8 @@ export function KanbanFilters({
     (filters.overdueOnly ? 1 : 0) +
     filters.serviceLines.length +
     filters.sources.length +
-    filters.assignedTo.length
+    filters.assignedTo.length +
+    (filters.category ? 1 : 0)
 
   const hasFilters = activeFilterCount > 0
 
@@ -103,10 +104,12 @@ export function KanbanFilters({
   const serviceLineValue = filters.serviceLines[0] ?? ALL
   const sourceValue = filters.sources[0] ?? ALL
   const assignedToValue = filters.assignedTo[0] ?? ALL
+  const categoryValue = filters.category ?? ALL
 
   const serviceLineActive = filters.serviceLines.length > 0
   const sourceActive = filters.sources.length > 0
   const assignedToActive = filters.assignedTo.length > 0
+  const categoryActive = Boolean(filters.category)
 
   const activeTriggerClass = "border-[#3B82F6] text-[#3B82F6]"
 
@@ -275,6 +278,30 @@ export function KanbanFilters({
             </SelectContent>
           </Select>
         ) : null}
+
+        <Select
+          value={categoryValue}
+          onValueChange={(value) => {
+            setFilter("category", value === ALL ? null : value)
+          }}
+        >
+          <SelectTrigger
+            className={cn(
+              "h-8 w-[130px] shrink-0 border-[#2A2A3C] bg-[#111118] text-xs text-[#9090A8]",
+              categoryActive && activeTriggerClass
+            )}
+          >
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent className="border-[#2A2A3C] bg-[#1A1A24]">
+            <SelectItem value={ALL}>All Categories</SelectItem>
+            <SelectItem value="hot">Hot</SelectItem>
+            <SelectItem value="warm">Warm</SelectItem>
+            <SelectItem value="lukewarm">Lukewarm</SelectItem>
+            <SelectItem value="cold">Cold</SelectItem>
+            <SelectItem value="uncategorized">Uncategorized</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2 lg:ml-4 lg:mt-0">

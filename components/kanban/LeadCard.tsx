@@ -1,13 +1,13 @@
 "use client"
 
 import type { ButtonHTMLAttributes, CSSProperties } from "react"
-import { formatDistanceToNow } from "date-fns"
+import { differenceInDays, formatDistanceToNow } from "date-fns"
 import { CalendarClock, Clock3, MapPin } from "lucide-react"
 
 import type { KanbanLead } from "@/lib/hooks/useKanban"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import { useUIStore } from "@/lib/stores/uiStore"
-import { getScoreLabel } from "@/lib/utils/lead-scoring"
+import { categoryConfig } from "@/lib/utils/lead-category"
 import { cn } from "@/lib/utils"
 
 const sourceStyles = {
@@ -79,6 +79,10 @@ export function LeadCard({
   const followUpLabel = lead.next_follow_up
     ? formatDistanceToNow(new Date(lead.next_follow_up.due_at), { addSuffix: true })
     : null
+  const daysLeft =
+    lead.boq_deadline != null
+      ? differenceInDays(new Date(lead.boq_deadline), new Date())
+      : null
 
   return (
     <button
@@ -172,19 +176,36 @@ export function LeadCard({
 
         {lead.score != null && lead.score > 0 && (
           <div
-            className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+            className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
             style={{
-              backgroundColor: `${getScoreLabel(lead.score).color}20`,
-              color: getScoreLabel(lead.score).color,
+              background: "#1F1F2E",
+              color: "#9090A8",
             }}
-            title={`${getScoreLabel(lead.score).label} lead`}
           >
-            <span
-              className="size-1.5 rounded-full"
-              style={{ backgroundColor: getScoreLabel(lead.score).color }}
-            />
             {lead.score}
           </div>
+        )}
+        {lead.category && categoryConfig[lead.category] && (
+          <span
+            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+            style={{
+              background: categoryConfig[lead.category].bg,
+              color: categoryConfig[lead.category].color,
+            }}
+          >
+            {categoryConfig[lead.category].label}
+          </span>
+        )}
+        {daysLeft !== null && daysLeft <= 3 && (
+          <span
+            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+            style={{
+              background: daysLeft < 0 ? "#7F1D1D" : "#78350F",
+              color: daysLeft < 0 ? "#FCA5A5" : "#FCD34D",
+            }}
+          >
+            {daysLeft < 0 ? "⚠ BOQ overdue" : `⚠ BOQ due in ${daysLeft}d`}
+          </span>
         )}
       </div>
     </button>

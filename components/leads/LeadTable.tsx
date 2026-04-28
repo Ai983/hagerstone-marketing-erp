@@ -19,6 +19,7 @@ import { toast } from "sonner"
 
 import type { LeadSource, ServiceLine } from "@/lib/types"
 import type { LeadListItem } from "@/lib/hooks/useLeads"
+import { categoryConfig } from "@/lib/utils/lead-category"
 import { cn } from "@/lib/utils"
 
 export type SortKey =
@@ -200,7 +201,7 @@ function ActionsMenu({ leadId }: { leadId: string }) {
 function LoadingRows() {
   return Array.from({ length: 8 }).map((_, index) => (
     <tr key={index} className="border-b border-[#2A2A3C]">
-      {Array.from({ length: 9 }).map((__, cellIndex) => (
+      {Array.from({ length: 10 }).map((__, cellIndex) => (
         <td key={cellIndex} className="px-4 py-4">
           <div className="h-4 animate-pulse rounded bg-[#1A1A24]" />
         </td>
@@ -313,6 +314,9 @@ export function LeadTable({
                   onSort={onSortChange}
                 />
               </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.05em] text-[#9090A8]">
+                Category
+              </th>
               <th className="hidden px-4 py-3 md:table-cell">
                 <SortableHeader
                   label="City"
@@ -405,6 +409,21 @@ export function LeadTable({
                         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
                         .join(" ")}
                     </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    {lead.category ? (
+                      <span
+                        className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium"
+                        style={{
+                          background: categoryConfig[lead.category].bg,
+                          color: categoryConfig[lead.category].color,
+                        }}
+                      >
+                        {categoryConfig[lead.category].label}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[#5A5A72]">—</span>
+                    )}
                   </td>
                   <td className="hidden px-4 py-4 text-sm text-[#9090A8] md:table-cell">
                     {lead.city || "—"}

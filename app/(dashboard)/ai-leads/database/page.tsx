@@ -72,15 +72,8 @@ const statusStyles: Record<LeadStatus, { bg: string; color: string; label: strin
   duplicate: { bg: "#1A1A24", color: "#9090A8", label: "Duplicate" },
 }
 
-function getScoreBadge(score: number | null): {
-  label: string
-  color: string
-  bg: string
-} {
-  const s = score ?? 0
-  if (s >= 80) return { label: "Hot", color: "#F87171", bg: "#3F161A" }
-  if (s >= 60) return { label: "Warm", color: "#F59E0B", bg: "#3F2A12" }
-  return { label: "Cold", color: "#60A5FA", bg: "#1E3A5F" }
+function getScoreBadge(score: number | null) {
+  return score ?? 0
 }
 
 function escapeCsv(value: string | number | null | undefined): string {
@@ -655,14 +648,10 @@ export default function AiLeadsDatabasePage() {
                       </td>
                       <td className="px-3 py-3">
                         <span
-                          className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                          style={{
-                            backgroundColor: score.bg,
-                            color: score.color,
-                          }}
+                          className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                          style={{ background: "#1F1F2E", color: "#9090A8" }}
                         >
-                          {score.label}
-                          {typeof lead.score === "number" ? ` · ${lead.score}` : ""}
+                          {score}
                         </span>
                       </td>
                       <td className="px-3 py-3">

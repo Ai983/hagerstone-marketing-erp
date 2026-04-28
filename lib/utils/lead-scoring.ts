@@ -27,6 +27,15 @@ export interface ScoreResult extends ScoreBreakdown {
   color: string
 }
 
+// Plain score badge styling for UIs that show only the numeric score.
+export const PLAIN_SCORE_BADGE_STYLE = {
+  background: "#1F1F2E",
+  color: "#9090A8",
+  padding: "2px 8px",
+  borderRadius: 20,
+  fontSize: 11,
+} as const
+
 export const MAX_POINTS = {
   budget: 25,
   source: 15,

@@ -71,6 +71,33 @@ export interface Lead {
   utm_campaign?: string
   whatsapp_opted_in: boolean
   score: number
+  category: "hot" | "warm" | "lukewarm" | "cold" | null
+  category_remarks: string | null
+  category_updated_at: string | null
+  category_updated_by: string | null
+  boq_received_date: string | null
+  boq_document_url: string | null
+  boq_deadline: string | null
+  boq_scope: string | null
+  boq_area_sqft: number | null
+  boq_floors: number | null
+  boq_remarks: string | null
+  boq_received_by: string | null
+  proposal_pdf_url: string | null
+  proposal_estimated_cost: number | null
+  proposal_sent_date: string | null
+  proposal_deadline: string | null
+  proposal_validity_days: number | null
+  proposal_remarks: string | null
+  proposal_sent_by: string | null
+  final_boq_url: string | null
+  final_agreed_price: number | null
+  final_area_sqft: number | null
+  final_floors: number | null
+  final_scope: string | null
+  final_remarks: string | null
+  won_date: string | null
+  won_by: string | null
   closure_reason?: string
   closure_value?: number
   closed_at?: string
@@ -82,6 +109,16 @@ export interface Lead {
   interactions?: Interaction[]
   tasks?: Task[]
   stage_age_days?: number
+}
+
+export interface PriceRevision {
+  id: string
+  lead_id: string
+  revised_price: number
+  revision_note: string | null
+  revised_by: string | null
+  created_at: string
+  profile?: { full_name: string }
 }
 
 export interface Interaction {

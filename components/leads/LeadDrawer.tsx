@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { type ChangeEvent, useEffect, useMemo, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { formatDistanceToNow, format } from "date-fns"
+import { differenceInDays, format, formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 import {
   X,
@@ -19,9 +19,15 @@ import {
   Sparkles,
   Bot,
   Send,
+  TrendingDown,
+  Trophy,
   Plus,
   UserCircle,
   ChevronRight,
+  FileText,
+  FileSpreadsheet,
+  Upload,
+  Download,
 } from "lucide-react"
 
 import { useUIStore } from "@/lib/stores/uiStore"
@@ -36,7 +42,8 @@ import { ReassignPopover } from "@/components/leads/ReassignPopover"
 import { StagePickerPopover } from "@/components/leads/StagePickerPopover"
 import { StageChangeModal } from "@/components/kanban/StageChangeModal"
 import { scoreLead, getScoreLabel, MAX_POINTS } from "@/lib/utils/lead-scoring"
-import type { Lead, PipelineStage, Profile, UserRole } from "@/lib/types"
+import { categoryConfig, type LeadCategory } from "@/lib/utils/lead-category"
+import type { Lead, PipelineStage, PriceRevision, Profile, UserRole } from "@/lib/types"
 import type { KanbanLead } from "@/lib/hooks/useKanban"
 import type { TimelineInteraction } from "@/lib/hooks/useActivities"
 import { cn } from "@/lib/utils"
@@ -194,6 +201,8 @@ interface OverviewTabProps {
   onSendWhatsApp: () => void
   onMoveStage: (toStage: PipelineStage) => void
   onReassign: (profileId: string | null, profileName: string | null) => Promise<void>
+  onCategoryChange: (category: LeadCategory) => Promise<void>
+  onRemarksUpdate: (remarks: string) => Promise<void>
   isReassigning: boolean
 }
 
@@ -251,6 +260,8 @@ function OverviewTab({
   onSendWhatsApp,
   onMoveStage,
   onReassign,
+  onCategoryChange,
+  onRemarksUpdate,
   isReassigning,
 }: OverviewTabProps) {
   const sourceLabel = lead.source
@@ -261,6 +272,109 @@ function OverviewTab({
   const canReassign = Boolean(currentUserRole && PRIVILEGED_ROLES.has(currentUserRole))
   const [stagePickerOpen, setStagePickerOpen] = useState(false)
   const [reassignOpen, setReassignOpen] = useState(false)
+  const queryClient = useQueryClient()
+  const currentStageSlug = lead.stage?.slug
+
+  const [boqData, setBOQData] = useState({
+    boq_received_date: lead.boq_received_date ?? "",
+    boq_document_url: lead.boq_document_url ?? null,
+    boq_deadline: lead.boq_deadline ?? "",
+    boq_scope: lead.boq_scope ?? "",
+    boq_area_sqft: lead.boq_area_sqft ?? "",
+    boq_floors: lead.boq_floors ?? "",
+    boq_remarks: lead.boq_remarks ?? "",
+  })
+  const [proposalData, setProposalData] = useState({
+    boq_document_url: lead.boq_document_url ?? null,
+    proposal_estimated_cost: lead.proposal_estimated_cost ?? "",
+    proposal_sent_date: lead.proposal_sent_date ?? "",
+    proposal_deadline: lead.proposal_deadline ?? "",
+    proposal_validity_days: lead.proposal_validity_days ?? 30,
+    proposal_remarks: lead.proposal_remarks ?? "",
+  })
+  const [boqUploading, setBOQUploading] = useState(false)
+  const [priceRevisions, setPriceRevisions] = useState<PriceRevision[]>([])
+  const [newPrice, setNewPrice] = useState("")
+  const [newPriceNote, setNewPriceNote] = useState("")
+  const [addingPrice, setAddingPrice] = useState(false)
+  const [wonData, setWonData] = useState({
+    final_boq_url: lead.final_boq_url ?? null,
+    final_agreed_price: lead.final_agreed_price ?? "",
+    final_area_sqft: lead.final_area_sqft ?? "",
+    final_floors: lead.final_floors ?? "",
+    final_scope: lead.final_scope ?? "",
+    final_remarks: lead.final_remarks ?? "",
+    won_date: lead.won_date ?? "",
+  })
+  const [wonUploading, setWonUploading] = useState(false)
+
+  useEffect(() => {
+    setBOQData({
+      boq_received_date: lead.boq_received_date ?? "",
+      boq_document_url: lead.boq_document_url ?? null,
+      boq_deadline: lead.boq_deadline ?? "",
+      boq_scope: lead.boq_scope ?? "",
+      boq_area_sqft: lead.boq_area_sqft ?? "",
+      boq_floors: lead.boq_floors ?? "",
+      boq_remarks: lead.boq_remarks ?? "",
+    })
+    setProposalData({
+      boq_document_url: lead.boq_document_url ?? null,
+      proposal_estimated_cost: lead.proposal_estimated_cost ?? "",
+      proposal_sent_date: lead.proposal_sent_date ?? "",
+      proposal_deadline: lead.proposal_deadline ?? "",
+      proposal_validity_days: lead.proposal_validity_days ?? 30,
+      proposal_remarks: lead.proposal_remarks ?? "",
+    })
+    setWonData({
+      final_boq_url: lead.final_boq_url ?? null,
+      final_agreed_price: lead.final_agreed_price ?? "",
+      final_area_sqft: lead.final_area_sqft ?? "",
+      final_floors: lead.final_floors ?? "",
+      final_scope: lead.final_scope ?? "",
+      final_remarks: lead.final_remarks ?? "",
+      won_date: lead.won_date ?? "",
+    })
+  }, [
+    lead.boq_area_sqft,
+    lead.boq_deadline,
+    lead.boq_document_url,
+    lead.boq_floors,
+    lead.boq_received_date,
+    lead.boq_remarks,
+    lead.boq_scope,
+    lead.proposal_deadline,
+    lead.proposal_estimated_cost,
+    lead.proposal_remarks,
+    lead.proposal_sent_date,
+    lead.proposal_validity_days,
+    lead.final_agreed_price,
+    lead.final_area_sqft,
+    lead.final_boq_url,
+    lead.final_floors,
+    lead.final_remarks,
+    lead.final_scope,
+    lead.won_date,
+  ])
+
+  useEffect(() => {
+    if (currentStageSlug !== "negotiation") return
+
+    const fetchRevisions = async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from("lead_price_revisions")
+        .select("*, profile:profiles(full_name)")
+        .eq("lead_id", lead.id)
+        .order("created_at", { ascending: false })
+
+      if (data) {
+        setPriceRevisions(data as PriceRevision[])
+      }
+    }
+
+    fetchRevisions()
+  }, [lead.id, currentStageSlug])
 
   // Compute live score breakdown
   const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000
@@ -280,6 +394,189 @@ function OverviewTab({
     },
     recentInteractionCount
   )
+
+  const handleSaveBOQ = async () => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const { error } = await supabase
+      .from("leads")
+      .update({
+        boq_received_date: boqData.boq_received_date || null,
+        boq_deadline: boqData.boq_deadline || null,
+        boq_scope: boqData.boq_scope || null,
+        boq_area_sqft: boqData.boq_area_sqft ? Number(boqData.boq_area_sqft) : null,
+        boq_floors: boqData.boq_floors ? Number(boqData.boq_floors) : null,
+        boq_remarks: boqData.boq_remarks || null,
+        boq_received_by: user?.id ?? null,
+      })
+      .eq("id", lead.id)
+
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["lead-drawer-detail", lead.id] })
+    queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
+    toast.success("BOQ details saved!")
+  }
+
+  const handleProposalBOQUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setBOQUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("leadId", lead.id)
+      formData.append("type", "boq")
+      const res = await fetch("/api/storage/upload-boq", {
+        method: "POST",
+        body: formData,
+      })
+      const data = (await res.json().catch(() => ({}))) as {
+        url?: string
+        error?: string
+      }
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? "Upload failed")
+      }
+      setProposalData((p) => ({ ...p, boq_document_url: data.url ?? null }))
+      toast.success("BOQ document uploaded!")
+    } catch {
+      toast.error("Upload failed")
+    } finally {
+      setBOQUploading(false)
+    }
+  }
+
+  const handleSaveProposal = async () => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const { error } = await supabase
+      .from("leads")
+      .update({
+        boq_document_url: proposalData.boq_document_url,
+        proposal_estimated_cost: proposalData.proposal_estimated_cost
+          ? Number(proposalData.proposal_estimated_cost)
+          : null,
+        proposal_sent_date: proposalData.proposal_sent_date || null,
+        proposal_deadline: proposalData.proposal_deadline || null,
+        proposal_validity_days: proposalData.proposal_validity_days
+          ? Number(proposalData.proposal_validity_days)
+          : 30,
+        proposal_remarks: proposalData.proposal_remarks || null,
+        proposal_sent_by: user?.id ?? null,
+      })
+      .eq("id", lead.id)
+
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["lead-drawer-detail", lead.id] })
+    queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
+    toast.success("Proposal details saved!")
+  }
+
+  const handleAddPriceRevision = async () => {
+    if (!newPrice || Number(newPrice) <= 0) {
+      toast.error("Please enter a valid price")
+      return
+    }
+
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from("lead_price_revisions")
+      .insert({
+        lead_id: lead.id,
+        revised_price: Number(newPrice),
+        revision_note: newPriceNote || null,
+        revised_by: user?.id ?? null,
+      })
+      .select("*, profile:profiles(full_name)")
+      .single()
+
+    if (error) {
+      toast.error("Failed to save revision")
+      return
+    }
+
+    setPriceRevisions((prev) => [data as PriceRevision, ...prev])
+    setNewPrice("")
+    setNewPriceNote("")
+    setAddingPrice(false)
+    toast.success("Price revision saved!")
+  }
+
+  const handleFinalBOQUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setWonUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("leadId", lead.id)
+      formData.append("type", "final-boq")
+      const res = await fetch("/api/storage/upload-boq", {
+        method: "POST",
+        body: formData,
+      })
+      const data = (await res.json().catch(() => ({}))) as {
+        url?: string
+        error?: string
+      }
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? "Upload failed")
+      }
+      setWonData((p) => ({ ...p, final_boq_url: data.url ?? null }))
+      toast.success("Final BOQ uploaded!")
+    } catch {
+      toast.error("Upload failed")
+    } finally {
+      setWonUploading(false)
+    }
+  }
+
+  const handleSaveWonDetails = async () => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const { error } = await supabase
+      .from("leads")
+      .update({
+        final_boq_url: wonData.final_boq_url,
+        final_agreed_price: wonData.final_agreed_price
+          ? Number(wonData.final_agreed_price)
+          : null,
+        final_area_sqft: wonData.final_area_sqft ? Number(wonData.final_area_sqft) : null,
+        final_floors: wonData.final_floors ? Number(wonData.final_floors) : null,
+        final_scope: wonData.final_scope || null,
+        final_remarks: wonData.final_remarks || null,
+        won_date: wonData.won_date || null,
+        won_by: user?.id ?? null,
+      })
+      .eq("id", lead.id)
+
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["lead-drawer-detail", lead.id] })
+    queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
+    toast.success("Won details saved!")
+  }
 
   return (
     <div className="thin-scrollbar flex-1 overflow-y-auto">
@@ -444,6 +741,1094 @@ function OverviewTab({
         <div className="border-t border-[#2A2A3C] p-4">
           <dt className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Initial Notes</dt>
           <dd className="mt-1 text-xs leading-relaxed text-[#F0F0FA]">{lead.initial_notes}</dd>
+        </div>
+      )}
+
+      <div className="px-4 pb-3">
+        <div
+          style={{
+            background: "#1A1A24",
+            border: "1px solid #2A2A3C",
+            borderRadius: 8,
+            padding: "12px 14px",
+            marginBottom: 12,
+          }}
+        >
+          <p
+            style={{
+              fontSize: 11,
+              color: "#9090A8",
+              margin: "0 0 10px",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Lead Category
+          </p>
+
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {(["hot", "warm", "lukewarm", "cold"] as const).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => onCategoryChange(cat)}
+                style={{
+                  background:
+                    lead.category === cat ? categoryConfig[cat].bg : "#111118",
+                  color:
+                    lead.category === cat ? categoryConfig[cat].color : "#5A5A72",
+                  border:
+                    lead.category === cat
+                      ? `1px solid ${categoryConfig[cat].color}60`
+                      : "1px solid #2A2A3C",
+                  padding: "6px 14px",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  fontWeight: lead.category === cat ? 500 : 400,
+                }}
+              >
+                {categoryConfig[cat].label}
+              </button>
+            ))}
+          </div>
+
+          {lead.category && (
+            <textarea
+              placeholder="Add remarks... e.g. Client confirmed budget ₹1Cr+, site visit scheduled"
+              defaultValue={lead.category_remarks ?? ""}
+              onBlur={(e) => onRemarksUpdate(e.target.value)}
+              rows={3}
+              style={{
+                width: "100%",
+                marginTop: 10,
+                background: "#1F1F2E",
+                border: "1px solid #2A2A3C",
+                borderRadius: 6,
+                padding: "8px 10px",
+                color: "#F0F0FA",
+                fontSize: 12,
+                resize: "vertical",
+                outline: "none",
+                fontFamily: "DM Sans, sans-serif",
+              }}
+            />
+          )}
+        </div>
+      </div>
+
+      {currentStageSlug === "boq_received" && (
+        <div className="px-4 pb-3">
+          <div
+            style={{
+              background: "#1A1A24",
+              border: "1px solid #2A2A3C",
+              borderRadius: 8,
+              padding: "14px",
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <FileText size={14} color="#F59E0B" />
+              <p
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "#F59E0B",
+                  margin: 0,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                BOQ Details
+              </p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  Received Date
+                </label>
+                <input
+                  type="date"
+                  value={boqData.boq_received_date}
+                  onChange={(e) => setBOQData((p) => ({ ...p, boq_received_date: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  Proposal Deadline ⚡
+                </label>
+                <input
+                  type="date"
+                  value={boqData.boq_deadline}
+                  onChange={(e) => setBOQData((p) => ({ ...p, boq_deadline: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border:
+                      boqData.boq_deadline &&
+                      differenceInDays(new Date(boqData.boq_deadline), new Date()) <= 3
+                        ? "1px solid #EF4444"
+                        : "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                />
+                {boqData.boq_deadline &&
+                  (() => {
+                    const days = differenceInDays(new Date(boqData.boq_deadline), new Date())
+                    if (days < 0)
+                      return (
+                        <p style={{ color: "#EF4444", fontSize: 10, margin: "3px 0 0" }}>
+                          ⚠ Deadline passed!
+                        </p>
+                      )
+                    if (days <= 3)
+                      return (
+                        <p style={{ color: "#F59E0B", fontSize: 10, margin: "3px 0 0" }}>
+                          ⚠ Due in {days} day{days !== 1 ? "s" : ""}
+                        </p>
+                      )
+                    return (
+                      <p style={{ color: "#10B981", fontSize: 10, margin: "3px 0 0" }}>
+                        ✓ {days} days remaining
+                      </p>
+                    )
+                  })()}
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  Scope of Work
+                </label>
+                <select
+                  value={boqData.boq_scope}
+                  onChange={(e) => setBOQData((p) => ({ ...p, boq_scope: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                >
+                  <option value="">Select scope</option>
+                  <option value="office_interiors">Office Interiors</option>
+                  <option value="mep">MEP Works</option>
+                  <option value="facade_glazing">Facade & Glazing</option>
+                  <option value="peb_construction">PEB Construction</option>
+                  <option value="civil_works">Civil Works</option>
+                  <option value="multiple">Multiple Scopes</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  Area (sq.ft)
+                </label>
+                <input
+                  type="number"
+                  value={boqData.boq_area_sqft}
+                  onChange={(e) => setBOQData((p) => ({ ...p, boq_area_sqft: e.target.value }))}
+                  placeholder="e.g. 5000"
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  No. of Floors
+                </label>
+                <input
+                  type="number"
+                  value={boqData.boq_floors}
+                  onChange={(e) => setBOQData((p) => ({ ...p, boq_floors: e.target.value }))}
+                  placeholder="e.g. 2"
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                BOQ Remarks
+              </label>
+              <textarea
+                value={boqData.boq_remarks}
+                onChange={(e) => setBOQData((p) => ({ ...p, boq_remarks: e.target.value }))}
+                placeholder="Special requirements, client preferences, site conditions..."
+                rows={3}
+                style={{
+                  width: "100%",
+                  background: "#1F1F2E",
+                  border: "1px solid #2A2A3C",
+                  borderRadius: 6,
+                  padding: "8px 10px",
+                  color: "#F0F0FA",
+                  fontSize: 12,
+                  resize: "vertical",
+                  outline: "none",
+                  fontFamily: "DM Sans, sans-serif",
+                }}
+              />
+            </div>
+
+            <button
+              onClick={handleSaveBOQ}
+              style={{
+                width: "100%",
+                background: "#F59E0B",
+                color: "#000",
+                border: "none",
+                borderRadius: 6,
+                padding: "10px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Save BOQ Details
+            </button>
+          </div>
+        </div>
+      )}
+
+      {currentStageSlug === "proposal_sent" && (
+        <div className="px-4 pb-3">
+          <div
+            style={{
+              background: "#1A1A24",
+              border: "1px solid #2A2A3C",
+              borderRadius: 8,
+              padding: "14px",
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <Send size={14} color="#EC4899" />
+              <p
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "#EC4899",
+                  margin: 0,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Proposal Details
+              </p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  Sent Date
+                </label>
+                <input
+                  type="date"
+                  value={proposalData.proposal_sent_date}
+                  onChange={(e) => setProposalData((p) => ({ ...p, proposal_sent_date: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  Client Decision Deadline
+                </label>
+                <input
+                  type="date"
+                  value={proposalData.proposal_deadline}
+                  onChange={(e) => setProposalData((p) => ({ ...p, proposal_deadline: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  Proposed Cost (₹)
+                </label>
+                <input
+                  type="number"
+                  value={proposalData.proposal_estimated_cost}
+                  onChange={(e) => setProposalData((p) => ({ ...p, proposal_estimated_cost: Number(e.target.value) }))}
+                  placeholder="e.g. 5000000"
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                />
+                {Number(proposalData.proposal_estimated_cost) > 0 && (
+                  <p style={{ color: "#10B981", fontSize: 11, margin: "3px 0 0" }}>
+                    ₹{(Number(proposalData.proposal_estimated_cost) / 100000).toFixed(1)} Lakhs
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  Valid for (days)
+                </label>
+                <input
+                  type="number"
+                  value={proposalData.proposal_validity_days}
+                  onChange={(e) => setProposalData((p) => ({ ...p, proposal_validity_days: Number(e.target.value) }))}
+                  placeholder="30"
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                Proposal Remarks
+              </label>
+              <textarea
+                value={proposalData.proposal_remarks}
+                onChange={(e) => setProposalData((p) => ({ ...p, proposal_remarks: e.target.value }))}
+                placeholder="Scope covered, exclusions, payment terms, special notes..."
+                rows={3}
+                style={{
+                  width: "100%",
+                  background: "#1F1F2E",
+                  border: "1px solid #2A2A3C",
+                  borderRadius: 6,
+                  padding: "8px 10px",
+                  color: "#F0F0FA",
+                  fontSize: 12,
+                  resize: "vertical",
+                  outline: "none",
+                  fontFamily: "DM Sans, sans-serif",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 6 }}>
+                Proposed BOQ Document
+              </label>
+              {proposalData.boq_document_url ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "#111118",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "10px 12px",
+                  }}
+                >
+                  <FileSpreadsheet size={16} color="#F59E0B" />
+                  <span style={{ color: "#F0F0FA", fontSize: 13, flex: 1 }}>
+                    Proposed BOQ Document
+                  </span>
+                  <a href={proposalData.boq_document_url} target="_blank" rel="noreferrer" style={{ color: "#3B82F6" }}>
+                    <Download size={14} />
+                  </a>
+                  <button
+                    onClick={() => setProposalData((p) => ({ ...p, boq_document_url: null }))}
+                    style={{ color: "#9090A8", fontSize: 11, background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    Replace
+                  </button>
+                </div>
+              ) : (
+                <label style={{ cursor: "pointer" }}>
+                  <div
+                    style={{
+                      border: "2px dashed #2A2A3C",
+                      borderRadius: 8,
+                      padding: "20px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {boqUploading ? (
+                      <p style={{ color: "#9090A8", fontSize: 12, margin: 0 }}>Uploading...</p>
+                    ) : (
+                      <>
+                        <Upload size={20} color="#5A5A72" style={{ margin: "0 auto 8px" }} />
+                        <p style={{ color: "#9090A8", fontSize: 12, margin: 0 }}>
+                          Upload Proposed BOQ Document
+                        </p>
+                        <p style={{ color: "#5A5A72", fontSize: 11, margin: "4px 0 0" }}>
+                          PDF, DOC, DOCX, XLSX, XLS only — Max 50MB
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  <input type="file" accept=".pdf,.doc,.docx,.xlsx,.xls" style={{ display: "none" }} onChange={handleProposalBOQUpload} />
+                </label>
+              )}
+            </div>
+
+
+            <button
+              onClick={handleSaveProposal}
+              style={{
+                width: "100%",
+                background: "#EC4899",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                padding: "10px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Save Proposal Details
+            </button>
+          </div>
+        </div>
+      )}
+
+      {currentStageSlug === "negotiation" && (
+        <div className="px-4 pb-3">
+          <div
+            style={{
+              background: "#1A1A24",
+              border: "1px solid #2A2A3C",
+              borderRadius: 8,
+              padding: "14px",
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <TrendingDown size={14} color="#EF4444" />
+              <p
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "#EF4444",
+                  margin: 0,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Negotiation
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 6 }}>
+                Proposed BOQ Document
+              </label>
+              {lead.boq_document_url ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "#111118",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "10px 12px",
+                  }}
+                >
+                  <FileText size={16} color="#F59E0B" />
+                  <span style={{ color: "#F0F0FA", fontSize: 13, flex: 1 }}>
+                    Proposed BOQ
+                  </span>
+                  <a
+                    href={lead.boq_document_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      color: "#3B82F6",
+                      fontSize: 12,
+                      textDecoration: "none",
+                    }}
+                  >
+                    <Download size={14} />
+                    View
+                  </a>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    background: "#111118",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "10px 12px",
+                  }}
+                >
+                  <p style={{ color: "#5A5A72", fontSize: 12, margin: 0 }}>
+                    No BOQ document uploaded yet
+                  </p>
+                </div>
+              )}
+
+              {lead.proposal_estimated_cost && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    background: "#111118",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "8px 12px",
+                  }}
+                >
+                  <span style={{ fontSize: 12, color: "#9090A8" }}>
+                    Original Proposed Cost
+                  </span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#F0F0FA" }}>
+                    Rs {(lead.proposal_estimated_cost / 100000).toFixed(1)}L
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label
+                style={{
+                  fontSize: 11,
+                  color: "#9090A8",
+                  display: "block",
+                  marginBottom: 8,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Price Revisions
+              </label>
+
+              {priceRevisions.length === 0 ? (
+                <p style={{ color: "#5A5A72", fontSize: 12, margin: "0 0 8px" }}>
+                  No revisions yet
+                </p>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 6,
+                    marginBottom: 10,
+                  }}
+                >
+                  {priceRevisions.map((rev, index) => (
+                    <div
+                      key={rev.id}
+                      style={{
+                        background: "#111118",
+                        border: index === 0 ? "1px solid #10B98140" : "1px solid #2A2A3C",
+                        borderRadius: 6,
+                        padding: "10px 12px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: rev.revision_note ? 4 : 0,
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          {index === 0 && (
+                            <span
+                              style={{
+                                background: "#10B98120",
+                                color: "#10B981",
+                                fontSize: 10,
+                                padding: "1px 6px",
+                                borderRadius: 20,
+                              }}
+                            >
+                              Latest
+                            </span>
+                          )}
+                          <span style={{ fontSize: 15, fontWeight: 600, color: "#F0F0FA" }}>
+                            Rs {(rev.revised_price / 100000).toFixed(1)}L
+                          </span>
+                        </div>
+                        <span style={{ fontSize: 11, color: "#5A5A72" }}>
+                          {new Date(rev.created_at).toLocaleDateString("en-IN")}
+                          {rev.profile?.full_name ? ` · ${rev.profile.full_name}` : ""}
+                        </span>
+                      </div>
+                      {rev.revision_note && (
+                        <p style={{ fontSize: 12, color: "#9090A8", margin: 0 }}>
+                          {rev.revision_note}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!addingPrice ? (
+                <button
+                  onClick={() => setAddingPrice(true)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    background: "none",
+                    border: "1px dashed #3B82F6",
+                    borderRadius: 6,
+                    padding: "8px 12px",
+                    color: "#3B82F6",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    width: "100%",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Plus size={13} />
+                  Add Price Revision
+                </button>
+              ) : (
+                <div
+                  style={{
+                    background: "#111118",
+                    border: "1px solid #3B82F6",
+                    borderRadius: 6,
+                    padding: "12px",
+                  }}
+                >
+                  <div style={{ marginBottom: 8 }}>
+                    <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                      Revised Price (Rs)
+                    </label>
+                    <input
+                      type="number"
+                      value={newPrice}
+                      onChange={(e) => setNewPrice(e.target.value)}
+                      placeholder="e.g. 4500000"
+                      autoFocus
+                      style={{
+                        width: "100%",
+                        background: "#1F1F2E",
+                        border: "1px solid #2A2A3C",
+                        borderRadius: 6,
+                        padding: "6px 10px",
+                        color: "#F0F0FA",
+                        fontSize: 12,
+                        outline: "none",
+                      }}
+                    />
+                    {newPrice && Number(newPrice) > 0 && (
+                      <p style={{ color: "#10B981", fontSize: 11, margin: "3px 0 0" }}>
+                        Rs {(Number(newPrice) / 100000).toFixed(1)} Lakhs
+                      </p>
+                    )}
+                  </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                      Note (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={newPriceNote}
+                      onChange={(e) => setNewPriceNote(e.target.value)}
+                      placeholder="e.g. Client requested 10% discount"
+                      style={{
+                        width: "100%",
+                        background: "#1F1F2E",
+                        border: "1px solid #2A2A3C",
+                        borderRadius: 6,
+                        padding: "6px 10px",
+                        color: "#F0F0FA",
+                        fontSize: 12,
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      onClick={handleAddPriceRevision}
+                      style={{
+                        flex: 1,
+                        background: "#3B82F6",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 6,
+                        padding: "8px",
+                        fontSize: 12,
+                        fontWeight: 500,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Save Revision
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAddingPrice(false)
+                        setNewPrice("")
+                        setNewPriceNote("")
+                      }}
+                      style={{
+                        background: "#1A1A24",
+                        color: "#9090A8",
+                        border: "1px solid #2A2A3C",
+                        borderRadius: 6,
+                        padding: "8px 12px",
+                        fontSize: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {currentStageSlug === "won" && (
+        <div className="px-4 pb-3">
+          <div
+            style={{
+              background: "#1A1A24",
+              border: "1px solid #10B98140",
+              borderRadius: 8,
+              padding: "14px",
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <Trophy size={14} color="#10B981" />
+              <p
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "#10B981",
+                  margin: 0,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Won - Final Details
+              </p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  Won Date
+                </label>
+                <input
+                  type="date"
+                  value={wonData.won_date}
+                  onChange={(e) => setWonData((p) => ({ ...p, won_date: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  Final Agreed Price (Rs)
+                </label>
+                <input
+                  type="number"
+                  value={wonData.final_agreed_price}
+                  onChange={(e) => setWonData((p) => ({ ...p, final_agreed_price: e.target.value }))}
+                  placeholder="e.g. 4500000"
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                />
+                {wonData.final_agreed_price && Number(wonData.final_agreed_price) > 0 && (
+                  <p style={{ color: "#10B981", fontSize: 11, margin: "3px 0 0" }}>
+                    Rs {(Number(wonData.final_agreed_price) / 100000).toFixed(1)} Lakhs
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  Final Area (sq.ft)
+                </label>
+                <input
+                  type="number"
+                  value={wonData.final_area_sqft}
+                  onChange={(e) => setWonData((p) => ({ ...p, final_area_sqft: e.target.value }))}
+                  placeholder="e.g. 5000"
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  No. of Floors
+                </label>
+                <input
+                  type="number"
+                  value={wonData.final_floors}
+                  onChange={(e) => setWonData((p) => ({ ...p, final_floors: e.target.value }))}
+                  placeholder="e.g. 2"
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                  Final Scope of Work
+                </label>
+                <select
+                  value={wonData.final_scope}
+                  onChange={(e) => setWonData((p) => ({ ...p, final_scope: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    background: "#1F1F2E",
+                    border: "1px solid #2A2A3C",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    color: "#F0F0FA",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                >
+                  <option value="">Select scope</option>
+                  <option value="office_interiors">Office Interiors</option>
+                  <option value="mep">MEP Works</option>
+                  <option value="facade_glazing">Facade & Glazing</option>
+                  <option value="peb_construction">PEB Construction</option>
+                  <option value="civil_works">Civil Works</option>
+                  <option value="multiple">Multiple Scopes</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 4 }}>
+                Remarks
+              </label>
+              <textarea
+                value={wonData.final_remarks}
+                onChange={(e) => setWonData((p) => ({ ...p, final_remarks: e.target.value }))}
+                placeholder="Payment terms, special conditions, project start date, key contacts..."
+                rows={3}
+                style={{
+                  width: "100%",
+                  background: "#1F1F2E",
+                  border: "1px solid #2A2A3C",
+                  borderRadius: 6,
+                  padding: "8px 10px",
+                  color: "#F0F0FA",
+                  fontSize: 12,
+                  resize: "vertical",
+                  outline: "none",
+                  fontFamily: "DM Sans, sans-serif",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: "#9090A8", display: "block", marginBottom: 6 }}>
+                Final Agreed BOQ Document
+              </label>
+              {wonData.final_boq_url ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "#111118",
+                    border: "1px solid #10B98140",
+                    borderRadius: 6,
+                    padding: "10px 12px",
+                  }}
+                >
+                  <FileText size={16} color="#10B981" />
+                  <span style={{ color: "#F0F0FA", fontSize: 13, flex: 1 }}>
+                    Final BOQ Document
+                  </span>
+                  <a
+                    href={wonData.final_boq_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      color: "#3B82F6",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      textDecoration: "none",
+                      fontSize: 12,
+                    }}
+                  >
+                    <Download size={14} />
+                    View
+                  </a>
+                  <button
+                    onClick={() => setWonData((p) => ({ ...p, final_boq_url: null }))}
+                    style={{
+                      color: "#9090A8",
+                      fontSize: 11,
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Replace
+                  </button>
+                </div>
+              ) : (
+                <label style={{ cursor: "pointer" }}>
+                  <div
+                    style={{
+                      border: "2px dashed #10B98140",
+                      borderRadius: 8,
+                      padding: "20px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {wonUploading ? (
+                      <p style={{ color: "#9090A8", fontSize: 12, margin: 0 }}>
+                        Uploading...
+                      </p>
+                    ) : (
+                      <>
+                        <Upload size={20} color="#10B981" style={{ margin: "0 auto 8px" }} />
+                        <p style={{ color: "#9090A8", fontSize: 12, margin: 0 }}>
+                          Upload Final BOQ Document
+                        </p>
+                        <p style={{ color: "#5A5A72", fontSize: 11, margin: "4px 0 0" }}>
+                          PDF, DOC, DOCX, XLSX - Max 50MB
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xlsx,.xls"
+                    style={{ display: "none" }}
+                    onChange={handleFinalBOQUpload}
+                  />
+                </label>
+              )}
+            </div>
+
+            <button
+              onClick={handleSaveWonDetails}
+              style={{
+                width: "100%",
+                background: "#10B981",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                padding: "10px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Save Won Details
+            </button>
+          </div>
         </div>
       )}
 
@@ -1053,6 +2438,49 @@ export function LeadDrawer() {
     }
   }
 
+  const handleCategoryChange = async (cat: LeadCategory) => {
+    if (!lead) return
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const newCategory = lead.category === cat ? null : cat
+    const { error } = await supabase
+      .from("leads")
+      .update({
+        category: newCategory,
+        category_updated_at: new Date().toISOString(),
+        category_updated_by: user?.id ?? null,
+      })
+      .eq("id", lead.id)
+
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["lead-drawer-detail", lead.id] })
+    queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
+    toast.success(newCategory ? `Category set to ${newCategory}` : "Category cleared")
+  }
+
+  const handleRemarksUpdate = async (remarks: string) => {
+    if (!lead) return
+    const supabase = createClient()
+    const { error } = await supabase
+      .from("leads")
+      .update({ category_remarks: remarks })
+      .eq("id", lead.id)
+
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["lead-drawer-detail", lead.id] })
+    toast.success("Remarks saved")
+  }
+
   // ── Stage-change handlers ────────────────────────────────────
   const handleStageConfirm = async (values: {
     note?: string
@@ -1153,6 +2581,11 @@ export function LeadDrawer() {
       estimated_budget: lead.estimated_budget ?? null,
       closure_value: lead.closure_value ?? null,
       score: lead.score ?? null,
+      category: lead.category ?? null,
+      category_remarks: lead.category_remarks ?? null,
+      category_updated_at: lead.category_updated_at ?? null,
+      category_updated_by: lead.category_updated_by ?? null,
+      boq_deadline: lead.boq_deadline ?? null,
       created_at: lead.created_at,
       stage: lead.stage as KanbanLead["stage"],
       assignee: lead.assignee
@@ -1317,6 +2750,8 @@ export function LeadDrawer() {
                           onSendWhatsApp={() => setShowWhatsApp(true)}
                           onMoveStage={(toStage) => setPendingToStage(toStage)}
                           onReassign={handleReassign}
+                          onCategoryChange={handleCategoryChange}
+                          onRemarksUpdate={handleRemarksUpdate}
                           isReassigning={isReassigning}
                         />
                       ) : (

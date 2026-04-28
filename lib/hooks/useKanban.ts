@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import type { LeadSource, PipelineStage, Profile, ServiceLine, UserRole } from "@/lib/types"
+import type { LeadCategory } from "@/lib/utils/lead-category"
 
 interface KanbanTask {
   id: string
@@ -32,6 +33,11 @@ export interface KanbanLead {
   estimated_budget?: string | null
   closure_value?: number | null
   score?: number | null
+  category?: LeadCategory | null
+  category_remarks?: string | null
+  category_updated_at?: string | null
+  category_updated_by?: string | null
+  boq_deadline?: string | null
   created_at: string
   stage?: (PipelineStage & { color: string }) | null
   assignee?: Pick<Profile, "id" | "full_name" | "avatar_url" | "role"> | null
@@ -99,7 +105,7 @@ async function fetchKanbanLeads() {
   const { data, error } = await supabase
     .from("leads")
     .select(
-      "id, full_name, company_name, phone, city, service_line, source, stage_id, stage_entered_at, assigned_to, estimated_budget, closure_value, score, created_at, stage:stage_id(*), assignee:assigned_to(id, full_name, avatar_url, role), tasks:tasks!left(id, lead_id, title, type, due_at, completed_at, assigned_to)"
+      "id, full_name, company_name, phone, city, service_line, source, stage_id, stage_entered_at, assigned_to, estimated_budget, closure_value, score, category, category_remarks, category_updated_at, category_updated_by, boq_deadline, created_at, stage:stage_id(*), assignee:assigned_to(id, full_name, avatar_url, role), tasks:tasks!left(id, lead_id, title, type, due_at, completed_at, assigned_to)"
     )
     .order("created_at", { ascending: false })
 
@@ -122,6 +128,11 @@ async function fetchKanbanLeads() {
       estimated_budget: lead.estimated_budget,
       closure_value: lead.closure_value,
       score: lead.score,
+      category: lead.category,
+      category_remarks: lead.category_remarks,
+      category_updated_at: lead.category_updated_at,
+      category_updated_by: lead.category_updated_by,
+      boq_deadline: lead.boq_deadline,
       created_at: lead.created_at,
       stage: getSingleRelation(lead.stage) as KanbanLead["stage"],
       assignee: getSingleRelation(lead.assignee) as KanbanLead["assignee"],
@@ -210,13 +221,20 @@ export function useKanban() {
       const matchesAssignedTo =
         filters.assignedTo.length === 0 ||
         filters.assignedTo.includes(lead.assigned_to ?? "")
+      const matchesCategory =
+        !filters.category ||
+        filters.category === "" ||
+        (filters.category === "uncategorized"
+          ? lead.category == null
+          : lead.category === filters.category)
 
       return (
         matchesMyLeads &&
         matchesOverdue &&
         matchesServiceLine &&
         matchesSource &&
-        matchesAssignedTo
+        matchesAssignedTo &&
+        matchesCategory
       )
     })
     // When an Assigned To filter is active, log a sample of leads so

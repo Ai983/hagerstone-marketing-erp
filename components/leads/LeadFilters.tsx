@@ -12,6 +12,7 @@ export interface LeadsFilterState {
   sources: LeadSource[]
   serviceLines: ServiceLine[]
   assignedTo: string[]
+  category: "all" | "hot" | "warm" | "lukewarm" | "cold" | "uncategorized"
 }
 
 interface LeadFiltersProps {
@@ -188,6 +189,7 @@ export function LeadFilters({
     filters.sources.length +
     filters.serviceLines.length +
     filters.assignedTo.length +
+    (filters.category !== "all" ? 1 : 0) +
     (filters.search ? 1 : 0)
 
   const hasActiveFilters = activeFilterCount > 0
@@ -250,6 +252,22 @@ export function LeadFilters({
             options={serviceLineOptions}
             onChange={(values) => update({ serviceLines: values as ServiceLine[] })}
           />
+          <select
+            value={filters.category}
+            onChange={(event) =>
+              update({
+                category: event.target.value as LeadsFilterState["category"],
+              })
+            }
+            className="h-10 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none transition hover:border-[#4A4A62] sm:min-w-[160px]"
+          >
+            <option value="all">All Categories</option>
+            <option value="hot">Hot</option>
+            <option value="warm">Warm</option>
+            <option value="lukewarm">Lukewarm</option>
+            <option value="cold">Cold</option>
+            <option value="uncategorized">Uncategorized</option>
+          </select>
           {canFilterAssignedTo ? (
             <MultiSelectDropdown
               label="Assigned To"
@@ -268,6 +286,7 @@ export function LeadFilters({
                   sources: [],
                   serviceLines: [],
                   assignedTo: [],
+                  category: "all",
                 })
               }
               className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] transition hover:bg-[#1A1A24]"
@@ -298,6 +317,22 @@ export function LeadFilters({
               options={serviceLineOptions}
               onChange={(values) => update({ serviceLines: values as ServiceLine[] })}
             />
+            <select
+              value={filters.category}
+              onChange={(event) =>
+                update({
+                  category: event.target.value as LeadsFilterState["category"],
+                })
+              }
+              className="h-10 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none transition hover:border-[#4A4A62]"
+            >
+              <option value="all">All Categories</option>
+              <option value="hot">Hot</option>
+              <option value="warm">Warm</option>
+              <option value="lukewarm">Lukewarm</option>
+              <option value="cold">Cold</option>
+              <option value="uncategorized">Uncategorized</option>
+            </select>
             {canFilterAssignedTo ? (
               <MultiSelectDropdown
                 label="Assigned To"
@@ -316,6 +351,7 @@ export function LeadFilters({
                     sources: [],
                     serviceLines: [],
                     assignedTo: [],
+                    category: "all",
                   })
                 }
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA]"

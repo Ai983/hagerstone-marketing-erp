@@ -11,6 +11,7 @@ export interface KanbanFiltersState {
   serviceLines: ServiceLine[]
   sources: LeadSource[]
   assignedTo: string[]
+  category: string | null
 }
 
 export interface PendingStageChange {
@@ -47,6 +48,7 @@ const defaultFilters: KanbanFiltersState = {
   serviceLines: [],
   sources: [],
   assignedTo: [],
+  category: null,
 }
 
 export const useKanbanStore = create<KanbanStoreState>((set) => ({
@@ -114,6 +116,7 @@ export const useKanbanStore = create<KanbanStoreState>((set) => ({
         serviceLines: [],
         sources: [],
         assignedTo: [],
+        category: null,
       },
     }),
   setSelectedLeadId: (id) => set({ selectedLeadId: id }),
