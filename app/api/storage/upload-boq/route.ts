@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const fileExt = file.name.split('.').pop()
     const fileName = `${leadId}/${type}-${Date.now()}.${fileExt}`
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('boq-documents')
       .upload(fileName, buffer, {
         contentType: file.type,
