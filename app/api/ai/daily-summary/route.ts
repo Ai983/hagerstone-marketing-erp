@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient as createServiceClient, type SupabaseClient } from "@supabase/supabase-js"
 import { createClient as createUserClient } from "@/lib/supabase/server"
 import { generateAndSendDailySummary } from "@/lib/utils/daily-summary"
+import { sendWhatsAppMessage } from "@/lib/utils/whapi"
 
 // ── Fallback: basic stats-only briefing when Claude is unavailable ─
 async function buildFallbackMessage(supabase: SupabaseClient): Promise<string> {
@@ -177,7 +178,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // ── Send via Maytapi — non-fatal ───────────────────────────
+    // ── Send via Whapi — non-fatal ─────────────────────────────
     let sendOk = false
     let sendError: string | null = null
     let managerNumber: string | null = null
@@ -185,38 +186,13 @@ export async function POST(request: NextRequest) {
     if (!managerNumberRaw) {
       sendError = "No target phone number configured"
     } else {
-      // Maytapi expects digits only — strip +, spaces, dashes, and parens
-      managerNumber = managerNumberRaw.replace(/[\s\-()+]/g, "")
-
-      try {
-        const maytapiResponse = await fetch(
-          `https://api.maytapi.com/api/${process.env.MAYTAPI_PRODUCT_ID}/${process.env.MAYTAPI_PHONE_ID}/sendMessage`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-maytapi-key": process.env.MAYTAPI_API_TOKEN!,
-            },
-            body: JSON.stringify({
-              to_number: managerNumber,
-              type: "text",
-              message: finalMessage,
-            }),
-          }
-        )
-
-        const maytapiJson = await maytapiResponse.json().catch(() => null)
-
-        if (!maytapiResponse.ok || maytapiJson?.success === false) {
-          sendError =
-            maytapiJson?.message || `Maytapi returned ${maytapiResponse.status}`
-          console.error("Maytapi send failed:", sendError, maytapiJson)
-        } else {
-          sendOk = true
-        }
-      } catch (err) {
-        sendError = err instanceof Error ? err.message : "Network error calling Maytapi"
-        console.error("Maytapi fetch threw:", err)
+      managerNumber = managerNumberRaw
+      const result = await sendWhatsAppMessage(managerNumberRaw, finalMessage)
+      if (result.success) {
+        sendOk = true
+      } else {
+        sendError = result.error ?? "Whapi send failed"
+        console.error("Whapi send failed:", sendError)
       }
     }
 

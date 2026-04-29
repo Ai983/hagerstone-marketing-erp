@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server"
-import { createClient as createUserClient } from "@/lib/supabase/server"
 
-const TEST_NUMBER = process.env.MAYTAPI_TEST_NUMBER || "+919999999999"
+import { createClient as createUserClient } from "@/lib/supabase/server"
+import { sendWhatsAppMessage } from "@/lib/utils/whapi"
+
+// Default to MANAGER_WHATSAPP_NUMBER for the test send. Falls back to a
+// safe placeholder so the route never tries to spam an unspecified number.
+const TEST_NUMBER =
+  process.env.MANAGER_WHATSAPP_NUMBER || "+919999999999"
 
 export async function POST() {
   const supabase = await createUserClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -19,47 +26,21 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const productId = process.env.MAYTAPI_PRODUCT_ID
-  const phoneId = process.env.MAYTAPI_PHONE_ID
-  const apiToken = process.env.MAYTAPI_API_TOKEN
+  const result = await sendWhatsAppMessage(
+    TEST_NUMBER,
+    "Hagerstone ERP test message ✅ — Whapi integration working!"
+  )
 
-  if (!productId || !phoneId || !apiToken) {
+  if (!result.success) {
     return NextResponse.json(
-      { error: "Maytapi not configured. Set MAYTAPI_PRODUCT_ID, MAYTAPI_PHONE_ID, MAYTAPI_API_TOKEN." },
-      { status: 503 }
+      { error: result.error ?? "Failed to send test message" },
+      { status: 502 }
     )
   }
 
-  try {
-    const res = await fetch(
-      `https://api.maytapi.com/api/${productId}/${phoneId}/sendMessage`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-maytapi-key": apiToken,
-        },
-        body: JSON.stringify({
-          to_number: TEST_NUMBER.replace(/[\s\-()]/g, ""),
-          type: "text",
-          message: "Hagerstone ERP test message",
-        }),
-      }
-    )
-
-    const data = await res.json()
-    if (!res.ok || data.success === false) {
-      return NextResponse.json(
-        { error: data.message || "Maytapi returned an error" },
-        { status: 502 }
-      )
-    }
-
-    return NextResponse.json({ success: true, sent_to: TEST_NUMBER })
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Network error" },
-      { status: 500 }
-    )
-  }
+  return NextResponse.json({
+    success: true,
+    sent_to: TEST_NUMBER,
+    messageId: result.messageId,
+  })
 }

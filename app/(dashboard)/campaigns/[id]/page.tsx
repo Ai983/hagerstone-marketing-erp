@@ -757,7 +757,7 @@ function SettingsTab({
 // ── Test Manual Send card ────────────────────────────────────────
 //
 // For testing only. Fires the campaign's first message (position = 1)
-// to every active enrollment via Maytapi, serialised with a 2-second
+// to every active enrollment via Whapi, serialised with a 2-second
 // pause between messages.
 
 interface SendResult {
@@ -825,7 +825,7 @@ function TestSendCard({ campaignId }: { campaignId: string }) {
           </h3>
           <p className="mt-1 text-xs text-[#9090A8]">
             Send the first message to all enrolled active leads right now via
-            Maytapi. Use for testing only.
+            Whapi. Use for testing only.
           </p>
 
           {/* Warning banner */}

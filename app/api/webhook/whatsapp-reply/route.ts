@@ -1,122 +1,124 @@
-import { NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-// ── Payload shape ──────────────────────────────────────────────────
+// Whapi inbound webhook. Whapi sends:
+//   body.messages[]  — incoming + outgoing messages
+//   body.statuses[]  — delivery status updates (sent / delivered / read)
 //
-// Maytapi's webhook body isn't strictly typed — across docs and
-// in-the-wild traffic we've seen the reply number appear at several
-// paths, so we probe each one.
+// Uses service role for writes because there's no Supabase auth session
+// on a webhook request, and the `interactions` table's INSERT policy
+// requires `auth.uid() IS NOT NULL` — without service role, every
+// reply insert silently fails RLS.
 
-interface MaytapiWebhookBody {
-  message?: {
-    from?: string
-    text?: string | { body?: string }
-  }
+interface WhapiMessage {
+  id?: string
+  chat_id?: string
   from?: string
-  phoneNumber?: string
-  text?: string
-  data?: {
-    from?: string
-    text?: string
-  }
+  from_me?: boolean
+  text?: { body?: string }
+  caption?: string
 }
 
-export async function POST(request: Request) {
+interface WhapiStatus {
+  id?: string
+  status?: string
+}
+
+interface WhapiWebhookBody {
+  messages?: WhapiMessage[]
+  statuses?: WhapiStatus[]
+}
+
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) {
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+    )
+  }
+  return createClient(url, key)
+}
+
+export async function POST(request: NextRequest) {
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!url || !serviceKey) {
-      return NextResponse.json(
-        { error: "Service role not configured" },
-        { status: 503 }
-      )
-    }
-    const supabase = createClient(url, serviceKey)
+    const body = (await request.json()) as WhapiWebhookBody
+    console.log("Whapi webhook received:", JSON.stringify(body, null, 2))
 
-    const body = (await request.json()) as MaytapiWebhookBody
-    console.log("WhatsApp webhook received:", JSON.stringify(body))
+    const supabase = getServiceClient()
 
-    // Extract phone + text from any of the known payload shapes
-    const phone =
-      body?.message?.from ||
-      body?.from ||
-      body?.data?.from ||
-      body?.phoneNumber
+    // ── Incoming messages ───────────────────────────────────────
+    if (body.messages && body.messages.length > 0) {
+      for (const msg of body.messages) {
+        // Skip our own outgoing messages — Whapi includes those in the
+        // same array but we only want to log replies from leads.
+        if (msg.from_me) continue
 
-    const messageText = body?.message?.text
-    const text =
-      (typeof messageText === "object" ? messageText?.body : messageText) ||
-      body?.text ||
-      body?.data?.text
+        // Whapi sends chat_id like "919876543210@s.whatsapp.net"
+        const fromPhone = msg.chat_id
+          ?.replace("@s.whatsapp.net", "")
+          ?.replace("91", "")
+          ?.slice(-10)
 
-    if (!phone || !text) {
-      console.log("No phone or text found, ignoring")
-      return NextResponse.json({ status: "ignored" })
-    }
+        const messageText =
+          msg.text?.body || msg.caption || "[Media message]"
 
-    // Keep last 10 digits — matches both "919876543210" and "9876543210"
-    // stored against leads.phone via ILIKE %...%.
-    const digits = String(phone).replace(/\D/g, "")
-    const normalised = digits.slice(-10)
+        console.log("Incoming WhatsApp from:", fromPhone)
+        console.log("Message:", messageText)
 
-    console.log("Looking for lead with phone:", normalised)
+        if (!fromPhone) continue
 
-    // maybeSingle() returns { data: null, error: null } on zero matches,
-    // so unknown numbers fall through to the lead_not_found branch
-    // instead of throwing PGRST116 into the catch.
-    const { data: lead, error: lookupError } = await supabase
-      .from("leads")
-      .select("id, full_name, assigned_to")
-      .or(`phone.ilike.%${normalised}%,phone_alt.ilike.%${normalised}%`)
-      .limit(1)
-      .maybeSingle()
+        const { data: lead } = await supabase
+          .from("leads")
+          .select("id, full_name, assigned_to")
+          .ilike("phone", `%${fromPhone}%`)
+          .maybeSingle()
 
-    if (lookupError) {
-      console.error("Lead lookup failed:", lookupError)
-      return NextResponse.json({ error: lookupError.message }, { status: 500 })
-    }
+        if (lead) {
+          await supabase.from("interactions").insert({
+            lead_id: lead.id,
+            type: "whatsapp_received",
+            notes: messageText,
+            is_automated: true,
+          })
 
-    if (!lead) {
-      console.log("Lead not found for phone:", normalised)
-      return NextResponse.json({ status: "lead_not_found" })
-    }
+          if (lead.assigned_to) {
+            await supabase.from("notifications").insert({
+              user_id: lead.assigned_to,
+              type: "campaign_reply",
+              title: "WhatsApp Reply Received",
+              body: `${lead.full_name}: "${messageText.slice(0, 100)}"`,
+              lead_id: lead.id,
+              is_read: false,
+            })
+          }
 
-    console.log("Found lead:", lead.full_name)
-
-    // Log the reply on the lead timeline
-    const { error: interactionError } = await supabase.from("interactions").insert({
-      lead_id: lead.id,
-      type: "whatsapp_received",
-      notes: String(text),
-      is_automated: true,
-    })
-    if (interactionError) {
-      console.error("Interaction insert failed:", interactionError)
-    }
-
-    // Notify the assigned rep (type 'campaign_reply' is allowed by the
-    // notifications CHECK constraint — see PRD §5).
-    if (lead.assigned_to) {
-      const { error: notifError } = await supabase.from("notifications").insert({
-        user_id: lead.assigned_to,
-        type: "campaign_reply",
-        title: `${lead.full_name} replied on WhatsApp`,
-        body: String(text).slice(0, 100),
-        lead_id: lead.id,
-      })
-      if (notifError) {
-        console.error("Notification insert failed:", notifError)
+          console.log("Logged reply for lead:", lead.full_name)
+        } else {
+          console.log("No lead found for phone:", fromPhone)
+        }
       }
     }
 
-    return NextResponse.json({ success: true })
-  } catch (err) {
-    console.error("WhatsApp reply webhook error:", err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    // ── Delivery status updates ─────────────────────────────────
+    if (body.statuses && body.statuses.length > 0) {
+      for (const status of body.statuses) {
+        console.log("Message status update:", status.id, status.status)
+        // Hook point: when we want to record delivery confirmations,
+        // update the matching interaction row by `whatsapp_message_id`.
+      }
+    }
+
+    return Response.json({ success: true })
+  } catch (error) {
+    console.error("Whapi webhook error:", error)
+    return Response.json(
+      { error: "Webhook processing failed" },
+      { status: 500 }
+    )
   }
 }
 
-// Maytapi pings GET to verify webhook reachability
 export async function GET() {
-  return NextResponse.json({ status: "ok", service: "hagerstone-erp" })
+  return Response.json({ status: "Webhook active" })
 }

@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils"
 
 interface IntegrationsStatus {
   webhook: { secret_set: boolean }
-  maytapi: { product_id_set: boolean; phone_id_set: boolean; token_set: boolean }
+  whapi: { token_set: boolean; api_url_set: boolean }
   anthropic: { key_set: boolean }
   app_url: string | null
 }
@@ -155,10 +155,8 @@ export default function IntegrationsPage() {
   }
 
   const webhookActive = Boolean(status?.webhook.secret_set)
-  const maytapiActive = Boolean(
-    status?.maytapi.product_id_set &&
-      status?.maytapi.phone_id_set &&
-      status?.maytapi.token_set
+  const whapiActive = Boolean(
+    status?.whapi.token_set && status?.whapi.api_url_set
   )
   const claudeActive = Boolean(status?.anthropic.key_set)
 
@@ -234,27 +232,26 @@ export default function IntegrationsPage() {
             </div>
           </IntegrationCard>
 
-          {/* Maytapi */}
+          {/* Whapi */}
           <IntegrationCard
             icon={MessageSquare}
             accent="#34D399"
-            title="Maytapi WhatsApp"
-            description="Outbound WhatsApp messaging provider."
-            status={<StatusDot active={maytapiActive} label={maytapiActive ? "Connected" : "Not configured"} />}
+            title="Whapi WhatsApp"
+            description="WhatsApp messaging via Whapi.Cloud."
+            status={<StatusDot active={whapiActive} label={whapiActive ? "Connected" : "Not configured"} />}
           >
             <button
               onClick={handleTestWhatsApp}
-              disabled={testingWa || !maytapiActive}
+              disabled={testingWa || !whapiActive}
               className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-2 text-xs font-medium text-white transition hover:bg-[#1da851] disabled:opacity-50"
             >
               {testingWa && <Loader2 className="size-3 animate-spin" />}
               Send Test Message
             </button>
-            {!maytapiActive && (
+            {!whapiActive && (
               <p className="mt-2 text-[11px] text-[#F59E0B]">
-                Set <code className="rounded bg-[#1A1A24] px-1">MAYTAPI_PRODUCT_ID</code>,{" "}
-                <code className="rounded bg-[#1A1A24] px-1">MAYTAPI_PHONE_ID</code>, and{" "}
-                <code className="rounded bg-[#1A1A24] px-1">MAYTAPI_API_TOKEN</code>.
+                Set <code className="rounded bg-[#1A1A24] px-1">WHAPI_TOKEN</code> and{" "}
+                <code className="rounded bg-[#1A1A24] px-1">WHAPI_API_URL</code>.
               </p>
             )}
           </IntegrationCard>

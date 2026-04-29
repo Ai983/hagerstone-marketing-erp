@@ -30,44 +30,20 @@ Structure the message as short sections covering:
 - Quick wins already in progress
 - One direct recommendation`
 
-// ── Maytapi sender ──────────────────────────────────────────────────
+// Whapi sender — replaced Maytapi. The shared helper handles phone
+// normalisation and bearer auth. Returns the same { ok, error } shape
+// the cron route expects.
 
-async function sendViaMaytapi(toNumber: string, message: string): Promise<{ ok: boolean; error?: string }> {
-  const productId = process.env.MAYTAPI_PRODUCT_ID
-  const phoneId = process.env.MAYTAPI_PHONE_ID
-  const apiToken = process.env.MAYTAPI_API_TOKEN
+import { sendWhatsAppMessage } from "@/lib/utils/whapi"
 
-  if (!productId || !phoneId || !apiToken) {
-    return { ok: false, error: "Maytapi credentials not configured" }
-  }
-
-  // Maytapi expects digits only — strip +, spaces, dashes, parens
-  const clean = toNumber.replace(/[\s\-()+]/g, "")
-
-  try {
-    const res = await fetch(
-      `https://api.maytapi.com/api/${productId}/${phoneId}/sendMessage`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-maytapi-key": apiToken,
-        },
-        body: JSON.stringify({
-          to_number: clean,
-          type: "text",
-          message,
-        }),
-      }
-    )
-    const data = await res.json().catch(() => null)
-    if (!res.ok || data?.success === false) {
-      return { ok: false, error: data?.message || `Maytapi returned ${res.status}` }
-    }
-    return { ok: true }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Network error" }
-  }
+async function sendViaWhapi(
+  toNumber: string,
+  message: string
+): Promise<{ ok: boolean; error?: string }> {
+  const result = await sendWhatsAppMessage(toNumber, message)
+  return result.success
+    ? { ok: true }
+    : { ok: false, error: result.error }
 }
 
 // ── Claude caller (local copy: avoids forcing JSON parsing) ─────────
@@ -279,9 +255,9 @@ function formatWhatsAppMessage(ai: string, stats: { activeLeads: number; wonCoun
 export interface DailySummaryOptions {
   /** Override the phone number; otherwise falls back to admin_settings then MANAGER_WHATSAPP_NUMBER */
   overridePhone?: string
-  /** If true, generate but don't actually send via Maytapi */
+  /** If true, generate but don't actually send via Whapi */
   dryRun?: boolean
-  /** If true, generate and log the message but skip Maytapi send (caller sends it). */
+  /** If true, generate and log the message but skip Whapi send (caller sends it). */
   skipSend?: boolean
 }
 
@@ -349,7 +325,7 @@ export async function generateAndSendDailySummary(
       },
     })
 
-    // 5. Send via Maytapi unless dry run or caller wants to send it themselves
+    // 5. Send via Whapi unless dry run or caller wants to send it themselves
     if (options.dryRun) {
       await updateLastSent(supabase, targetPhone, true)
       return {
@@ -378,7 +354,7 @@ export async function generateAndSendDailySummary(
       }
     }
 
-    const sendResult = await sendViaMaytapi(targetPhone, message)
+    const sendResult = await sendViaWhapi(targetPhone, message)
     if (!sendResult.ok) {
       return {
         success: false,

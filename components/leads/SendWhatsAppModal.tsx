@@ -19,6 +19,7 @@ interface SendWhatsAppModalProps {
 
 export function SendWhatsAppModal({
   open,
+  leadId,
   leadName,
   leadPhone,
   whatsappOptedIn,
@@ -52,9 +53,9 @@ export function SendWhatsAppModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to_number: phone.trim(),
+          phone: phone.trim(),
           message: message.trim(),
-          lead_name: leadName,
+          lead_id: leadId,
         }),
       })
 

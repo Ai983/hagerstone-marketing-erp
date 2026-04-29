@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
+import { sendWhatsAppMessage } from "@/lib/utils/whapi"
+
 // ── Helpers ─────────────────────────────────────────────────────────
 
 function getServiceClient() {
@@ -28,13 +30,10 @@ async function sendManagerNotification(lead: {
   city?: string
   service_line?: string
 }) {
-  const productId = process.env.MAYTAPI_PRODUCT_ID
-  const phoneId = process.env.MAYTAPI_PHONE_ID
-  const apiToken = process.env.MAYTAPI_API_TOKEN
   const managerPhone = process.env.MANAGER_WHATSAPP_NUMBER
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://erp.hagerstone.com"
 
-  if (!productId || !phoneId || !apiToken || !managerPhone) return
+  if (!managerPhone) return
 
   const message = [
     "\u{1F514} *New Website Lead*",
@@ -42,31 +41,22 @@ async function sendManagerNotification(lead: {
     lead.company_name ? `Company: ${lead.company_name}` : null,
     `Phone: ${lead.phone}`,
     lead.city ? `City: ${lead.city}` : null,
-    lead.service_line ? `Service: ${lead.service_line.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}` : null,
+    lead.service_line
+      ? `Service: ${lead.service_line
+          .split("_")
+          .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ")}`
+      : null,
     `View: ${appUrl}/leads/${lead.id}`,
   ]
     .filter(Boolean)
     .join("\n")
 
-  try {
-    await fetch(
-      `https://api.maytapi.com/api/${productId}/${phoneId}/sendMessage`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-maytapi-key": apiToken,
-        },
-        body: JSON.stringify({
-          to_number: managerPhone.replace(/[\s\-()]/g, ""),
-          type: "text",
-          message,
-        }),
-      }
-    )
-  } catch {
-    // Non-critical — don't fail the webhook if notification fails
-    console.error("Failed to send manager WhatsApp notification")
+  // Non-critical — fire-and-forget. Don't fail the webhook if WhatsApp
+  // delivery fails.
+  const result = await sendWhatsAppMessage(managerPhone, message)
+  if (!result.success) {
+    console.error("Failed to send manager WhatsApp notification:", result.error)
   }
 }
 

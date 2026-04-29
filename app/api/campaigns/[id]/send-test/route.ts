@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
+
 import { createClient } from "@/lib/supabase/server"
+import {
+  isWhapiConfigured,
+  sendWhatsAppMedia,
+  sendWhatsAppMessage,
+} from "@/lib/utils/whapi"
 
 const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
 
 /**
- * Normalise an Indian phone number for Maytapi.
- * Always aims to return 12 digits starting with "91".
- *   - strip every non-digit (also drops leading `+`)
- *   - 91xxxxxxxxxx (12 digits) → unchanged
- *   - xxxxxxxxxx  (10 digits)  → prepend "91"
- *   - 0xxxxxxxxxx (11 digits with leading 0) → drop 0, prepend "91"
- *   - anything else returned as-is (Maytapi will reject it, we log the reason)
+ * Normalise an Indian phone number to 12 digits starting with "91".
+ * The shared whapi helper does its own normalisation, but we keep this
+ * here so the result can be displayed back to the user in the response
+ * row alongside the lead.
  */
 function normalisePhone(raw: string): string {
   let digits = String(raw).replace(/\D/g, "")
@@ -35,7 +38,7 @@ interface SendResult {
 
 /**
  * Manual test send. Fires the FIRST message of this campaign to every
- * active enrollment via Maytapi. Intentionally not the same as the
+ * active enrollment via Whapi. Intentionally not the same as the
  * future automated drip — this is a "blast now" button for verification.
  */
 export async function POST(
@@ -62,15 +65,11 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Maytapi config check
-    const productId = process.env.MAYTAPI_PRODUCT_ID
-    const phoneId = process.env.MAYTAPI_PHONE_ID
-    const apiToken = process.env.MAYTAPI_API_TOKEN
-    if (!productId || !phoneId || !apiToken) {
+    if (!isWhapiConfigured()) {
       return NextResponse.json(
         {
           error:
-            "Maytapi credentials not configured. Set MAYTAPI_PRODUCT_ID, MAYTAPI_PHONE_ID, MAYTAPI_API_TOKEN.",
+            "Whapi credentials not configured. Set WHAPI_TOKEN and WHAPI_API_URL.",
         },
         { status: 503 }
       )
@@ -150,69 +149,37 @@ export async function POST(
 
       const phone = normalisePhone(lead.phone)
 
-      // Build the Maytapi payload.
-      //
-      // Correct Maytapi contract (verified against a working Apps Script):
-      //   image    → { type: "image", message: <URL>, text: <caption>, filename, skip_filter: false }
-      //   document → { type: "media", message: <URL>, text: <caption>, filename, skip_filter: false }
-      //   video    → treated as media
-      //   text     → { type: "text",  message: <body> }
-      //
-      // Maytapi does NOT have a `media_url` field. The URL always goes in
-      // `message` and the caption always goes in `text`. Passing an
-      // unrecognised `media_url` caused Maytapi to fall back to treating
-      // the caption text as a URL: "Error: Invalid URI Hiiiii%20*Shubh*…".
+      // Pick text vs media path based on whether the campaign message
+      // has an attachment. Whapi has dedicated endpoints per media type.
       const mediaUrl =
-        typeof firstMessage.media_url === "string" && firstMessage.media_url.trim()
+        typeof firstMessage.media_url === "string" &&
+        firstMessage.media_url.trim()
           ? firstMessage.media_url.trim()
           : null
-
-      let maytapiPayload: Record<string, unknown>
-
-      if (mediaUrl) {
-        const isImage = firstMessage.media_type === "image"
-        const defaultFilename = isImage ? "image.jpg" : "document.pdf"
-        maytapiPayload = {
-          to_number: phone,
-          type: isImage ? "image" : "media",
-          message: mediaUrl,
-          text: personalised,
-          filename: firstMessage.media_filename || defaultFilename,
-          skip_filter: false,
-        }
-      } else {
-        maytapiPayload = {
-          to_number: phone,
-          type: "text",
-          message: personalised,
-        }
-      }
-
-      console.log("Maytapi payload →", {
-        to: phone,
-        type: maytapiPayload.type,
-        has_media: Boolean(mediaUrl),
-        media_url_preview: mediaUrl ? `${mediaUrl.slice(0, 60)}…` : null,
-        caption_preview: `${personalised.slice(0, 60)}…`,
-      })
+      const mediaType = firstMessage.media_type as
+        | "image"
+        | "document"
+        | "video"
+        | null
 
       try {
-        const maytapiRes = await fetch(
-          `https://api.maytapi.com/api/${productId}/${phoneId}/sendMessage`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-maytapi-key": apiToken,
-            },
-            body: JSON.stringify(maytapiPayload),
-          }
-        )
+        const result = mediaUrl
+          ? await sendWhatsAppMedia(
+              lead.phone,
+              mediaType === "image"
+                ? "image"
+                : mediaType === "video"
+                  ? "video"
+                  : "document",
+              mediaUrl,
+              {
+                caption: personalised,
+                filename: firstMessage.media_filename ?? undefined,
+              }
+            )
+          : await sendWhatsAppMessage(lead.phone, personalised)
 
-        const maytapiData = await maytapiRes.json().catch(() => ({}))
-
-        if (maytapiRes.ok && maytapiData?.success !== false) {
-          // Log the interaction
+        if (result.success) {
           await supabase.from("interactions").insert({
             lead_id: lead.id,
             user_id: user.id,
@@ -223,7 +190,6 @@ export async function POST(
             is_automated: true,
           })
 
-          // Advance enrollment position
           await supabase
             .from("campaign_enrollments")
             .update({ current_message_position: 1 })
@@ -240,24 +206,20 @@ export async function POST(
                 : personalised,
           })
         } else {
-          const reason =
-            maytapiData?.message ||
-            maytapiData?.error ||
-            `Maytapi returned ${maytapiRes.status}`
           console.error(
-            `send-test: Maytapi rejected ${lead.full_name}`,
-            maytapiData
+            `send-test: Whapi rejected ${lead.full_name}`,
+            result.error
           )
           results.push({
             lead_id: lead.id,
             lead: lead.full_name,
             phone,
             status: "failed",
-            reason,
+            reason: result.error ?? "Whapi rejected the message",
           })
         }
       } catch (err) {
-        console.error(`send-test: fetch threw for ${lead.full_name}`, err)
+        console.error(`send-test: send threw for ${lead.full_name}`, err)
         results.push({
           lead_id: lead.id,
           lead: lead.full_name,
@@ -267,7 +229,7 @@ export async function POST(
         })
       }
 
-      // Rate-limit to avoid Maytapi spam detection
+      // Rate-limit to avoid spam detection on the WhatsApp number
       await new Promise((resolve) => setTimeout(resolve, 2000))
     }
 

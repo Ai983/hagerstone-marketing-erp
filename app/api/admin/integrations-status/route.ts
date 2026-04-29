@@ -21,10 +21,9 @@ export async function GET() {
     webhook: {
       secret_set: Boolean(process.env.WEBHOOK_SECRET),
     },
-    maytapi: {
-      product_id_set: Boolean(process.env.MAYTAPI_PRODUCT_ID),
-      phone_id_set: Boolean(process.env.MAYTAPI_PHONE_ID),
-      token_set: Boolean(process.env.MAYTAPI_API_TOKEN),
+    whapi: {
+      token_set: Boolean(process.env.WHAPI_TOKEN),
+      api_url_set: Boolean(process.env.WHAPI_API_URL),
     },
     anthropic: {
       key_set: Boolean(process.env.ANTHROPIC_API_KEY),
