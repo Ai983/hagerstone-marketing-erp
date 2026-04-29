@@ -4,6 +4,18 @@ import { NextResponse, type NextRequest } from "next/server"
 const PUBLIC_PATHS = new Set(["/login", "/signup"])
 
 export async function middleware(request: NextRequest) {
+  // Webhooks (Whapi inbound, website lead capture, etc.) come from
+  // external services with no Supabase session cookie. Same for cron
+  // jobs hit by Vercel's scheduler. Skip middleware for both so they
+  // aren't bounced to /login. Each route does its own auth/secret
+  // verification (e.g. WEBHOOK_SECRET, CRON_SECRET).
+  if (request.nextUrl.pathname.startsWith("/api/webhook")) {
+    return NextResponse.next()
+  }
+  if (request.nextUrl.pathname.startsWith("/api/cron")) {
+    return NextResponse.next()
+  }
+
   if (request.nextUrl.pathname === "/") {
     return NextResponse.redirect(new URL("/pipeline", request.url))
   }
