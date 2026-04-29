@@ -10,6 +10,7 @@ import {
   Phone,
   CalendarPlus,
   Pencil,
+  MessageCircle,
   MessageSquare,
   CheckCircle2,
   CircleDot,
@@ -35,6 +36,7 @@ import { useActivities } from "@/lib/hooks/useActivities"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { createClient } from "@/lib/supabase/client"
 import { LeadTimeline } from "@/components/leads/LeadTimeline"
+import { WhatsAppChatView } from "@/components/leads/WhatsAppChatView"
 import { LogCallModal } from "@/components/leads/LogCallModal"
 import { ScheduleFollowUpModal } from "@/components/leads/ScheduleFollowUpModal"
 import { SendWhatsAppModal } from "@/components/leads/SendWhatsAppModal"
@@ -75,18 +77,30 @@ async function fetchCurrentProfile(): Promise<Profile | null> {
 
 // ── Tab definitions ─────────────────────────────────────────────────
 
-const tabs = ["Overview", "Timeline", "Tasks", "Campaigns", "AI"] as const
+const tabs = ["Overview", "Timeline", "WhatsApp", "Tasks", "Campaigns", "AI"] as const
 type TabName = (typeof tabs)[number]
 
-// Shorter labels used on phone widths so all 5 tabs fit without
+// Shorter labels used on phone widths so all 6 tabs fit without
 // horizontal-scroll wrapping awkwardly.
 const tabShortLabels: Record<TabName, string> = {
   Overview: "Info",
   Timeline: "History",
+  WhatsApp: "Chat",
   Tasks: "Tasks",
-  Campaigns: "Campaigns",
+  Campaigns: "Camp",
   AI: "AI",
 }
+
+const taskTypeOptions = [
+  { value: "call", label: "Call" },
+  { value: "follow_up", label: "Follow Up" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "email", label: "Email" },
+  { value: "site_visit", label: "Site Visit" },
+  { value: "meeting", label: "Meeting" },
+  { value: "proposal", label: "Proposal" },
+  { value: "other", label: "Other" },
+] as const
 
 // ── Tab transition variants ─────────────────────────────────────────
 //
@@ -1862,6 +1876,7 @@ function OverviewTab({
 // ── Tab 3: Tasks ────────────────────────────────────────────────────
 
 function TasksTab({
+  leadId,
   tasks,
   isLoading,
   teamMembers,
@@ -1869,6 +1884,7 @@ function TasksTab({
   onCreate,
   isCreating,
 }: {
+  leadId: string
   tasks: import("@/lib/types").Task[]
   isLoading: boolean
   teamMembers: Pick<Profile, "id" | "full_name">[]
@@ -1876,6 +1892,7 @@ function TasksTab({
   onCreate: (input: { title: string; type: string; due_at: string; assigned_to: string }) => Promise<void>
   isCreating: boolean
 }) {
+  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState("")
   const [type, setType] = useState("follow_up")
@@ -1888,12 +1905,27 @@ function TasksTab({
 
   const handleCreate = async () => {
     if (!title.trim() || !dueAt || !assignedTo) return
-    await onCreate({ title: title.trim(), type, due_at: new Date(dueAt).toISOString(), assigned_to: assignedTo })
-    setTitle("")
-    setType("follow_up")
-    setDueAt("")
-    setAssignedTo("")
-    setShowForm(false)
+    try {
+      await onCreate({
+        title: title.trim(),
+        type,
+        due_at: new Date(dueAt).toISOString(),
+        assigned_to: assignedTo,
+      })
+      toast.success("Task created!")
+      queryClient.invalidateQueries({ queryKey: ["lead-tasks", leadId] })
+      queryClient.invalidateQueries({ queryKey: ["my-tasks"] })
+      setTitle("")
+      setType("follow_up")
+      setDueAt("")
+      setAssignedTo("")
+      setShowForm(false)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Unknown task creation error"
+      console.error("Task creation error:", err)
+      toast.error(`Failed to create task: ${message}`)
+    }
   }
 
   if (isLoading) {
@@ -1953,14 +1985,11 @@ function TasksTab({
                 onChange={(e) => setType(e.target.value)}
                 className="rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-xs text-[#F0F0FA] outline-none"
               >
-                <option value="call">Call</option>
-                <option value="whatsapp">WhatsApp</option>
-                <option value="email">Email</option>
-                <option value="site_visit">Site Visit</option>
-                <option value="meeting">Meeting</option>
-                <option value="follow_up">Follow Up</option>
-                <option value="proposal">Proposal</option>
-                <option value="other">Other</option>
+                {taskTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
               <input
                 type="datetime-local"
@@ -2331,6 +2360,9 @@ export function LeadDrawer() {
   const { leadDrawerId, setLeadDrawerId } = useUIStore()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<TabName>("Overview")
+  const [lastWhatsAppViewedAt, setLastWhatsAppViewedAt] = useState<string | null>(
+    null
+  )
 
   // Modal state
   const [showLogCall, setShowLogCall] = useState(false)
@@ -2379,6 +2411,7 @@ export function LeadDrawer() {
   useEffect(() => {
     if (leadDrawerId) {
       setActiveTab("Overview")
+      setLastWhatsAppViewedAt(null)
       setShowLogCall(false)
       setShowFollowUp(false)
       setShowWhatsApp(false)
@@ -2386,9 +2419,23 @@ export function LeadDrawer() {
     }
   }, [leadDrawerId])
 
+  useEffect(() => {
+    if (activeTab === "WhatsApp") {
+      setLastWhatsAppViewedAt(new Date().toISOString())
+    }
+  }, [activeTab])
+
   const close = () => setLeadDrawerId(null)
 
   const lead = leadQuery.data
+  const unreadWhatsAppCount = interactions.filter((interaction) => {
+    if (interaction.type !== "whatsapp_received") return false
+    if (!lastWhatsAppViewedAt) return true
+    return (
+      new Date(interaction.created_at).getTime() >
+      new Date(lastWhatsAppViewedAt).getTime()
+    )
+  }).length
 
   // ── Reassign handler ─────────────────────────────────────────
   const handleReassign = async (
@@ -2568,6 +2615,40 @@ export function LeadDrawer() {
           })
       }
 
+      supabase
+        .from("profiles")
+        .select("id")
+        .in("role", ["admin", "manager"])
+        .eq("is_active", true)
+        .then(async ({ data: managers, error }) => {
+          if (error) {
+            console.error("drawer stage-change manager lookup failed:", error)
+            return
+          }
+          const recipients = (managers ?? []).filter(
+            (manager) => manager.id !== currentUserId
+          )
+          if (recipients.length === 0) return
+          const { error: notificationError } = await supabase
+            .from("notifications")
+            .insert(
+              recipients.map((manager) => ({
+                user_id: manager.id,
+                type: "stage_changed",
+                title: "Lead Stage Changed",
+                body: `${lead.full_name} moved to ${toStage.name}`,
+                lead_id: lead.id,
+                is_read: false,
+              }))
+            )
+          if (notificationError) {
+            console.error(
+              "drawer stage-change manager notification failed:",
+              notificationError
+            )
+          }
+        })
+
       // Fire-and-forget rescore
       fetch("/api/leads/score", {
         method: "POST",
@@ -2731,9 +2812,19 @@ export function LeadDrawer() {
                         ? "text-[#3B82F6]"
                         : "text-[#9090A8] hover:text-[#F0F0FA]"
                     )}
-                  >
-                    <span className="md:hidden">{tabShortLabels[tab]}</span>
-                    <span className="hidden md:inline">{tab}</span>
+                    >
+                    <span className="inline-flex items-center gap-1.5">
+                      {tab === "WhatsApp" && (
+                        <MessageCircle className="size-3.5" />
+                      )}
+                      <span className="md:hidden">{tabShortLabels[tab]}</span>
+                      <span className="hidden md:inline">{tab}</span>
+                      {tab === "WhatsApp" &&
+                        unreadWhatsAppCount > 0 &&
+                        activeTab !== "WhatsApp" && (
+                          <span className="size-2 rounded-full bg-[#EF4444]" />
+                        )}
+                    </span>
                     {activeTab === tab && (
                       <motion.div
                         layoutId="lead-drawer-tab-indicator"
@@ -2791,8 +2882,27 @@ export function LeadDrawer() {
                       />
                     )}
 
-                    {activeTab === "Tasks" && (
+                    {activeTab === "WhatsApp" &&
+                      (lead ? (
+                        <div className="h-full">
+                          <WhatsAppChatView
+                            lead={{
+                              id: lead.id,
+                              full_name: lead.full_name,
+                              phone: lead.phone ?? "",
+                              whatsapp_opted_in: lead.whatsapp_opted_in,
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex flex-1 items-center justify-center">
+                          <Loader2 className="size-6 animate-spin text-[#9090A8]" />
+                        </div>
+                      ))}
+
+                    {activeTab === "Tasks" && lead && (
                       <TasksTab
+                        leadId={lead.id}
                         tasks={tasks}
                         isLoading={isLoadingTasks}
                         teamMembers={teamMembers}

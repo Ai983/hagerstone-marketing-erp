@@ -1,6 +1,9 @@
 "use client"
 
+import { useEffect, useId } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { createClient } from "@/lib/supabase/client"
+import { getCachedUser } from "@/lib/hooks/useUser"
 
 export type NotificationType =
   | "new_lead_assigned"
@@ -37,6 +40,7 @@ async function fetchNotifications(): Promise<Notification[]> {
  */
 export function useNotifications() {
   const queryClient = useQueryClient()
+  const channelInstanceId = useId().replace(/:/g, "")
 
   const query = useQuery({
     queryKey: ["notifications"],
@@ -63,6 +67,54 @@ export function useNotifications() {
       queryClient.invalidateQueries({ queryKey: ["sidebar-counts"] })
     },
   })
+
+  useEffect(() => {
+    const supabase = createClient()
+    let cancelled = false
+    let cleanupChannel: (() => void) | null = null
+
+    const setup = async () => {
+      const user = await getCachedUser()
+      if (!user || cancelled) return
+
+      const channel = supabase
+        .channel(`notifications:${user.id}:${channelInstanceId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            const incoming = payload.new as Notification
+            queryClient.setQueryData<Notification[]>(
+              ["notifications"],
+              (current = []) => {
+                if (current.some((item) => item.id === incoming.id)) {
+                  return current
+                }
+                return [incoming, ...current]
+              }
+            )
+            queryClient.invalidateQueries({ queryKey: ["sidebar-counts"] })
+          }
+        )
+        .subscribe()
+
+      cleanupChannel = () => {
+        supabase.removeChannel(channel)
+      }
+    }
+
+    setup()
+
+    return () => {
+      cancelled = true
+      cleanupChannel?.()
+    }
+  }, [channelInstanceId, queryClient])
 
   const notifications = query.data ?? []
   const unreadCount = notifications.filter((n) => !n.is_read).length

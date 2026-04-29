@@ -121,7 +121,10 @@ async function createTask(input: {
 }) {
   const supabase = createClient()
   const { error } = await supabase.from("tasks").insert(input)
-  if (error) throw error
+  if (error) {
+    console.error("Task creation error:", error)
+    throw error
+  }
 }
 
 /**
@@ -287,6 +290,7 @@ export function useActivities(leadId: string | null) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lead-tasks", leadId] })
       queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
+      queryClient.invalidateQueries({ queryKey: ["my-tasks"] })
       queryClient.invalidateQueries({ queryKey: ["notifications"] })
     },
   })

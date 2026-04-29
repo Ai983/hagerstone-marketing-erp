@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
   const { data: managers } = await supabase
     .from("profiles")
     .select("id")
-    .in("role", ["manager", "admin", "founder"])
+    .in("role", ["manager", "admin"])
     .eq("is_active", true)
 
   if (managers && managers.length > 0) {
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
         user_id: manager.id,
         type: "new_website_lead",
         title: "New Website Lead",
-        body: `${fullName} from ${companyName ?? "Unknown company"} — ${serviceLine ?? "Service not specified"}`,
+        body: `${fullName} from ${companyName ?? "Unknown company"} enquired about ${serviceLine ?? "Service not specified"}`,
         lead_id: newLead.id,
         is_read: false,
       }))

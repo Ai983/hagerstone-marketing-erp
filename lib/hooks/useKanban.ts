@@ -359,6 +359,40 @@ export function useKanban() {
         })
     }
 
+    supabase
+      .from("profiles")
+      .select("id")
+      .in("role", ["admin", "manager"])
+      .eq("is_active", true)
+      .then(async ({ data: managers, error }) => {
+        if (error) {
+          console.error("stage-change manager lookup failed:", error)
+          return
+        }
+        const recipients = (managers ?? []).filter(
+          (manager) => manager.id !== movedByMe
+        )
+        if (recipients.length === 0) return
+        const { error: notificationError } = await supabase
+          .from("notifications")
+          .insert(
+            recipients.map((manager) => ({
+              user_id: manager.id,
+              type: "stage_changed",
+              title: "Lead Stage Changed",
+              body: `${lead.full_name} moved to ${toStage.name}`,
+              lead_id: lead.id,
+              is_read: false,
+            }))
+          )
+        if (notificationError) {
+          console.error(
+            "stage-change manager notification failed:",
+            notificationError
+          )
+        }
+      })
+
     // Auto-score after stage change (fire-and-forget)
     fetch("/api/leads/score", {
       method: "POST",
