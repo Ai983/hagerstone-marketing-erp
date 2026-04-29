@@ -183,6 +183,25 @@ export async function POST(request: NextRequest) {
     is_automated: true,
   })
 
+  const { data: managers } = await supabase
+    .from("profiles")
+    .select("id")
+    .in("role", ["manager", "admin", "founder"])
+    .eq("is_active", true)
+
+  if (managers && managers.length > 0) {
+    await supabase.from("notifications").insert(
+      managers.map((manager) => ({
+        user_id: manager.id,
+        type: "new_website_lead",
+        title: "New Website Lead",
+        body: `${fullName} from ${companyName ?? "Unknown company"} — ${serviceLine ?? "Service not specified"}`,
+        lead_id: newLead.id,
+        is_read: false,
+      }))
+    )
+  }
+
   // Send WhatsApp notification to manager (fire-and-forget)
   sendManagerNotification({
     id: newLead.id,

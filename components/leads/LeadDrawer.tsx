@@ -1953,10 +1953,12 @@ function TasksTab({
                 onChange={(e) => setType(e.target.value)}
                 className="rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-xs text-[#F0F0FA] outline-none"
               >
-                <option value="follow_up">Follow-up</option>
                 <option value="call">Call</option>
-                <option value="meeting">Meeting</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="email">Email</option>
                 <option value="site_visit">Site Visit</option>
+                <option value="meeting">Meeting</option>
+                <option value="follow_up">Follow Up</option>
                 <option value="proposal">Proposal</option>
                 <option value="other">Other</option>
               </select>
@@ -2543,6 +2545,28 @@ export function LeadDrawer() {
         notes: trimmedNote ?? null,
       })
       if (interactionError) throw interactionError
+
+      if (
+        lead.assigned_to &&
+        currentUserId &&
+        lead.assigned_to !== currentUserId
+      ) {
+        supabase
+          .from("notifications")
+          .insert({
+            user_id: lead.assigned_to,
+            type: "stage_changed",
+            title: "Lead Stage Updated",
+            body: `${lead.full_name} moved to ${toStage.name}`,
+            lead_id: lead.id,
+            is_read: false,
+          })
+          .then(({ error }) => {
+            if (error) {
+              console.error("drawer stage-change notification failed:", error)
+            }
+          })
+      }
 
       // Fire-and-forget rescore
       fetch("/api/leads/score", {

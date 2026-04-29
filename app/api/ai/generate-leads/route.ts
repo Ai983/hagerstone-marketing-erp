@@ -31,6 +31,12 @@ interface RawLead {
   source_url?: string | null
 }
 
+function cleanOptionalText(text?: string | null) {
+  if (!text) return null
+  const cleaned = cleanText(text)
+  return cleaned === "" ? null : cleaned
+}
+
 // Web search is a server-side tool — Claude runs the searches itself
 // and returns a final assistant message that mixes text blocks with
 // web_search_tool_result blocks. We only want the text.
@@ -82,7 +88,11 @@ Only return companies where you have found AT LEAST ONE of:
 
 If you cannot find any contact info for a company, DO NOT include it in results.
 Return 4-5 leads with contact info rather than 10 leads with no contact info.
-Quality over quantity.`
+Quality over quantity.
+
+ABSOLUTE RULE: Return ONLY clean plain text in ALL fields.
+NO HTML tags, NO <cite> tags, NO XML, NO markdown.
+Every field must be pure plain text only.`
 
 export async function POST(request: Request) {
   try {
@@ -209,7 +219,24 @@ export async function POST(request: Request) {
     // ── Filter to contactable leads BEFORE persisting ───────────
     // A lead is contactable if at least one of phone/email/linkedin
     // is present and non-empty. Non-contactable leads are not saved.
-    const contactableLeads = parsedLeads.filter((lead) => {
+    const cleanedLeads = parsedLeads.map((lead) => ({
+      ...lead,
+      company_name: cleanText(lead.company_name ?? ""),
+      contact_name: cleanOptionalText(lead.contact_name),
+      phone: cleanOptionalText(lead.phone),
+      email: cleanOptionalText(lead.email),
+      website: cleanOptionalText(lead.website),
+      linkedin_url: cleanOptionalText(lead.linkedin_url),
+      city: cleanOptionalText(lead.city),
+      industry: cleanOptionalText(lead.industry),
+      service_line: cleanOptionalText(lead.service_line),
+      company_size: cleanOptionalText(lead.company_size),
+      estimated_budget: cleanOptionalText(lead.estimated_budget),
+      ai_insight: cleanText(lead.ai_insight ?? ""),
+      source_url: cleanOptionalText(lead.source_url),
+    }))
+
+    const contactableLeads = cleanedLeads.filter((lead) => {
       const phone = lead.phone?.trim() ?? ""
       const email = lead.email?.trim() ?? ""
       const linkedin = lead.linkedin_url?.trim() ?? ""
@@ -237,7 +264,6 @@ export async function POST(request: Request) {
     for (const lead of contactableLeads) {
       if (!lead.company_name) continue
 
-      const cleanedInsight = cleanText(lead.ai_insight ?? "")
       const cityForCheck = lead.city?.trim() ?? ""
 
       // Step 1 — already in our AI database?
@@ -252,7 +278,6 @@ export async function POST(request: Request) {
       if (existingAI) {
         enriched.push({
           ...lead,
-          ai_insight: cleanedInsight,
           dbId: (existingAI as { id: string }).id,
           isDuplicate: true,
           existingLeadId:
@@ -284,7 +309,7 @@ export async function POST(request: Request) {
         company_size: lead.company_size ?? null,
         estimated_budget: lead.estimated_budget ?? null,
         score: typeof lead.score === "number" ? lead.score : 0,
-        ai_insight: cleanedInsight,
+        ai_insight: lead.ai_insight ?? "",
         source_url: lead.source_url ?? null,
         search_query: prompt,
       }
@@ -302,7 +327,6 @@ export async function POST(request: Request) {
         if (insErr) console.error("ai_generated_leads insert (dup):", insErr)
         enriched.push({
           ...lead,
-          ai_insight: cleanedInsight,
           dbId: (inserted as { id: string } | null)?.id ?? null,
           isDuplicate: true,
           existingLeadId: (existingPipeline as { id: string }).id,
@@ -321,7 +345,6 @@ export async function POST(request: Request) {
 
       enriched.push({
         ...lead,
-        ai_insight: cleanedInsight,
         dbId: (inserted as { id: string } | null)?.id ?? null,
         isDuplicate: false,
         existingLeadId: null,

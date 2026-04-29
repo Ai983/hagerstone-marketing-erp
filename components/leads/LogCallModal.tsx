@@ -30,6 +30,9 @@ const followUpTypes = [
   { value: "email", label: "Email" },
   { value: "site_visit", label: "Site Visit" },
   { value: "meeting", label: "Meeting" },
+  { value: "follow_up", label: "Follow Up" },
+  { value: "proposal", label: "Proposal" },
+  { value: "other", label: "Other" },
 ] as const
 
 function outcomeLabel(o: string) {
