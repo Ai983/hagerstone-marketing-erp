@@ -1,8 +1,14 @@
 "use client"
 
 import type { ButtonHTMLAttributes, CSSProperties } from "react"
-import { differenceInDays, formatDistanceToNow } from "date-fns"
-import { CalendarClock, Clock3, MapPin } from "lucide-react"
+import {
+  differenceInDays,
+  format,
+  isPast,
+  isToday,
+  isTomorrow,
+} from "date-fns"
+import { Clock, MapPin } from "lucide-react"
 
 import type { KanbanLead } from "@/lib/hooks/useKanban"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
@@ -76,9 +82,39 @@ export function LeadCard({
     .filter(Boolean)
     .join(", ")
 
-  const followUpLabel = lead.next_follow_up
-    ? formatDistanceToNow(new Date(lead.next_follow_up.due_at), { addSuffix: true })
-    : null
+  const nextTask = lead.next_task ?? lead.next_follow_up ?? null
+  const getFollowUpText = () => {
+    if (!nextTask) return null
+    const due = new Date(nextTask.due_at)
+
+    if (isPast(due)) {
+      return {
+        text: `Overdue: ${format(due, "dd MMM")}`,
+        color: "#EF4444",
+        bg: "#7F1D1D",
+      }
+    }
+    if (isToday(due)) {
+      return {
+        text: `Today ${format(due, "hh:mm a")}`,
+        color: "#F59E0B",
+        bg: "#78350F",
+      }
+    }
+    if (isTomorrow(due)) {
+      return {
+        text: `Tomorrow ${format(due, "hh:mm a")}`,
+        color: "#F59E0B",
+        bg: "#78350F",
+      }
+    }
+    return {
+      text: format(due, "dd MMM, hh:mm a"),
+      color: "#9090A8",
+      bg: "transparent",
+    }
+  }
+  const followUp = getFollowUpText()
   const daysLeft =
     lead.boq_deadline != null
       ? differenceInDays(new Date(lead.boq_deadline), new Date())
@@ -151,26 +187,25 @@ export function LeadCard({
         </span>
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <div
-          className={`flex min-w-0 items-center gap-1.5 text-[12px] ${
-            lead.has_overdue_follow_up ? "text-[#F87171]" : "text-[#9090A8]"
-          }`}
-        >
-          {lead.next_follow_up ? (
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-[#2A2A3C] pt-2">
+        <div className="flex min-w-0 items-center gap-1">
+          {followUp ? (
             <>
-              {lead.has_overdue_follow_up ? (
-                <Clock3 className="size-3.5 shrink-0" />
-              ) : (
-                <CalendarClock className="size-3.5 shrink-0" />
-              )}
-              <span className="truncate">
-                {lead.has_overdue_follow_up ? "Overdue " : ""}
-                {followUpLabel}
+              <Clock size={10} color={followUp.color} className="shrink-0" />
+              <span
+                className="truncate text-[10px]"
+                style={{
+                  color: followUp.color,
+                  background: followUp.bg,
+                  padding: followUp.bg !== "transparent" ? "1px 6px" : "0",
+                  borderRadius: 20,
+                }}
+              >
+                {followUp.text}
               </span>
             </>
           ) : (
-            <span className="italic text-[#9090A8]">No follow-up set</span>
+            <span className="text-[10px] text-[#3A3A52]">No follow-up set</span>
           )}
         </div>
 

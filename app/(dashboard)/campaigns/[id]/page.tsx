@@ -52,6 +52,7 @@ interface MessageRow {
   media_url: string | null
   media_type: "image" | "document" | "video" | null
   media_filename: string | null
+  buttons: { id: string; title: string }[] | null
 }
 
 interface EnrollmentRow {
@@ -168,6 +169,7 @@ export default function CampaignDetailPage() {
       media_url: m.media_url ?? null,
       media_type: m.media_type ?? null,
       media_filename: m.media_filename ?? null,
+      buttons: Array.isArray(m.buttons) ? m.buttons : [],
     }))
   }, [data?.messages])
 

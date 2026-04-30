@@ -41,12 +41,24 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ enrolled: 0, skipped: leadIds.length })
   }
 
+  const { data: firstMessage } = await supabase
+    .from("campaign_messages")
+    .select("delay_days")
+    .eq("campaign_id", params.id)
+    .eq("position", 1)
+    .maybeSingle()
+
+  const nextDueAt = new Date(
+    Date.now() + (firstMessage?.delay_days ?? 0) * 24 * 60 * 60 * 1000
+  ).toISOString()
+
   const rows = newLeadIds.map((leadId) => ({
     campaign_id: params.id,
     lead_id: leadId,
     enrolled_by: user.id,
     status: "active",
     current_message_position: 0,
+    next_message_due_at: nextDueAt,
   }))
 
   const { error } = await supabase.from("campaign_enrollments").insert(rows)

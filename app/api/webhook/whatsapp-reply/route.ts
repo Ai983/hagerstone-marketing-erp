@@ -15,8 +15,19 @@ interface WhapiMessage {
   chat_id?: string
   from?: string
   from_me?: boolean
+  type?: string
   text?: { body?: string }
   caption?: string
+  interactive?: {
+    button_reply?: {
+      id?: string
+      title?: string
+    }
+  }
+  button_reply?: {
+    id?: string
+    title?: string
+  }
 }
 
 interface WhapiStatus {
@@ -60,8 +71,21 @@ export async function POST(request: NextRequest) {
           ?.replace("91", "")
           ?.slice(-10)
 
-        const messageText =
-          msg.text?.body || msg.caption || "[Media message]"
+        let messageText = ""
+        let isButtonReply = false
+        let buttonId = ""
+
+        if (msg.type === "interactive" && msg.interactive?.button_reply) {
+          buttonId = msg.interactive.button_reply.id ?? ""
+          messageText = `[Button] ${msg.interactive.button_reply.title ?? "Button"}`
+          isButtonReply = true
+        } else if (msg.button_reply) {
+          buttonId = msg.button_reply.id ?? ""
+          messageText = `[Button] ${msg.button_reply.title ?? "Button"}`
+          isButtonReply = true
+        } else {
+          messageText = msg.text?.body || msg.caption || "[Media message]"
+        }
 
         console.log("Incoming WhatsApp from:", fromPhone)
         console.log("Message:", messageText)
@@ -70,7 +94,7 @@ export async function POST(request: NextRequest) {
 
         const { data: lead } = await supabase
           .from("leads")
-          .select("id, full_name, assigned_to")
+          .select("id, full_name, assigned_to, stage_id")
           .ilike("phone", `%${fromPhone}%`)
           .maybeSingle()
 
@@ -82,12 +106,44 @@ export async function POST(request: NextRequest) {
             is_automated: true,
           })
 
+          if (isButtonReply) {
+            if (buttonId === "btn_interested") {
+              await supabase
+                .from("leads")
+                .update({ category: "hot" })
+                .eq("id", lead.id)
+            }
+
+            if (buttonId === "btn_call_me") {
+              await supabase.from("tasks").insert({
+                lead_id: lead.id,
+                title: `Call ${lead.full_name} - requested callback`,
+                type: "call",
+                due_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+                assigned_to: lead.assigned_to,
+              })
+            }
+
+            if (buttonId === "btn_not_now") {
+              await supabase
+                .from("leads")
+                .update({ category: "cold" })
+                .eq("id", lead.id)
+            }
+          }
+
           if (lead.assigned_to) {
+            const notifBody = isButtonReply
+              ? `${lead.full_name} tapped: "${messageText.replace("[Button] ", "")}"`
+              : `${lead.full_name}: "${messageText.slice(0, 100)}"`
+
             await supabase.from("notifications").insert({
               user_id: lead.assigned_to,
               type: "campaign_reply",
-              title: "WhatsApp Reply Received",
-              body: `${lead.full_name}: "${messageText.slice(0, 100)}"`,
+              title: isButtonReply
+                ? "Lead Responded to Button"
+                : "WhatsApp Reply",
+              body: notifBody,
               lead_id: lead.id,
               is_read: false,
             })

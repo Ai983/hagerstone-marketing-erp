@@ -10,6 +10,11 @@ interface SendResult {
 
 export type WhapiMediaType = "image" | "document" | "video"
 
+export interface WhapiButton {
+  id: string
+  title: string
+}
+
 function normalisePhone(to: string): string {
   let phone = to.replace(/[\s\-+()]/g, "")
   if (phone.startsWith("0")) phone = "91" + phone.slice(1)
@@ -80,6 +85,69 @@ export async function sendWhatsAppMessage(
     }
   } catch (err) {
     console.error("Whapi send error:", err)
+    return { success: false, error: "Network error" }
+  }
+}
+
+export async function sendWhatsAppWithButtons(
+  to: string,
+  bodyText: string,
+  buttons: WhapiButton[],
+  headerText?: string,
+  footerText?: string
+): Promise<SendResult> {
+  try {
+    const phone = normalisePhone(to)
+
+    const env = whapiEnv()
+    if (!env) {
+      console.error("Whapi env not configured (WHAPI_API_URL / WHAPI_TOKEN)")
+      return { success: false, error: "Whapi not configured" }
+    }
+
+    const response = await fetch(`${env.apiUrl}/messages/interactive`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${env.token}`,
+      },
+      body: JSON.stringify({
+        to: phone,
+        type: "button",
+        header: headerText
+          ? {
+              type: "text",
+              text: headerText,
+            }
+          : undefined,
+        body: { text: bodyText },
+        footer: footerText ? { text: footerText } : undefined,
+        action: {
+          buttons: buttons.slice(0, 3).map((btn) => ({
+            type: "quick_reply",
+            title: btn.title,
+            id: btn.id,
+          })),
+        },
+      }),
+    })
+
+    const data = (await response.json().catch(() => ({}))) as {
+      id?: string
+      error?: { message?: string }
+    }
+
+    if (!response.ok) {
+      console.error("Whapi interactive error:", data)
+      return {
+        success: false,
+        error: data.error?.message ?? "Failed to send interactive message",
+      }
+    }
+
+    return { success: true, messageId: data.id }
+  } catch (err) {
+    console.error("Whapi buttons error:", err)
     return { success: false, error: "Network error" }
   }
 }

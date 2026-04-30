@@ -1,11 +1,12 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { format } from "date-fns"
+import { format, formatDistanceToNow } from "date-fns"
 import {
   BarChart2,
   Megaphone,
   MessageSquare,
+  Send,
   Users,
 } from "lucide-react"
 
@@ -17,6 +18,7 @@ export interface CampaignCardData {
   description: string | null
   status: string
   created_at: string
+  last_sent_at?: string | null
   message_count?: number
   enrollment_count?: number
 }
@@ -76,6 +78,25 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       </div>
 
       {/* Action bar — explicit buttons instead of card-wide click */}
+      <div className="mt-2">
+        {campaign.last_sent_at ? (
+          <div className="flex items-center gap-1 text-[11px] text-[#9090A8]">
+            <Send size={10} color="#9090A8" />
+            <span>
+              Last sent{" "}
+              {formatDistanceToNow(new Date(campaign.last_sent_at), {
+                addSuffix: true,
+              })}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 text-[11px] text-[#3A3A52]">
+            <Send size={10} color="#3A3A52" />
+            <span>Never sent</span>
+          </div>
+        )}
+      </div>
+
       <div
         style={{
           borderTop: "1px solid #2A2A3C",

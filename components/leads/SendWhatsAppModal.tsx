@@ -31,12 +31,22 @@ export function SendWhatsAppModal({
   const [message, setMessage] = useState(prefillMessage ?? "")
   const [consentOverride, setConsentOverride] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [useButtons, setUseButtons] = useState(false)
+  const [selectedButtons, setSelectedButtons] = useState<string[]>([])
+
+  const defaultButtons = [
+    { id: "btn_interested", title: "Interested ✅", label: "Interested" },
+    { id: "btn_not_now", title: "Not Now ❌", label: "Not Now" },
+    { id: "btn_call_me", title: "Call Me 📞", label: "Call Me" },
+  ]
 
   // Reset local state when opening with new values
   const handleClose = () => {
     setPhone(leadPhone || "")
     setMessage(prefillMessage ?? "")
     setConsentOverride(false)
+    setUseButtons(false)
+    setSelectedButtons([])
     onClose()
   }
 
@@ -49,6 +59,13 @@ export function SendWhatsAppModal({
     if (!canSend) return
     setIsSending(true)
     try {
+      const buttons =
+        useButtons && selectedButtons.length > 0
+          ? defaultButtons
+              .filter((button) => selectedButtons.includes(button.id))
+              .map((button) => ({ id: button.id, title: button.title }))
+          : undefined
+
       const res = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -56,6 +73,7 @@ export function SendWhatsAppModal({
           phone: phone.trim(),
           message: message.trim(),
           lead_id: leadId,
+          buttons,
         }),
       })
 
@@ -165,6 +183,62 @@ export function SendWhatsAppModal({
                   <p className="mt-1 text-right text-[11px] text-[#9090A8]">
                     {message.length} characters
                   </p>
+
+                  <div className="mt-2">
+                    <div className="mb-2 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="useButtons"
+                        checked={useButtons}
+                        onChange={(e) => setUseButtons(e.target.checked)}
+                        className="size-3.5 rounded border-[#2A2A3C] accent-[#3B82F6]"
+                      />
+                      <label
+                        htmlFor="useButtons"
+                        className="cursor-pointer text-xs text-[#9090A8]"
+                      >
+                        Add Quick Reply Buttons
+                      </label>
+                    </div>
+
+                    {useButtons && (
+                      <div>
+                        <p className="mb-1.5 text-[11px] text-[#5A5A72]">
+                          Select buttons to show (max 3):
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {defaultButtons.map((button) => {
+                            const selected = selectedButtons.includes(button.id)
+                            return (
+                              <button
+                                key={button.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedButtons((prev) =>
+                                    prev.includes(button.id)
+                                      ? prev.filter((id) => id !== button.id)
+                                      : prev.length < 3
+                                        ? [...prev, button.id]
+                                        : prev
+                                  )
+                                }}
+                                className={
+                                  selected
+                                    ? "rounded-md border border-[#3B82F6] bg-[#3B82F6]/15 px-3 py-1.5 text-xs text-[#3B82F6]"
+                                    : "rounded-md border border-[#2A2A3C] bg-[#111118] px-3 py-1.5 text-xs text-[#9090A8]"
+                                }
+                              >
+                                {button.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <p className="mt-1.5 text-[10px] text-[#3A3A52]">
+                          Lead can tap one button to reply instantly
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

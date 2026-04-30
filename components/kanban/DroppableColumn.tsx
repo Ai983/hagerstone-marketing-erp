@@ -29,7 +29,15 @@ export function DroppableColumn({
   })
 
   return (
-    <div ref={setNodeRef} className="h-full">
+    <div
+      ref={setNodeRef}
+      className="h-full shrink-0"
+      style={{
+        scrollSnapAlign: "start",
+        width: "85vw",
+        maxWidth: "280px",
+      }}
+    >
       <KanbanColumn
         column={column}
         isDragOver={isOver || isActiveDropTarget}

@@ -37,10 +37,14 @@ export async function GET() {
   const campaignIds = (campaigns ?? []).map((c) => c.id)
   let enrollmentCounts = new Map<string, number>()
   let messageCounts = new Map<string, number>()
+  let computedLastSent = new Map<string, string>()
 
   if (campaignIds.length > 0) {
     const [{ data: enrolls }, { data: msgs }] = await Promise.all([
-      supabase.from("campaign_enrollments").select("campaign_id").in("campaign_id", campaignIds),
+      supabase
+        .from("campaign_enrollments")
+        .select("campaign_id, current_message_position, updated_at")
+        .in("campaign_id", campaignIds),
       supabase.from("campaign_messages").select("campaign_id").in("campaign_id", campaignIds),
     ])
 
@@ -48,6 +52,17 @@ export async function GET() {
       map.set(row.campaign_id, (map.get(row.campaign_id) ?? 0) + 1)
       return map
     }, new Map<string, number>())
+
+    computedLastSent = (enrolls ?? []).reduce((map, row) => {
+      if ((row.current_message_position ?? 0) <= 0 || !row.updated_at) {
+        return map
+      }
+      const current = map.get(row.campaign_id)
+      if (!current || new Date(row.updated_at).getTime() > new Date(current).getTime()) {
+        map.set(row.campaign_id, row.updated_at)
+      }
+      return map
+    }, new Map<string, string>())
 
     messageCounts = (msgs ?? []).reduce((map, row) => {
       map.set(row.campaign_id, (map.get(row.campaign_id) ?? 0) + 1)
@@ -58,6 +73,7 @@ export async function GET() {
   return NextResponse.json({
     campaigns: (campaigns ?? []).map((c) => ({
       ...c,
+      last_sent_at: c.last_sent_at ?? computedLastSent.get(c.id) ?? null,
       enrollment_count: enrollmentCounts.get(c.id) ?? 0,
       message_count: messageCounts.get(c.id) ?? 0,
     })),

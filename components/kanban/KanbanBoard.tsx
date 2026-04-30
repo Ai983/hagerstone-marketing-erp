@@ -179,7 +179,7 @@ export function KanbanBoard() {
     // natural finger tremor during the wait without cancelling.
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 1500,
+        delay: 150,
         tolerance: 10,
       },
     }),
@@ -370,7 +370,15 @@ export function KanbanBoard() {
           onDragEnd={handleDragEnd}
           onDragCancel={clearDragState}
         >
-          <div className="relative flex-1 overflow-hidden">
+          <div className="relative flex flex-1 flex-col overflow-hidden">
+            <div className="flex items-center justify-center gap-2 border-b border-[#2A2A3C] bg-[#0A0A0F] px-4 py-1.5 md:hidden">
+              <ChevronLeft size={12} color="#5A5A72" />
+              <span className="text-[10px] text-[#5A5A72]">
+                Swipe to see all stages
+              </span>
+              <ChevronRight size={12} color="#5A5A72" />
+            </div>
+
             {/* Left arrow */}
             <AnimatePresence>
               {showLeftArrow && (
@@ -395,8 +403,14 @@ export function KanbanBoard() {
               tabIndex={0}
               onScroll={updateArrowVisibility}
               onKeyDown={handleBoardKeyDown}
-              className="kanban-board h-full overflow-x-auto overflow-y-hidden outline-none"
-              style={{ scrollBehavior: "smooth", touchAction: "pan-x" }}
+              className="kanban-board flex-1 overflow-x-auto overflow-y-hidden outline-none"
+              style={{
+                scrollBehavior: "smooth",
+                overflowX: "auto",
+                touchAction: "pan-x",
+                WebkitOverflowScrolling: "touch",
+                scrollSnapType: "x mandatory",
+              }}
             >
               <div className="flex h-full gap-3 p-4">
                 {columns.map((column) => (

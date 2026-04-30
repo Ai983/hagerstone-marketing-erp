@@ -49,6 +49,11 @@ const ACCEPTED_FILE_TYPES = "image/*,.pdf,.doc,.docx,video/*"
 
 export type MediaType = "image" | "document" | "video"
 
+export interface MessageButtonDraft {
+  id: string
+  title: string
+}
+
 export interface MessageDraft {
   id: string // local-only — for stable React keys + dnd
   position: number
@@ -57,6 +62,7 @@ export interface MessageDraft {
   media_url: string | null
   media_type: MediaType | null
   media_filename: string | null
+  buttons: MessageButtonDraft[]
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -113,6 +119,10 @@ function typeBadgeColor(media_type: MediaType | null): string {
   if (media_type === "video") return "bg-[#1E3A5F] text-[#60A5FA]"
   if (media_type === "document") return "bg-[#3A2413] text-[#FB923C]"
   return "bg-[#1A1A24] text-[#9090A8]"
+}
+
+function createButtonId(): string {
+  return `btn_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 // ── Sortable row ────────────────────────────────────────────────────
@@ -259,6 +269,30 @@ function SortableMessageRow({
     toast("Attachment removed")
   }
 
+  const addButton = () => {
+    const buttons = message.buttons ?? []
+    if (buttons.length >= 3) return
+    onChange(message.id, {
+      buttons: [...buttons, { id: createButtonId(), title: "" }],
+    })
+  }
+
+  const updateButton = (buttonIndex: number, title: string) => {
+    const buttons = message.buttons ?? []
+    onChange(message.id, {
+      buttons: buttons.map((button, idx) =>
+        idx === buttonIndex ? { ...button, title } : button
+      ),
+    })
+  }
+
+  const removeButton = (buttonIndex: number) => {
+    const buttons = message.buttons ?? []
+    onChange(message.id, {
+      buttons: buttons.filter((_button, idx) => idx !== buttonIndex),
+    })
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -394,6 +428,50 @@ function SortableMessageRow({
             </div>
           )}
 
+          {canEdit && (
+            <div className="mt-2">
+              <p className="mb-1.5 text-[11px] uppercase tracking-[0.05em] text-[#9090A8]">
+                Quick Reply Buttons (optional)
+              </p>
+
+              {message.buttons?.map((button, buttonIndex) => (
+                <div key={button.id} className="mb-1.5 flex gap-1.5">
+                  <input
+                    type="text"
+                    value={button.title}
+                    onChange={(e) => updateButton(buttonIndex, e.target.value)}
+                    placeholder="Button text (max 20 chars)"
+                    maxLength={20}
+                    className="flex-1 rounded-md border border-[#2A2A3C] bg-[#1F1F2E] px-2.5 py-1.5 text-xs text-[#F0F0FA] outline-none placeholder-[#9090A8] focus:border-[#3B82F6]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeButton(buttonIndex)}
+                    className="rounded-md p-1 text-[#EF4444] transition hover:bg-[#2A1215]"
+                    aria-label="Remove button"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+
+              {(message.buttons?.length ?? 0) < 3 && (
+                <button
+                  type="button"
+                  onClick={addButton}
+                  className="inline-flex items-center gap-1 rounded-md border border-dashed border-[#3B82F6] bg-transparent px-2.5 py-1.5 text-[11px] text-[#3B82F6] transition hover:bg-[#3B82F6]/10"
+                >
+                  <Plus className="size-3" />
+                  Add Button
+                </button>
+              )}
+
+              <p className="mt-1 text-[10px] text-[#3A3A52]">
+                Max 3 buttons. Button text max 20 characters.
+              </p>
+            </div>
+          )}
+
           {/* WhatsApp preview */}
           {(message.message_template.trim() || hasMedia) && (
             <div className="rounded-lg bg-[#1F2937] p-3">
@@ -436,6 +514,23 @@ function SortableMessageRow({
                   <pre className="whitespace-pre-wrap px-3 py-2 font-sans">
                     {message.message_template}
                   </pre>
+                )}
+                {message.buttons?.some((button) => button.title.trim()) && (
+                  <div className="border-t border-black/10 px-2 py-1.5">
+                    <div className="flex flex-wrap gap-1.5">
+                      {message.buttons
+                        .filter((button) => button.title.trim())
+                        .slice(0, 3)
+                        .map((button) => (
+                          <span
+                            key={button.id}
+                            className="rounded border border-[#3B82F6]/30 bg-[#3B82F6]/10 px-2 py-1 text-[11px] font-medium text-[#1D4ED8]"
+                          >
+                            {button.title}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -557,6 +652,7 @@ export function MessageSequenceBuilder({
         media_url: null,
         media_type: null,
         media_filename: null,
+        buttons: [],
       },
     ])
     setDirty(true)
@@ -581,6 +677,18 @@ export function MessageSequenceBuilder({
       toast.error("One or more messages exceed 1000 characters")
       return
     }
+    if (messages.some((m) => (m.buttons ?? []).length > 3)) {
+      toast.error("Each message can have at most 3 quick reply buttons")
+      return
+    }
+    if (
+      messages.some((m) =>
+        (m.buttons ?? []).some((button) => button.title.trim().length > 20)
+      )
+    ) {
+      toast.error("Button text cannot exceed 20 characters")
+      return
+    }
 
     setSaving(true)
     try {
@@ -595,6 +703,13 @@ export function MessageSequenceBuilder({
             media_url: m.media_url,
             media_type: m.media_type,
             media_filename: m.media_filename,
+            buttons: (m.buttons ?? [])
+              .filter((button) => button.title.trim())
+              .slice(0, 3)
+              .map((button) => ({
+                id: button.id,
+                title: button.title.trim(),
+              })),
           })),
         }),
       })

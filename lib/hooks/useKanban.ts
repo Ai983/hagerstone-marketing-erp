@@ -43,6 +43,7 @@ export interface KanbanLead {
   assignee?: Pick<Profile, "id" | "full_name" | "avatar_url" | "role"> | null
   tasks?: KanbanTask[]
   stage_age_days: number
+  next_task?: KanbanTask | null
   next_follow_up?: KanbanTask | null
   has_overdue_follow_up: boolean
 }
@@ -59,12 +60,18 @@ function getStageAgeDays(stageEnteredAt: string) {
   return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
 }
 
-function normalizeLead(lead: Omit<KanbanLead, "stage_age_days" | "next_follow_up" | "has_overdue_follow_up">): KanbanLead {
+function normalizeLead(
+  lead: Omit<KanbanLead, "stage_age_days" | "next_follow_up" | "has_overdue_follow_up">
+): KanbanLead {
   const incompleteTasks = (lead.tasks ?? [])
     .filter((task) => !task.completed_at)
     .sort((a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime())
 
   const nextFollowUp = incompleteTasks[0] ?? null
+  const nextTask =
+    lead.next_task ??
+    incompleteTasks.find((task) => new Date(task.due_at).getTime() >= Date.now()) ??
+    null
   const hasOverdueFollowUp = nextFollowUp
     ? new Date(nextFollowUp.due_at).getTime() < Date.now()
     : false
@@ -73,6 +80,7 @@ function normalizeLead(lead: Omit<KanbanLead, "stage_age_days" | "next_follow_up
     ...lead,
     tasks: incompleteTasks,
     stage_age_days: getStageAgeDays(lead.stage_entered_at),
+    next_task: nextTask,
     next_follow_up: nextFollowUp,
     has_overdue_follow_up: hasOverdueFollowUp,
   }
@@ -113,6 +121,29 @@ async function fetchKanbanLeads() {
     throw error
   }
 
+  const leadIds = (data ?? []).map((lead) => lead.id)
+  const taskMap = new Map<string, KanbanTask>()
+
+  if (leadIds.length > 0) {
+    const { data: upcomingTasks, error: taskError } = await supabase
+      .from("tasks")
+      .select("id, lead_id, title, type, due_at, completed_at, assigned_to")
+      .is("completed_at", null)
+      .gte("due_at", new Date().toISOString())
+      .in("lead_id", leadIds)
+      .order("due_at", { ascending: true })
+
+    if (taskError) {
+      throw taskError
+    }
+
+    ;((upcomingTasks ?? []) as KanbanTask[]).forEach((task) => {
+      if (task.lead_id && !taskMap.has(task.lead_id)) {
+        taskMap.set(task.lead_id, task)
+      }
+    })
+  }
+
   return (data ?? []).map((lead) =>
     normalizeLead({
       id: lead.id,
@@ -137,6 +168,7 @@ async function fetchKanbanLeads() {
       stage: getSingleRelation(lead.stage) as KanbanLead["stage"],
       assignee: getSingleRelation(lead.assignee) as KanbanLead["assignee"],
       tasks: (lead.tasks ?? []) as KanbanTask[],
+      next_task: taskMap.get(lead.id) ?? null,
     })
   )
 }

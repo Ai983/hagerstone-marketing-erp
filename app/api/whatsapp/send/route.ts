@@ -1,7 +1,11 @@
 import { NextRequest } from "next/server"
 
 import { createClient } from "@/lib/supabase/server"
-import { sendWhatsAppMessage } from "@/lib/utils/whapi"
+import {
+  sendWhatsAppMessage,
+  sendWhatsAppWithButtons,
+  type WhapiButton,
+} from "@/lib/utils/whapi"
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,10 +17,14 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { phone, message, lead_id } = (await request.json()) as {
+    const { phone, message, lead_id, buttons, header, footer } =
+      (await request.json()) as {
       phone?: string
       message?: string
       lead_id?: string
+      buttons?: WhapiButton[]
+      header?: string
+      footer?: string
     }
     console.log("WhatsApp send request:", { phone, message, lead_id })
 
@@ -27,7 +35,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const result = await sendWhatsAppMessage(phone, message)
+    const usableButtons = Array.isArray(buttons)
+      ? buttons
+          .filter((btn) => btn.id?.trim() && btn.title?.trim())
+          .slice(0, 3)
+      : []
+
+    const result =
+      usableButtons.length > 0
+        ? await sendWhatsAppWithButtons(
+            phone,
+            message,
+            usableButtons,
+            header,
+            footer
+          )
+        : await sendWhatsAppMessage(phone, message)
 
     if (!result.success) {
       return Response.json({ error: result.error }, { status: 500 })

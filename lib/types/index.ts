@@ -108,6 +108,11 @@ export interface Lead {
   // Computed
   interactions?: Interaction[]
   tasks?: Task[]
+  next_task?: {
+    due_at: string
+    type: string
+    title: string
+  } | null
   stage_age_days?: number
 }
 
@@ -171,6 +176,7 @@ export interface Campaign {
   total_converted: number
   starts_at?: string
   ends_at?: string
+  last_sent_at: string | null
   created_at: string
 }
 

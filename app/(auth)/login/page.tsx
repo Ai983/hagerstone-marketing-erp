@@ -3,7 +3,6 @@
 import { FormEvent, useEffect, useState } from "react"
 import {
   ArrowRight,
-  BarChart2,
   Eye,
   EyeOff,
   Loader2,
@@ -14,6 +13,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
+import { HagerstoneLogoAnimation } from "@/components/ui/HagerstoneLogoAnimation"
 import { createClient } from "@/lib/supabase/client"
 
 // ── Existing auth flow (unchanged) ─────────────────────────────────
@@ -381,33 +381,33 @@ export default function LoginPage() {
         {/* Centered content — icon card + rotating quote */}
         <div className="absolute left-1/2 top-1/2 z-10 w-full max-w-md -translate-x-1/2 -translate-y-1/2 px-8 text-center">
           <div
-            className="mx-auto mb-6 flex size-20 items-center justify-center"
             style={{
-              background: "rgba(255,255,255,0.1)",
-              backdropFilter: "blur(10px)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: "20px",
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: 32,
             }}
           >
-            <BarChart2 className="size-10 text-white" />
+            <HagerstoneLogoAnimation size={260} />
           </div>
 
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={quoteIdx}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.6 }}
-            >
-              <h2 className="font-[family-name:var(--font-heading)] text-[36px] font-bold leading-tight text-white">
-                {QUOTES[quoteIdx].headline}
-              </h2>
-              <p className="mt-3 text-base text-white/70">
-                {QUOTES[quoteIdx].sub}
-              </p>
-            </motion.div>
-          </AnimatePresence>
+          <div style={{ textAlign: "center", marginTop: 24 }}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={quoteIdx}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.6 }}
+              >
+                <h2 className="font-[family-name:var(--font-heading)] text-[36px] font-bold leading-tight text-white">
+                  {QUOTES[quoteIdx].headline}
+                </h2>
+                <p className="mt-3 text-base text-white/70">
+                  {QUOTES[quoteIdx].sub}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* Bottom tag line */}

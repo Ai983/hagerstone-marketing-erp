@@ -13,6 +13,7 @@ interface IncomingMessage {
   media_url?: string | null
   media_type?: string | null
   media_filename?: string | null
+  buttons?: { id?: string; title?: string }[]
 }
 
 /**
@@ -83,6 +84,25 @@ export async function PUT(
           { status: 400 }
         )
       }
+      if (m.buttons && (!Array.isArray(m.buttons) || m.buttons.length > 3)) {
+        return NextResponse.json(
+          { error: "Each message can have at most 3 buttons" },
+          { status: 400 }
+        )
+      }
+      if (
+        m.buttons?.some(
+          (button) =>
+            !button.id?.trim() ||
+            !button.title?.trim() ||
+            button.title.trim().length > 20
+        )
+      ) {
+        return NextResponse.json(
+          { error: "Each button needs an id and title up to 20 characters" },
+          { status: 400 }
+        )
+      }
     }
 
     // ── 3. Service role client for writes (bypasses RLS) ────────
@@ -119,6 +139,13 @@ export async function PUT(
         media_url: msg.media_url ?? null,
         media_type: msg.media_type ?? null,
         media_filename: msg.media_filename ?? null,
+        buttons: (msg.buttons ?? [])
+          .filter((button) => button.id?.trim() && button.title?.trim())
+          .slice(0, 3)
+          .map((button) => ({
+            id: button.id!.trim(),
+            title: button.title!.trim(),
+          })),
       }))
 
       const { error: insertError } = await supabase

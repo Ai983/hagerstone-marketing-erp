@@ -5,6 +5,7 @@ import {
   isWhapiConfigured,
   sendWhatsAppMedia,
   sendWhatsAppMessage,
+  sendWhatsAppWithButtons,
 } from "@/lib/utils/whapi"
 
 const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
@@ -80,7 +81,7 @@ export async function POST(
     // 1. First message of the campaign (position = 1)
     const { data: firstMessage, error: msgError } = await supabase
       .from("campaign_messages")
-      .select("id, message_template, media_url, media_type, media_filename")
+      .select("id, message_template, media_url, media_type, media_filename, buttons")
       .eq("campaign_id", campaignId)
       .eq("position", 1)
       .maybeSingle()
@@ -161,6 +162,21 @@ export async function POST(
         | "document"
         | "video"
         | null
+      const buttons = Array.isArray(firstMessage.buttons)
+        ? firstMessage.buttons
+            .filter(
+              (button) =>
+                typeof button?.id === "string" &&
+                button.id.trim() &&
+                typeof button?.title === "string" &&
+                button.title.trim()
+            )
+            .slice(0, 3)
+            .map((button) => ({
+              id: button.id.trim(),
+              title: button.title.trim(),
+            }))
+        : []
 
       try {
         const result = mediaUrl
@@ -177,6 +193,8 @@ export async function POST(
                 filename: firstMessage.media_filename ?? undefined,
               }
             )
+          : buttons.length > 0
+            ? await sendWhatsAppWithButtons(lead.phone, personalised, buttons)
           : await sendWhatsAppMessage(lead.phone, personalised)
 
         if (result.success) {
@@ -235,6 +253,20 @@ export async function POST(
 
     const sent = results.filter((r) => r.status === "sent").length
     const failed = results.length - sent
+
+    if (sent > 0) {
+      const { error: updateCampaignError } = await supabase
+        .from("campaigns")
+        .update({ last_sent_at: new Date().toISOString() })
+        .eq("id", campaignId)
+
+      if (updateCampaignError) {
+        console.error(
+          "send-test: failed to update campaign last_sent_at",
+          updateCampaignError
+        )
+      }
+    }
 
     return NextResponse.json({
       success: true,

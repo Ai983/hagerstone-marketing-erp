@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/check-stale",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/campaign-drip",
+      "schedule": "0 * * * *"
     }
   ]
 }

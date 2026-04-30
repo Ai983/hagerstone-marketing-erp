@@ -42,6 +42,8 @@ export default function AdminPage() {
   const [clearing, setClearing] = useState(false)
   const [reseeding, setReseeding] = useState(false)
   const [scoring, setScoring] = useState(false)
+  const [testingDrip, setTestingDrip] = useState(false)
+  const [runningDrip, setRunningDrip] = useState(false)
 
   const handleClear = async () => {
     if (!confirm("Delete all sample leads? This cannot be undone.")) return
@@ -85,6 +87,44 @@ export default function AdminPage() {
       toast.error(err instanceof Error ? err.message : "Failed to score leads")
     } finally {
       setScoring(false)
+    }
+  }
+
+  const handleTestDrip = async () => {
+    setTestingDrip(true)
+    try {
+      const res = await fetch("/api/cron/campaign-drip-test")
+      const data = await res.json()
+      console.log("Drip test logs:", data.logs)
+      if (!res.ok) throw new Error(data.error || "Drip test failed")
+      if (data.logs) {
+        data.logs.forEach((log: string) => console.log("[DRIP]", log))
+      }
+      toast.success("Test complete - check console for logs")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Drip test failed")
+    } finally {
+      setTestingDrip(false)
+    }
+  }
+
+  const handleRunDrip = async () => {
+    setRunningDrip(true)
+    try {
+      const res = await fetch("/api/cron/campaign-drip", {
+        headers: {
+          Authorization: "Bearer hagerstone-cron-2024",
+        },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Full drip failed")
+      toast.success(
+        `Drip complete: ${data.sent ?? 0} sent, ${data.failed ?? 0} failed, ${data.completed ?? 0} completed`
+      )
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Full drip failed")
+    } finally {
+      setRunningDrip(false)
     }
   }
 
@@ -176,6 +216,34 @@ export default function AdminPage() {
             Reseed calls the <code className="rounded bg-[#1A1A24] px-1">reseed_sample_data()</code> RPC.
             If the function doesn&apos;t exist yet, create it in Supabase SQL editor.
           </p>
+        </section>
+
+        {/* Campaign Drip */}
+        <section className="mt-4 rounded-lg border border-[#2A2A3C] bg-[#111118] p-3.5">
+          <p className="mb-1 text-[13px] font-medium text-[#F0F0FA]">
+            Campaign Drip Engine
+          </p>
+          <p className="mb-3 text-xs text-[#9090A8]">
+            Runs automatically every hour. Use button to test manually.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={handleTestDrip}
+              disabled={testingDrip || runningDrip}
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#3B82F6] px-4 py-2 text-xs font-medium text-white transition hover:bg-[#2563EB] disabled:opacity-50"
+            >
+              {testingDrip && <Loader2 className="size-3 animate-spin" />}
+              Test Drip Now (max 3)
+            </button>
+            <button
+              onClick={handleRunDrip}
+              disabled={testingDrip || runningDrip}
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#10B981] px-4 py-2 text-xs font-medium text-white transition hover:bg-[#059669] disabled:opacity-50"
+            >
+              {runningDrip && <Loader2 className="size-3 animate-spin" />}
+              Run Full Drip
+            </button>
+          </div>
         </section>
 
         {/* Daily WhatsApp briefing */}

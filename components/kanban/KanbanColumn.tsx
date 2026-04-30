@@ -53,11 +53,15 @@ export function KanbanColumn({
   return (
     <section
       className={cn(
-        "flex h-full w-[220px] shrink-0 flex-col overflow-hidden rounded-xl border bg-[#111118] transition-colors duration-150 lg:w-[280px]",
+        "flex h-full flex-col overflow-hidden rounded-xl border bg-[#111118] transition-colors duration-150",
         isDragOver ? "bg-[#161620]" : "bg-[#111118]"
       )}
       style={{
         borderColor: isDragOver ? column.stage.color : "#2A2A3C",
+        scrollSnapAlign: "start",
+        flexShrink: 0,
+        width: "85vw",
+        maxWidth: "280px",
       }}
     >
       <div className="border-b border-[#2A2A3C] bg-[#0F0F15] px-4 py-3">
@@ -79,7 +83,12 @@ export function KanbanColumn({
       <div
         data-scrollable
         className="thin-scrollbar flex-1 overflow-y-auto p-3"
-        style={{ touchAction: "pan-y" }}
+        style={{
+          overflowY: "auto",
+          touchAction: "pan-y",
+          WebkitOverflowScrolling: "touch",
+          paddingBottom: "max(80px, env(safe-area-inset-bottom))",
+        }}
       >
         {column.leads.length > 0 ? (
           <AnimatePresence initial={false} mode="popLayout">
