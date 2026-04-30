@@ -21,7 +21,7 @@ export default async function AdminLayout({
     .eq("id", user.id)
     .maybeSingle()
 
-  if (profile?.role !== "admin") {
+  if (profile?.role !== "admin" && profile?.role !== "founder") {
     redirect("/pipeline")
   }
 

@@ -291,8 +291,15 @@ export function KanbanBoard() {
       }, 600)
       clearPendingStageChange()
     } catch (error) {
+      console.error("Stage change failed:", error)
+      console.error("Lead ID:", pendingStageChange.leadId)
+      console.error("New Stage ID:", pendingStageChange.toStageId)
       revertLeadStage(pendingStageChange.leadId, pendingStageChange.fromStageId)
-      toast.error(error instanceof Error ? error.message : "Unable to move lead right now.")
+      toast.error(
+        `Unable to move lead: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      )
     } finally {
       setIsSubmittingMove(false)
     }

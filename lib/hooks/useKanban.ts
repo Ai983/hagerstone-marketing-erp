@@ -336,6 +336,7 @@ export function useKanban() {
     const now = new Date().toISOString()
     const payload: Record<string, string | number | null> = {
       stage_id: newStageId,
+      updated_at: now,
     }
 
     if (toStage.slug === "won") {
@@ -350,10 +351,14 @@ export function useKanban() {
       payload.closure_reason = null
     }
 
-    const { error: updateError } = await supabase.from("leads").update(payload).eq("id", leadId)
+    const { error: updateError } = await supabase
+      .from("leads")
+      .update(payload)
+      .eq("id", leadId)
 
     if (updateError) {
-      throw updateError
+      console.error("Supabase update error:", updateError)
+      throw new Error(updateError.message)
     }
 
     const { error: interactionError } = await supabase.from("interactions").insert({

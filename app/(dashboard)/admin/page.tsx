@@ -12,6 +12,7 @@ import {
   Trash2,
   RefreshCw,
   Loader2,
+  Shield,
   Target,
 } from "lucide-react"
 
@@ -35,6 +36,12 @@ const sections = [
     icon: Plug,
     title: "Integrations",
     description: "Webhook, WhatsApp, Claude AI connections.",
+  },
+  {
+    href: "/admin/audit-log",
+    icon: Shield,
+    title: "Audit Log",
+    description: "Review system actions, changes, and exports.",
   },
 ] as const
 
@@ -141,7 +148,7 @@ export default function AdminPage() {
         </div>
 
         {/* Section grid */}
-        <div className="mb-8 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="mb-8 grid grid-cols-1 gap-3 md:grid-cols-4">
           {sections.map(({ href, icon: Icon, title, description }) => (
             <Link
               key={href}
@@ -149,7 +156,13 @@ export default function AdminPage() {
               className="group rounded-xl border border-[#2A2A3C] bg-[#111118] p-5 transition hover:border-[#3B82F6] hover:bg-[#1A1A24]"
             >
               <div className="flex items-start justify-between">
-                <div className="flex size-10 items-center justify-center rounded-lg bg-[#1E3A5F] text-[#3B82F6]">
+                <div
+                  className={
+                    title === "Audit Log"
+                      ? "flex size-10 items-center justify-center rounded-lg bg-[#2E1A47] text-[#8B5CF6]"
+                      : "flex size-10 items-center justify-center rounded-lg bg-[#1E3A5F] text-[#3B82F6]"
+                  }
+                >
                   <Icon className="size-5" />
                 </div>
                 <ChevronRight className="size-4 text-[#9090A8] transition group-hover:translate-x-0.5 group-hover:text-[#F0F0FA]" />

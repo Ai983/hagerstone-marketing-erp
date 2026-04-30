@@ -180,6 +180,26 @@ export interface Campaign {
   created_at: string
 }
 
+export interface AuditLog {
+  id: string
+  entity_type: string
+  entity_id: string | null
+  action: string
+  actor_id: string | null
+  actor_type: string | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  old_values: Record<string, any> | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  new_values: Record<string, any> | null
+  ip_address: string | null
+  created_at: string
+  actor?: {
+    id: string
+    full_name: string
+    role: string
+  }
+}
+
 // Kanban board state
 export interface KanbanColumn {
   stage: PipelineStage

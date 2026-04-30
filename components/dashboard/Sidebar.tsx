@@ -16,6 +16,7 @@ import {
   LogOut,
   Megaphone,
   Settings,
+  Shield,
   Sparkles,
   User as UserIcon,
   Users,
@@ -56,6 +57,7 @@ const primaryNavigation: ReadonlyArray<NavItem> = [
 
 const secondaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/admin", label: "Admin", icon: Settings, roles: ["admin"] },
+  { href: "/admin/audit-log", label: "Audit Log", icon: Shield, roles: ["admin", "founder"] },
 ]
 
 interface SidebarProps {
