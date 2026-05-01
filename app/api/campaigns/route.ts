@@ -43,7 +43,7 @@ export async function GET() {
     const [{ data: enrolls }, { data: msgs }] = await Promise.all([
       supabase
         .from("campaign_enrollments")
-        .select("campaign_id, current_message_position, updated_at")
+        .select("campaign_id, current_message_position, last_message_sent_at")
         .in("campaign_id", campaignIds),
       supabase.from("campaign_messages").select("campaign_id").in("campaign_id", campaignIds),
     ])
@@ -54,12 +54,15 @@ export async function GET() {
     }, new Map<string, number>())
 
     computedLastSent = (enrolls ?? []).reduce((map, row) => {
-      if ((row.current_message_position ?? 0) <= 0 || !row.updated_at) {
+      if ((row.current_message_position ?? 0) <= 0 || !row.last_message_sent_at) {
         return map
       }
       const current = map.get(row.campaign_id)
-      if (!current || new Date(row.updated_at).getTime() > new Date(current).getTime()) {
-        map.set(row.campaign_id, row.updated_at)
+      if (
+        !current ||
+        new Date(row.last_message_sent_at).getTime() > new Date(current).getTime()
+      ) {
+        map.set(row.campaign_id, row.last_message_sent_at)
       }
       return map
     }, new Map<string, string>())
