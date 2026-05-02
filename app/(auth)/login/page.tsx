@@ -167,7 +167,7 @@ export default function LoginPage() {
             Welcome back <span aria-hidden>👋</span>
           </h1>
           <p className="mt-2 text-sm text-[#9090A8]">
-            Sign in to Hagerstone ERP
+            Sign in to Hagerstone Marketing ERP
           </p>
 
           <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
