@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
         message_position: enrollment.current_message_position ?? null,
         message_preview: "Skipped",
         status: "skipped",
-        error_message: "Campaign inactive",
+        error_message: "No phone / not opted in / inactive",
         sleep_seconds: 0,
       })
       continue
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
         message_position: enrollment.current_message_position ?? null,
         message_preview: "Skipped",
         status: "skipped",
-        error_message: "No phone",
+        error_message: "No phone / not opted in / inactive",
         sleep_seconds: 0,
       })
       continue
@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
         message_position: enrollment.current_message_position ?? null,
         message_preview: "Skipped",
         status: "skipped",
-        error_message: "Not opted in",
+        error_message: "No phone / not opted in / inactive",
         sleep_seconds: 0,
       })
       continue
@@ -235,7 +235,7 @@ export async function GET(request: NextRequest) {
         message_position: nextPosition,
         message_preview: processedMessage.slice(0, 100),
         status: "failed",
-        error_message: sendResult.error ?? "Failed to send message",
+        error_message: sendResult.error ?? "Unknown error",
         sleep_seconds: 0,
       })
       continue
@@ -272,24 +272,14 @@ export async function GET(request: NextRequest) {
       notes: processedMessage,
       campaign_id: enrollment.campaign_id,
       is_automated: true,
+      media_url: mediaUrl ?? null,
+      media_type: mediaUrl ? getMediaType(message.media_type) : null,
     })
 
     await supabase
       .from("campaigns")
       .update({ last_sent_at: now })
       .eq("id", enrollment.campaign_id)
-
-    await logCampaignSend(supabase, {
-      campaign_id: enrollment.campaign_id,
-      enrollment_id: enrollment.id,
-      lead_id: lead.id,
-      lead_name: lead.full_name ?? "Unknown",
-      phone: lead.phone,
-      message_position: nextPosition,
-      message_preview: processedMessage.slice(0, 100),
-      status: "sent",
-      sleep_seconds: sleepSeconds,
-    })
 
     if (!nextDueAt && lead.assigned_to) {
       await supabase.from("notifications").insert({
@@ -303,6 +293,17 @@ export async function GET(request: NextRequest) {
     }
 
     results.sent++
+    await logCampaignSend(supabase, {
+      campaign_id: enrollment.campaign_id,
+      enrollment_id: enrollment.id,
+      lead_id: lead.id,
+      lead_name: lead.full_name ?? "Unknown",
+      phone: lead.phone,
+      message_position: nextPosition,
+      message_preview: processedMessage.slice(0, 100),
+      status: "sent",
+      sleep_seconds: sleepSeconds,
+    })
     console.log(`Sleeping ${sleepSeconds}s before next message...`)
     await new Promise((resolve) => setTimeout(resolve, sleepSeconds * 1000))
   }

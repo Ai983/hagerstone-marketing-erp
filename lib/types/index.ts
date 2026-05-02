@@ -134,6 +134,8 @@ export interface Interaction {
   type: InteractionType
   title?: string
   notes?: string
+  media_url: string | null
+  media_type: string | null
   outcome?: string
   duration_minutes?: number
   stage_from_id?: string

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { format } from "date-fns"
-import { Phone, RefreshCw, Send } from "lucide-react"
+import { ExternalLink, FileText, Phone, RefreshCw, Send } from "lucide-react"
 import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
@@ -11,18 +11,22 @@ interface WhatsAppMessage {
   id: string
   type: "whatsapp_sent" | "whatsapp_received"
   notes: string | null
+  media_url: string | null
+  media_type: string | null
   created_at: string
   is_automated: boolean
-  user: { full_name: string } | null
+  profile: { full_name: string } | null
 }
 
 interface RawWhatsAppMessage {
   id: string
   type: "whatsapp_sent" | "whatsapp_received"
   notes: string | null
+  media_url: string | null
+  media_type: string | null
   created_at: string
   is_automated: boolean
-  user: { full_name: string }[] | { full_name: string } | null
+  profile: { full_name: string }[] | { full_name: string } | null
 }
 
 interface Props {
@@ -47,7 +51,11 @@ export function WhatsAppChatView({ lead }: Props) {
     const { data, error } = await supabase
       .from("interactions")
       .select(
-        "id, type, notes, created_at, is_automated, user:user_id(full_name)"
+        `
+        id, type, notes, media_url, media_type,
+        created_at, is_automated,
+        profile:profiles(full_name)
+      `
       )
       .eq("lead_id", lead.id)
       .in("type", ["whatsapp_sent", "whatsapp_received"])
@@ -62,9 +70,9 @@ export function WhatsAppChatView({ lead }: Props) {
 
     const normalized = ((data ?? []) as RawWhatsAppMessage[]).map((message) => ({
       ...message,
-      user: Array.isArray(message.user)
-        ? (message.user[0] ?? null)
-        : (message.user ?? null),
+      profile: Array.isArray(message.profile)
+        ? (message.profile[0] ?? null)
+        : (message.profile ?? null),
     }))
 
     setMessages(normalized)
@@ -233,9 +241,9 @@ export function WhatsAppChatView({ lead }: Props) {
                           : "rounded-[12px_12px_12px_2px] border-[#2A2A3C] bg-[#1A1A24]"
                       }`}
                     >
-                      {isSent && msg.user?.full_name && (
+                      {isSent && msg.profile?.full_name && (
                         <p className="m-0 mb-1 text-[10px] font-medium text-[#10B981]">
-                          {msg.is_automated ? "Campaign" : msg.user.full_name}
+                          {msg.is_automated ? "Campaign" : msg.profile.full_name}
                         </p>
                       )}
                       {!isSent && (
@@ -247,6 +255,56 @@ export function WhatsAppChatView({ lead }: Props) {
                       <p className="m-0 whitespace-pre-wrap break-words text-[13px] leading-[1.5] text-[#F0F0FA]">
                         {msg.notes || ""}
                       </p>
+
+                      {msg.media_url && (
+                        <div style={{ marginTop: 8 }}>
+                          {msg.media_type === "image" ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={msg.media_url}
+                              alt="Image"
+                              style={{
+                                maxWidth: "100%",
+                                borderRadius: 8,
+                                maxHeight: 200,
+                                objectFit: "cover",
+                                display: "block",
+                              }}
+                            />
+                          ) : (
+                            <a
+                              href={msg.media_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                background: "rgba(255,255,255,0.08)",
+                                border: "1px solid rgba(255,255,255,0.15)",
+                                borderRadius: 6,
+                                padding: "8px 10px",
+                                textDecoration: "none",
+                                marginTop: 4,
+                              }}
+                            >
+                              <FileText size={16} color="#F0F0FA" />
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  color: "#F0F0FA",
+                                  flex: 1,
+                                }}
+                              >
+                                {msg.media_type === "document"
+                                  ? "PDF Document"
+                                  : "Attachment"}
+                              </span>
+                              <ExternalLink size={12} color="#9090A8" />
+                            </a>
+                          )}
+                        </div>
+                      )}
 
                       <p className="m-0 mt-1 text-right text-[10px] text-[#5A5A72]">
                         {format(new Date(msg.created_at), "hh:mm a")}
