@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/cron/campaign-drip",
-      "schedule": "55 5 * * *"
+      "schedule": "10 6 * * *"
     }
   ]
 }

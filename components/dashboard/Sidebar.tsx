@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
 import {
+  Activity,
   BarChart2,
   CheckSquare,
   ChevronLeft,
@@ -48,6 +49,7 @@ const primaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/leads", label: "All Leads", icon: Users, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/activities", label: "My Tasks", icon: CheckSquare, badgeKey: "activities", roles: ALL_ROLES },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone, roles: ["admin", "manager", "marketing", "founder"] },
+  { href: "/campaigns/monitor", label: "Send Monitor", icon: Activity, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/analytics", label: "Analytics", icon: BarChart2, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/ai-agent", label: "AI Agent", icon: Sparkles, roles: ["admin", "manager", "founder"] },
   { href: "/ai-leads", label: "AI Lead Gen", icon: Sparkles, roles: ["admin", "manager", "founder", "marketing"] },
@@ -256,7 +258,9 @@ function SidebarBody({
       <nav className="thin-scrollbar flex-1 space-y-1 overflow-y-auto px-2 py-4">
         {visiblePrimary.map((item) => {
           const Icon = item.icon
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/campaigns" && pathname.startsWith(`${item.href}/`))
           const badgeCount = getBadge(item.badgeKey)
           const isOverdueBadge = item.badgeKey === "activities"
 

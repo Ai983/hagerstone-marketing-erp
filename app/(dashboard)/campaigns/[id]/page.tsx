@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { format, formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 import {
+  Activity,
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
@@ -61,6 +62,9 @@ interface EnrollmentRow {
   status: string
   current_message_position: number
   enrolled_at: string
+  next_message_due_at: string | null
+  last_message_sent_at: string | null
+  completed_at: string | null
   lead:
     | {
         id: string
@@ -132,6 +136,7 @@ async function fetchRole(): Promise<string | null> {
 
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const { setLeadDrawerId } = useUIStore()
   const id = params?.id
@@ -242,6 +247,14 @@ export default function CampaignDetailPage() {
               )}
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => router.push("/campaigns/monitor")}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#111118] px-3 py-2 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1A1A24]"
+          >
+            <Activity className="size-3.5" />
+            Send Log
+          </button>
         </div>
 
         {/* Tabs — animated underline via layoutId */}
@@ -341,6 +354,7 @@ function EnrolledLeadsTab({
 }) {
   const queryClient = useQueryClient()
   const [pendingId, setPendingId] = useState<string | null>(null)
+  const [sendingNextId, setSendingNextId] = useState<string | null>(null)
 
   const unenrollMutation = useMutation({
     mutationFn: async (leadId: string) => {
@@ -377,6 +391,49 @@ function EnrolledLeadsTab({
     unenrollMutation.mutate(leadId)
   }
 
+  const sendNextMutation = useMutation({
+    mutationFn: async (enrollmentId: string) => {
+      const res = await fetch(`/api/campaigns/${campaignId}/send-next`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrollment_id: enrollmentId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send next message")
+      }
+      return data as { position?: number; completed?: boolean }
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["campaign-detail", campaignId] })
+      queryClient.invalidateQueries({ queryKey: ["campaigns-list"] })
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] })
+      toast.success(
+        data.completed
+          ? "Final message sent and sequence completed"
+          : `Message ${data.position ?? ""} sent`.trim()
+      )
+    },
+    onError: (err) => {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to send next message"
+      )
+    },
+    onSettled: () => {
+      setSendingNextId(null)
+    },
+  })
+
+  const handleSendNext = (enrollment: EnrollmentRow) => {
+    if (!enrollment.lead) return
+    const confirmed = window.confirm(
+      `Send the next campaign message to ${enrollment.lead.full_name} now?`
+    )
+    if (!confirmed) return
+    setSendingNextId(enrollment.id)
+    sendNextMutation.mutate(enrollment.id)
+  }
+
   return (
     <div>
       {canEdit && (
@@ -409,6 +466,8 @@ function EnrolledLeadsTab({
                 <th className="px-4 py-3 text-left font-medium">Stage</th>
                 <th className="px-4 py-3 text-left font-medium">Enrolled</th>
                 <th className="px-4 py-3 text-left font-medium">Position</th>
+                <th className="px-4 py-3 text-left font-medium">Next Due</th>
+                <th className="px-4 py-3 text-left font-medium">Last Sent</th>
                 <th className="px-4 py-3 text-left font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
@@ -478,6 +537,40 @@ function EnrolledLeadsTab({
                     <td className="px-4 py-3 text-[#F0F0FA]">
                       {e.current_message_position}
                     </td>
+                    <td className="px-4 py-3 text-[11px] text-[#9090A8]">
+                      {e.next_message_due_at ? (
+                        <div className="space-y-0.5">
+                          <p className="text-[#F0F0FA]">
+                            {format(new Date(e.next_message_due_at), "MMM d, h:mm a")}
+                          </p>
+                          <p>
+                            {formatDistanceToNow(new Date(e.next_message_due_at), {
+                              addSuffix: true,
+                            })}
+                          </p>
+                        </div>
+                      ) : e.completed_at ? (
+                        "Completed"
+                      ) : (
+                        "Not scheduled"
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-[11px] text-[#9090A8]">
+                      {e.last_message_sent_at ? (
+                        <div className="space-y-0.5">
+                          <p className="text-[#F0F0FA]">
+                            {format(new Date(e.last_message_sent_at), "MMM d, h:mm a")}
+                          </p>
+                          <p>
+                            {formatDistanceToNow(new Date(e.last_message_sent_at), {
+                              addSuffix: true,
+                            })}
+                          </p>
+                        </div>
+                      ) : (
+                        "Never"
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={cn(
@@ -490,17 +583,35 @@ function EnrolledLeadsTab({
                     </td>
                     <td className="px-4 py-3 text-right">
                       {canEdit && (
-                        <button
-                          onClick={() => lead && handleUnenroll(lead.id)}
-                          disabled={pendingId === lead?.id}
-                          className="inline-flex items-center gap-1 rounded-md border border-[#2A2A3C] px-2 py-1 text-[11px] font-medium text-[#F87171] transition hover:bg-[#2A1215] disabled:opacity-50"
-                        >
-                          {pendingId === lead?.id ? (
-                            <Loader2 className="size-3 animate-spin" />
-                          ) : (
-                            "Unenroll"
-                          )}
-                        </button>
+                        <div className="flex justify-end gap-1.5">
+                          <button
+                            onClick={() => handleSendNext(e)}
+                            disabled={
+                              !lead ||
+                              e.status !== "active" ||
+                              sendingNextId === e.id ||
+                              pendingId === lead?.id
+                            }
+                            className="inline-flex items-center gap-1 rounded-md border border-[#2A2A3C] px-2 py-1 text-[11px] font-medium text-[#3B82F6] transition hover:bg-[#1E3A5F]/40 disabled:opacity-50"
+                          >
+                            {sendingNextId === e.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              "Send next"
+                            )}
+                          </button>
+                          <button
+                            onClick={() => lead && handleUnenroll(lead.id)}
+                            disabled={pendingId === lead?.id || sendingNextId === e.id}
+                            className="inline-flex items-center gap-1 rounded-md border border-[#2A2A3C] px-2 py-1 text-[11px] font-medium text-[#F87171] transition hover:bg-[#2A1215] disabled:opacity-50"
+                          >
+                            {pendingId === lead?.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              "Unenroll"
+                            )}
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
