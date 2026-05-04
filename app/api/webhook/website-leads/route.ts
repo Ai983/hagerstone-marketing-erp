@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-import { sendWhatsAppMessage } from "@/lib/utils/whapi"
+import { sendWhatsAppMessage } from "@/lib/utils/maytapi"
 
 // ── Helpers ─────────────────────────────────────────────────────────
 

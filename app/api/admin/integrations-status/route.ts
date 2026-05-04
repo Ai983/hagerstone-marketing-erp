@@ -21,9 +21,8 @@ export async function GET() {
     webhook: {
       secret_set: Boolean(process.env.WEBHOOK_SECRET),
     },
-    whapi: {
-      token_set: Boolean(process.env.WHAPI_TOKEN),
-      api_url_set: Boolean(process.env.WHAPI_API_URL),
+    maytapi: {
+      token_set: Boolean(process.env.MAYTAPI_API_TOKEN),
     },
     anthropic: {
       key_set: Boolean(process.env.ANTHROPIC_API_KEY),

@@ -5,11 +5,11 @@ import {
   sendWhatsAppMedia,
   sendWhatsAppMessage,
   sendWhatsAppWithButtons,
-  type WhapiButton,
-  type WhapiMediaType,
-} from "@/lib/utils/whapi"
+} from "@/lib/utils/maytapi"
 
 export const dynamic = "force-dynamic"
+type WhatsAppButton = { id: string; title: string }
+type MaytapiMediaType = "image" | "document"
 
 function personalize(template: string, lead: { full_name?: string | null; company_name?: string | null }) {
   return template
@@ -17,7 +17,7 @@ function personalize(template: string, lead: { full_name?: string | null; compan
     .replace(/\[Company\]/g, lead.company_name ?? "your company")
 }
 
-function getButtons(raw: unknown): WhapiButton[] {
+function getButtons(raw: unknown): WhatsAppButton[] {
   if (!Array.isArray(raw)) return []
   return raw
     .filter(
@@ -34,8 +34,8 @@ function getButtons(raw: unknown): WhapiButton[] {
     }))
 }
 
-function getMediaType(raw: unknown): WhapiMediaType {
-  if (raw === "image" || raw === "video" || raw === "document") return raw
+function getMediaType(raw: unknown): MaytapiMediaType {
+  if (raw === "image" || raw === "document") return raw
   return "document"
 }
 

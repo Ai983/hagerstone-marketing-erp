@@ -222,8 +222,8 @@ function SidebarBody({
               src="/logo.png"
               alt="Hagerstone"
               style={{
-                width: "40px",
-                height: "40px",
+                width: "20px",
+                height: "20px",
                 objectFit: "cover",
                 objectPosition: "left center",
               }}
@@ -234,7 +234,7 @@ function SidebarBody({
               src="/logo.png"
               alt="Hagerstone International"
               style={{
-                width: "220px",
+                width: "110px",
                 height: "auto",
                 objectFit: "contain",
                 objectPosition: "left center",

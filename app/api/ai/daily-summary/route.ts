@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient as createServiceClient, type SupabaseClient } from "@supabase/supabase-js"
 import { createClient as createUserClient } from "@/lib/supabase/server"
 import { generateAndSendDailySummary } from "@/lib/utils/daily-summary"
-import { sendWhatsAppMessage } from "@/lib/utils/whapi"
+import { sendWhatsAppMessage } from "@/lib/utils/maytapi"
 
 // ── Fallback: basic stats-only briefing when Claude is unavailable ─
 async function buildFallbackMessage(supabase: SupabaseClient): Promise<string> {
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // ── Send via Whapi — non-fatal ─────────────────────────────
+    // ── Send via Maytapi — non-fatal ─────────────────────────────
     let sendOk = false
     let sendError: string | null = null
     let managerNumber: string | null = null
@@ -191,8 +191,8 @@ export async function POST(request: NextRequest) {
       if (result.success) {
         sendOk = true
       } else {
-        sendError = result.error ?? "Whapi send failed"
-        console.error("Whapi send failed:", sendError)
+        sendError = result.error ?? "Maytapi send failed"
+        console.error("Maytapi send failed:", sendError)
       }
     }
 

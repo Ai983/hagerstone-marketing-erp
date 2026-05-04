@@ -4,8 +4,9 @@ import { createClient } from "@/lib/supabase/server"
 import {
   sendWhatsAppMessage,
   sendWhatsAppWithButtons,
-  type WhapiButton,
-} from "@/lib/utils/whapi"
+} from "@/lib/utils/maytapi"
+
+type WhatsAppButton = { id: string; title: string }
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,14 +18,12 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { phone, message, lead_id, buttons, header, footer } =
+    const { phone, message, lead_id, buttons } =
       (await request.json()) as {
       phone?: string
       message?: string
       lead_id?: string
-      buttons?: WhapiButton[]
-      header?: string
-      footer?: string
+      buttons?: WhatsAppButton[]
     }
     console.log("WhatsApp send request:", { phone, message, lead_id })
 
@@ -46,9 +45,7 @@ export async function POST(request: NextRequest) {
         ? await sendWhatsAppWithButtons(
             phone,
             message,
-            usableButtons,
-            header,
-            footer
+            usableButtons
           )
         : await sendWhatsAppMessage(phone, message)
 

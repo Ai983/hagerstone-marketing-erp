@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server"
 const PUBLIC_PATHS = new Set(["/login", "/signup"])
 
 export async function middleware(request: NextRequest) {
-  // Webhooks (Whapi inbound, website lead capture, etc.) come from
+  // Webhooks (Maytapi inbound, website lead capture, etc.) come from
   // external services with no Supabase session cookie. Same for cron
   // jobs hit by Vercel's scheduler. Skip middleware for both so they
   // aren't bounced to /login. Each route does its own auth/secret

@@ -1,180 +1,139 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-
-// Whapi inbound webhook. Whapi sends:
-//   body.messages[]  — incoming + outgoing messages
-//   body.statuses[]  — delivery status updates (sent / delivered / read)
-//
-// Uses service role for writes because there's no Supabase auth session
-// on a webhook request, and the `interactions` table's INSERT policy
-// requires `auth.uid() IS NOT NULL` — without service role, every
-// reply insert silently fails RLS.
-
-interface WhapiMessage {
-  id?: string
-  chat_id?: string
-  from?: string
-  from_me?: boolean
-  type?: string
-  text?: { body?: string }
-  caption?: string
-  interactive?: {
-    button_reply?: {
-      id?: string
-      title?: string
-    }
-  }
-  button_reply?: {
-    id?: string
-    title?: string
-  }
-}
-
-interface WhapiStatus {
-  id?: string
-  status?: string
-}
-
-interface WhapiWebhookBody {
-  messages?: WhapiMessage[]
-  statuses?: WhapiStatus[]
-}
 
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
-    )
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
   }
   return createClient(url, key)
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = (await request.json()) as WhapiWebhookBody
-    console.log("Whapi webhook received:", JSON.stringify(body, null, 2))
+    const body = await req.json()
+
+    // ── Maytapi payload structure ──────────────────────────────────────
+    // { type, message, phoneId, productId }
+    // message: { id, type, text, fromMe, timestamp, chatId, from, from_name, buttons_reply }
+
+    const message = body?.message
+    if (!message) return NextResponse.json({ ok: true })
+    if (message.fromMe === true) return NextResponse.json({ ok: true })
+
+    // Extract phone — Maytapi sends "919876543210@c.us" or "919876543210@s.whatsapp.net"
+    const from: string = message?.from ?? message?.chatId ?? ""
+    const phone = from
+      .replace("@c.us", "")
+      .replace("@s.whatsapp.net", "")
+      .replace("@g.us", "") // ignore group messages
+      .trim()
+
+    // Ignore group messages (group IDs contain a dash)
+    if (from.includes("@g.us")) return NextResponse.json({ ok: true })
+
+    // Extract message text — check both text and body fields (Maytapi uses both)
+    const text: string =
+      message?.text ||
+      message?.body ||
+      message?.caption ||
+      ""
+
+    const messageId: string = message?.id ?? ""
+
+    // Button reply detection
+    // Maytapi sends button replies as: message.buttons_reply.id or message.text matching button id
+    const buttonReplyId: string =
+      message?.buttons_reply?.id ||
+      message?.selectedButtonId ||
+      (text === "btn_interested" || text === "btn_not_now" || text === "btn_call_me" ? text : "")
 
     const supabase = getServiceClient()
 
-    // ── Incoming messages ───────────────────────────────────────
-    if (body.messages && body.messages.length > 0) {
-      for (const msg of body.messages) {
-        // Skip our own outgoing messages — Whapi includes those in the
-        // same array but we only want to log replies from leads.
-        if (msg.from_me) continue
+    // Normalise to last 10 digits for DB lookup
+    const fromPhone = phone.replace(/\D/g, "").slice(-10)
+    const messageText = text || buttonReplyId || "[Media message]"
 
-        // Whapi sends chat_id like "919876543210@s.whatsapp.net"
-        const fromPhone = msg.chat_id
-          ?.replace("@s.whatsapp.net", "")
-          ?.replace("91", "")
-          ?.slice(-10)
+    console.log("Maytapi webhook — from:", fromPhone, "| buttonReply:", buttonReplyId, "| text:", messageText, "| messageId:", messageId)
 
-        let messageText = ""
-        let isButtonReply = false
-        let buttonId = ""
+    if (!fromPhone) return NextResponse.json({ ok: true })
 
-        if (msg.type === "interactive" && msg.interactive?.button_reply) {
-          buttonId = msg.interactive.button_reply.id ?? ""
-          messageText = `[Button] ${msg.interactive.button_reply.title ?? "Button"}`
-          isButtonReply = true
-        } else if (msg.button_reply) {
-          buttonId = msg.button_reply.id ?? ""
-          messageText = `[Button] ${msg.button_reply.title ?? "Button"}`
-          isButtonReply = true
-        } else {
-          messageText = msg.text?.body || msg.caption || "[Media message]"
-        }
+    // ── Find lead by phone ─────────────────────────────────────────────
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("id, full_name, assigned_to, stage_id, category")
+      .ilike("phone", `%${fromPhone}%`)
+      .maybeSingle()
 
-        console.log("Incoming WhatsApp from:", fromPhone)
-        console.log("Message:", messageText)
-
-        if (!fromPhone) continue
-
-        const { data: lead } = await supabase
-          .from("leads")
-          .select("id, full_name, assigned_to, stage_id")
-          .ilike("phone", `%${fromPhone}%`)
-          .maybeSingle()
-
-        if (lead) {
-          await supabase.from("interactions").insert({
-            lead_id: lead.id,
-            type: "whatsapp_received",
-            notes: messageText,
-            is_automated: true,
-          })
-
-          if (isButtonReply) {
-            if (buttonId === "btn_interested") {
-              await supabase
-                .from("leads")
-                .update({ category: "hot" })
-                .eq("id", lead.id)
-            }
-
-            if (buttonId === "btn_call_me") {
-              await supabase.from("tasks").insert({
-                lead_id: lead.id,
-                title: `Call ${lead.full_name} - requested callback`,
-                type: "call",
-                due_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-                assigned_to: lead.assigned_to,
-              })
-            }
-
-            if (buttonId === "btn_not_now") {
-              await supabase
-                .from("leads")
-                .update({ category: "cold" })
-                .eq("id", lead.id)
-            }
-          }
-
-          if (lead.assigned_to) {
-            const notifBody = isButtonReply
-              ? `${lead.full_name} tapped: "${messageText.replace("[Button] ", "")}"`
-              : `${lead.full_name}: "${messageText.slice(0, 100)}"`
-
-            await supabase.from("notifications").insert({
-              user_id: lead.assigned_to,
-              type: "campaign_reply",
-              title: isButtonReply
-                ? "Lead Responded to Button"
-                : "WhatsApp Reply",
-              body: notifBody,
-              lead_id: lead.id,
-              is_read: false,
-            })
-          }
-
-          console.log("Logged reply for lead:", lead.full_name)
-        } else {
-          console.log("No lead found for phone:", fromPhone)
-        }
-      }
+    if (!lead) {
+      console.log("No lead found for phone:", fromPhone)
+      return NextResponse.json({ ok: true })
     }
 
-    // ── Delivery status updates ─────────────────────────────────
-    if (body.statuses && body.statuses.length > 0) {
-      for (const status of body.statuses) {
-        console.log("Message status update:", status.id, status.status)
-        // Hook point: when we want to record delivery confirmations,
-        // update the matching interaction row by `whatsapp_message_id`.
-      }
+    // ── Log interaction ────────────────────────────────────────────────
+    await supabase.from("interactions").insert({
+      lead_id: lead.id,
+      type: "whatsapp_received",
+      notes: messageText,
+      is_automated: true,
+    })
+
+    // ── Notify assigned rep ────────────────────────────────────────────
+    if (lead.assigned_to) {
+      await supabase.from("notifications").insert({
+        user_id: lead.assigned_to,
+        type: "campaign_reply",
+        title: "WhatsApp Reply",
+        body: `${lead.full_name}: "${messageText.slice(0, 100)}"`,
+        lead_id: lead.id,
+        is_read: false,
+      })
     }
 
-    return Response.json({ success: true })
+    // ── Button reply auto-actions ──────────────────────────────────────
+    if (buttonReplyId === "btn_interested") {
+      await supabase
+        .from("leads")
+        .update({ category: "hot", category_remarks: "Replied Interested via WhatsApp" })
+        .eq("id", lead.id)
+      console.log("Lead marked HOT via button reply:", lead.full_name)
+    }
+
+    if (buttonReplyId === "btn_not_now") {
+      await supabase
+        .from("leads")
+        .update({ category: "cold", category_remarks: "Replied Not Now via WhatsApp" })
+        .eq("id", lead.id)
+      console.log("Lead marked COLD via button reply:", lead.full_name)
+    }
+
+    if (buttonReplyId === "btn_call_me") {
+      // Create a call task for the assigned rep
+      await supabase.from("tasks").insert({
+        lead_id: lead.id,
+        assigned_to: lead.assigned_to,
+        title: `Call requested by ${lead.full_name} via WhatsApp`,
+        type: "call",
+        due_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours from now
+        is_completed: false,
+      })
+      console.log("Call task created for:", lead.full_name)
+    }
+
+    console.log("Webhook processed for lead:", lead.full_name)
+    return NextResponse.json({ success: true })
+
   } catch (error) {
-    console.error("Whapi webhook error:", error)
-    return Response.json(
+    console.error("Maytapi webhook error:", error)
+    return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 }
     )
   }
 }
 
+// Maytapi pings GET to verify the webhook URL is live
 export async function GET() {
-  return Response.json({ status: "Webhook active" })
+  return NextResponse.json({ status: "Maytapi webhook active", ok: true })
 }

@@ -2,17 +2,16 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { createClient } from "@/lib/supabase/server"
 import {
-  isWhapiConfigured,
   sendWhatsAppMedia,
   sendWhatsAppMessage,
   sendWhatsAppWithButtons,
-} from "@/lib/utils/whapi"
+} from "@/lib/utils/maytapi"
 
 const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
 
 /**
  * Normalise an Indian phone number to 12 digits starting with "91".
- * The shared whapi helper does its own normalisation, but we keep this
+ * The shared Maytapi helper does its own normalisation, but we keep this
  * here so the result can be displayed back to the user in the response
  * row alongside the lead.
  */
@@ -39,7 +38,7 @@ interface SendResult {
 
 /**
  * Manual test send. Fires the FIRST message of this campaign to every
- * active enrollment via Whapi. Intentionally not the same as the
+ * active enrollment via Maytapi. Intentionally not the same as the
  * future automated drip — this is a "blast now" button for verification.
  */
 export async function POST(
@@ -66,11 +65,11 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    if (!isWhapiConfigured()) {
+    if (!process.env.MAYTAPI_API_TOKEN) {
       return NextResponse.json(
         {
           error:
-            "Whapi credentials not configured. Set WHAPI_TOKEN and WHAPI_API_URL.",
+            "Maytapi credentials not configured. Set MAYTAPI_API_TOKEN.",
         },
         { status: 503 }
       )
@@ -151,7 +150,7 @@ export async function POST(
       const phone = normalisePhone(lead.phone)
 
       // Pick text vs media path based on whether the campaign message
-      // has an attachment. Whapi has dedicated endpoints per media type.
+      // has an attachment.
       const mediaUrl =
         typeof firstMessage.media_url === "string" &&
         firstMessage.media_url.trim()
@@ -160,7 +159,6 @@ export async function POST(
       const mediaType = firstMessage.media_type as
         | "image"
         | "document"
-        | "video"
         | null
       const buttons = Array.isArray(firstMessage.buttons)
         ? firstMessage.buttons
@@ -184,9 +182,7 @@ export async function POST(
               lead.phone,
               mediaType === "image"
                 ? "image"
-                : mediaType === "video"
-                  ? "video"
-                  : "document",
+                : "document",
               mediaUrl,
               {
                 caption: personalised,
@@ -225,7 +221,7 @@ export async function POST(
           })
         } else {
           console.error(
-            `send-test: Whapi rejected ${lead.full_name}`,
+            `send-test: Maytapi rejected ${lead.full_name}`,
             result.error
           )
           results.push({
@@ -233,7 +229,7 @@ export async function POST(
             lead: lead.full_name,
             phone,
             status: "failed",
-            reason: result.error ?? "Whapi rejected the message",
+            reason: result.error ?? "Maytapi rejected the message",
           })
         }
       } catch (err) {

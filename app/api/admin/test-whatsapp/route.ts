@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { createClient as createUserClient } from "@/lib/supabase/server"
-import { sendWhatsAppMessage } from "@/lib/utils/whapi"
+import { sendWhatsAppMessage } from "@/lib/utils/maytapi"
 
 // Default to MANAGER_WHATSAPP_NUMBER for the test send. Falls back to a
 // safe placeholder so the route never tries to spam an unspecified number.
@@ -28,7 +28,7 @@ export async function POST() {
 
   const result = await sendWhatsAppMessage(
     TEST_NUMBER,
-    "Hagerstone ERP test message ✅ — Whapi integration working!"
+    "Hagerstone ERP test message ✅ — Maytapi integration working!"
   )
 
   if (!result.success) {

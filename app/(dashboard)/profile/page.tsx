@@ -6,6 +6,7 @@ import { format } from "date-fns"
 import {
   Eye,
   EyeOff,
+  LogOut,
   Loader2,
   Lock,
   Save,
@@ -202,6 +203,12 @@ export default function ProfilePage() {
 
   // ── Render ────────────────────────────────────────────────────────
 
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.replace("/login")
+  }
+
   if (isLoading || !profile) {
     return (
       <main className="flex h-full items-center justify-center bg-[#0A0A0F]">
@@ -234,13 +241,23 @@ export default function ProfilePage() {
               Manage your personal information
             </p>
           </div>
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
-            style={{ backgroundColor: role.bg, color: role.color }}
-          >
-            <Shield className="size-3" />
-            {role.label}
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+              style={{ backgroundColor: role.bg, color: role.color }}
+            >
+              <Shield className="size-3" />
+              {role.label}
+            </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#3A3A52] bg-[#1A1A24] px-3 py-1.5 text-xs font-medium text-[#9090A8] transition hover:border-[#F87171] hover:bg-[#F8717115] hover:text-[#F87171]"
+            >
+              <LogOut className="size-3" />
+              Logout
+            </button>
+          </div>
         </div>
 
         {/* Two-column grid on lg+ */}

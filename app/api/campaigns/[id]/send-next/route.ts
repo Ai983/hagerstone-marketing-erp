@@ -3,15 +3,14 @@ import { createClient as createServiceClient } from "@supabase/supabase-js"
 
 import { createClient } from "@/lib/supabase/server"
 import {
-  isWhapiConfigured,
   sendWhatsAppMedia,
   sendWhatsAppMessage,
   sendWhatsAppWithButtons,
-  type WhapiButton,
-  type WhapiMediaType,
-} from "@/lib/utils/whapi"
+} from "@/lib/utils/maytapi"
 
 const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
+type WhatsAppButton = { id: string; title: string }
+type MaytapiMediaType = "image" | "document"
 
 function personalize(
   template: string,
@@ -22,7 +21,7 @@ function personalize(
     .replace(/\[Company\]/g, lead.company_name ?? "your company")
 }
 
-function getButtons(raw: unknown): WhapiButton[] {
+function getButtons(raw: unknown): WhatsAppButton[] {
   if (!Array.isArray(raw)) return []
   return raw
     .filter(
@@ -39,8 +38,8 @@ function getButtons(raw: unknown): WhapiButton[] {
     }))
 }
 
-function getMediaType(raw: unknown): WhapiMediaType {
-  if (raw === "image" || raw === "video" || raw === "document") return raw
+function getMediaType(raw: unknown): MaytapiMediaType {
+  if (raw === "image" || raw === "document") return raw
   return "document"
 }
 
@@ -69,11 +68,11 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    if (!isWhapiConfigured()) {
+    if (!process.env.MAYTAPI_API_TOKEN) {
       return NextResponse.json(
         {
           error:
-            "Whapi credentials not configured. Set WHAPI_TOKEN and WHAPI_API_URL.",
+            "Maytapi credentials not configured. Set MAYTAPI_API_TOKEN.",
         },
         { status: 503 }
       )

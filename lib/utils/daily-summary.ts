@@ -30,13 +30,13 @@ Structure the message as short sections covering:
 - Quick wins already in progress
 - One direct recommendation`
 
-// Whapi sender — replaced Maytapi. The shared helper handles phone
-// normalisation and bearer auth. Returns the same { ok, error } shape
+// Maytapi sender. The shared helper handles phone normalisation and auth.
+// Returns the same { ok, error } shape
 // the cron route expects.
 
-import { sendWhatsAppMessage } from "@/lib/utils/whapi"
+import { sendWhatsAppMessage } from "@/lib/utils/maytapi"
 
-async function sendViaWhapi(
+async function sendViaMaytapi(
   toNumber: string,
   message: string
 ): Promise<{ ok: boolean; error?: string }> {
@@ -255,9 +255,9 @@ function formatWhatsAppMessage(ai: string, stats: { activeLeads: number; wonCoun
 export interface DailySummaryOptions {
   /** Override the phone number; otherwise falls back to admin_settings then MANAGER_WHATSAPP_NUMBER */
   overridePhone?: string
-  /** If true, generate but don't actually send via Whapi */
+  /** If true, generate but don't actually send via Maytapi */
   dryRun?: boolean
-  /** If true, generate and log the message but skip Whapi send (caller sends it). */
+  /** If true, generate and log the message but skip Maytapi send (caller sends it). */
   skipSend?: boolean
 }
 
@@ -325,7 +325,7 @@ export async function generateAndSendDailySummary(
       },
     })
 
-    // 5. Send via Whapi unless dry run or caller wants to send it themselves
+    // 5. Send via Maytapi unless dry run or caller wants to send it themselves
     if (options.dryRun) {
       await updateLastSent(supabase, targetPhone, true)
       return {
@@ -354,7 +354,7 @@ export async function generateAndSendDailySummary(
       }
     }
 
-    const sendResult = await sendViaWhapi(targetPhone, message)
+    const sendResult = await sendViaMaytapi(targetPhone, message)
     if (!sendResult.ok) {
       return {
         success: false,

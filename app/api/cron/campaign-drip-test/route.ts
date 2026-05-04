@@ -3,12 +3,12 @@ import { createClient } from "@supabase/supabase-js"
 import {
   sendWhatsAppMessage,
   sendWhatsAppWithButtons,
-  type WhapiButton,
-} from "@/lib/utils/whapi"
+} from "@/lib/utils/maytapi"
 
 export const dynamic = "force-dynamic"
+type WhatsAppButton = { id: string; title: string }
 
-function getButtons(raw: unknown): WhapiButton[] {
+function getButtons(raw: unknown): WhatsAppButton[] {
   if (!Array.isArray(raw)) return []
   return raw
     .filter(
