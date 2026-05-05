@@ -67,7 +67,7 @@ export async function sendWhatsAppMedia(
       to_number: formatPhone(phone),
       type: 'media',
       message: url,
-      ...(type !== 'document' && options?.caption ? { text: options.caption } : {}),
+      ...(options?.caption ? { text: options.caption } : {}),
       ...(options?.filename ? { filename: options.filename } : {}),
     }),
   })

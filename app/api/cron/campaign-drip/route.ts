@@ -212,7 +212,7 @@ export async function GET(request: NextRequest) {
     const mediaType = getMediaType(message.media_type)
     const sendResult = mediaUrl
       ? await sendWhatsAppMedia(lead.phone, mediaType, mediaUrl, {
-          caption: mediaType === "document" ? undefined : processedMessage,
+          caption: processedMessage,
           filename: message.media_filename ?? undefined,
         })
       : buttons.length > 0
@@ -235,27 +235,6 @@ export async function GET(request: NextRequest) {
         sleep_seconds: 0,
       })
       continue
-    }
-
-    if (mediaUrl && mediaType === "document" && processedMessage.trim()) {
-      const textResult = await sendWhatsAppMessage(lead.phone, processedMessage)
-      if (!textResult.success) {
-        console.error("Document caption send failed:", lead.full_name, textResult.error)
-        results.failed++
-        await logCampaignSend(supabase, {
-          campaign_id: enrollment.campaign_id,
-          enrollment_id: enrollment.id,
-          lead_id: lead.id,
-          lead_name: lead.full_name ?? "Unknown",
-          phone: lead.phone,
-          message_position: nextPosition,
-          message_preview: processedMessage.slice(0, 100),
-          status: "failed",
-          error_message: textResult.error ?? "Document sent, caption failed",
-          sleep_seconds: 0,
-        })
-        continue
-      }
     }
 
     const { data: nextMessage } = await supabase

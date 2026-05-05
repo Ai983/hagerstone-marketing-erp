@@ -84,16 +84,36 @@ export async function POST(req: NextRequest) {
       is_automated: true,
     })
 
-    // Notify assigned rep
+    // Notify assigned rep + all admins
+    const usersToNotify = new Set<string>()
+
     if (lead.assigned_to) {
-      await supabase.from("notifications").insert({
-        user_id: lead.assigned_to,
-        type: "campaign_reply",
-        title: "WhatsApp Reply",
-        body: `${lead.full_name}: "${messageText.slice(0, 100)}"`,
-        lead_id: lead.id,
-        is_read: false,
+      usersToNotify.add(lead.assigned_to)
+    }
+
+    const { data: adminUsers } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("role", "admin")
+      .eq("is_active", true)
+
+    if (adminUsers && adminUsers.length > 0) {
+      adminUsers.forEach((admin: { id: string }) => {
+        usersToNotify.add(admin.id)
       })
+    }
+
+    if (usersToNotify.size > 0) {
+      await supabase.from("notifications").insert(
+        Array.from(usersToNotify).map((userId) => ({
+          user_id: userId,
+          type: "campaign_reply",
+          title: `💬 WhatsApp Reply — ${lead.full_name}`,
+          body: `${lead.full_name}: "${messageText.slice(0, 100)}"`,
+          lead_id: lead.id,
+          is_read: false,
+        }))
+      )
     }
 
     // Button reply auto-actions

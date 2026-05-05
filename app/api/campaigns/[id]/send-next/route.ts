@@ -208,7 +208,7 @@ export async function POST(
     const mediaType = getMediaType(message.media_type)
     const sendResult = mediaUrl
       ? await sendWhatsAppMedia(lead.phone, mediaType, mediaUrl, {
-          caption: mediaType === "document" ? undefined : processedMessage,
+          caption: processedMessage,
           filename: message.media_filename ?? undefined,
         })
       : buttons.length > 0
@@ -220,16 +220,6 @@ export async function POST(
         { error: sendResult.error ?? "Failed to send message" },
         { status: 502 }
       )
-    }
-
-    if (mediaUrl && mediaType === "document" && processedMessage.trim()) {
-      const textResult = await sendWhatsAppMessage(lead.phone, processedMessage)
-      if (!textResult.success) {
-        return NextResponse.json(
-          { error: textResult.error ?? "Failed to send document caption" },
-          { status: 502 }
-        )
-      }
     }
 
     const { data: nextMessage } = await supabase
