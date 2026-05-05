@@ -177,23 +177,37 @@ export async function POST(
         : []
 
       try {
+        const normalizedMediaType = mediaType === "image" ? "image" : "document"
         const result = mediaUrl
-          ? await sendWhatsAppMedia(
-              lead.phone,
-              mediaType === "image"
-                ? "image"
-                : "document",
-              mediaUrl,
-              {
-                caption: personalised,
-                filename: firstMessage.media_filename ?? undefined,
-              }
-            )
+          ? await sendWhatsAppMedia(lead.phone, normalizedMediaType, mediaUrl, {
+              caption:
+                normalizedMediaType === "document" ? undefined : personalised,
+              filename: firstMessage.media_filename ?? undefined,
+            })
           : buttons.length > 0
             ? await sendWhatsAppWithButtons(lead.phone, personalised, buttons)
           : await sendWhatsAppMessage(lead.phone, personalised)
 
         if (result.success) {
+          if (
+            mediaUrl &&
+            normalizedMediaType === "document" &&
+            personalised.trim()
+          ) {
+            const textResult = await sendWhatsAppMessage(lead.phone, personalised)
+            if (!textResult.success) {
+              results.push({
+                lead_id: lead.id,
+                lead: lead.full_name,
+                phone,
+                status: "failed",
+                reason:
+                  textResult.error ?? "Document sent, but caption message failed",
+              })
+              continue
+            }
+          }
+
           await supabase.from("interactions").insert({
             lead_id: lead.id,
             user_id: user.id,

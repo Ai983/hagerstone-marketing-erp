@@ -53,7 +53,7 @@ export async function sendWhatsAppWithButtons(
 
 export async function sendWhatsAppMedia(
   phone: string,
-  type: 'image' | 'document',
+  type: 'image' | 'document' | 'media',
   url: string,
   options?: { caption?: string; filename?: string }
 ) {
@@ -65,9 +65,9 @@ export async function sendWhatsAppMedia(
     },
     body: JSON.stringify({
       to_number: formatPhone(phone),
-      type,
-      url,
-      ...(options?.caption ? { message: options.caption } : {}),
+      type: 'media',
+      message: url,
+      ...(type !== 'document' && options?.caption ? { text: options.caption } : {}),
       ...(options?.filename ? { filename: options.filename } : {}),
     }),
   })

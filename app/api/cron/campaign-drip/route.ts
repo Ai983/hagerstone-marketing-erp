@@ -9,7 +9,7 @@ import {
 
 export const dynamic = "force-dynamic"
 type WhatsAppButton = { id: string; title: string }
-type MaytapiMediaType = "image" | "document"
+type MaytapiMediaType = "image" | "document" | "media"
 
 function personalize(template: string, lead: { full_name?: string | null; company_name?: string | null }) {
   return template
@@ -35,7 +35,7 @@ function getButtons(raw: unknown): WhatsAppButton[] {
 }
 
 function getMediaType(raw: unknown): MaytapiMediaType {
-  if (raw === "image" || raw === "document") return raw
+  if (raw === "image") return "image"
   return "document"
 }
 
@@ -209,16 +209,12 @@ export async function GET(request: NextRequest) {
     const buttons = getButtons(message.buttons)
     const sleepSeconds = Math.floor(Math.random() * 50) + 1
 
+    const mediaType = getMediaType(message.media_type)
     const sendResult = mediaUrl
-      ? await sendWhatsAppMedia(
-          lead.phone,
-          getMediaType(message.media_type),
-          mediaUrl,
-          {
-            caption: processedMessage,
-            filename: message.media_filename ?? undefined,
-          }
-        )
+      ? await sendWhatsAppMedia(lead.phone, mediaType, mediaUrl, {
+          caption: mediaType === "document" ? undefined : processedMessage,
+          filename: message.media_filename ?? undefined,
+        })
       : buttons.length > 0
         ? await sendWhatsAppWithButtons(lead.phone, processedMessage, buttons)
         : await sendWhatsAppMessage(lead.phone, processedMessage)
@@ -239,6 +235,27 @@ export async function GET(request: NextRequest) {
         sleep_seconds: 0,
       })
       continue
+    }
+
+    if (mediaUrl && mediaType === "document" && processedMessage.trim()) {
+      const textResult = await sendWhatsAppMessage(lead.phone, processedMessage)
+      if (!textResult.success) {
+        console.error("Document caption send failed:", lead.full_name, textResult.error)
+        results.failed++
+        await logCampaignSend(supabase, {
+          campaign_id: enrollment.campaign_id,
+          enrollment_id: enrollment.id,
+          lead_id: lead.id,
+          lead_name: lead.full_name ?? "Unknown",
+          phone: lead.phone,
+          message_position: nextPosition,
+          message_preview: processedMessage.slice(0, 100),
+          status: "failed",
+          error_message: textResult.error ?? "Document sent, caption failed",
+          sleep_seconds: 0,
+        })
+        continue
+      }
     }
 
     const { data: nextMessage } = await supabase

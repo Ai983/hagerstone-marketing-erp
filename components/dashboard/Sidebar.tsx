@@ -60,6 +60,7 @@ const primaryNavigation: ReadonlyArray<NavItem> = [
 const secondaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/admin", label: "Admin", icon: Settings, roles: ["admin"] },
   { href: "/admin/audit-log", label: "Audit Log", icon: Shield, roles: ["admin", "founder"] },
+  { href: "/admin/whatsapp-health", label: "WA Health", icon: Activity, roles: ["admin", "manager", "founder"] },
 ]
 
 interface SidebarProps {

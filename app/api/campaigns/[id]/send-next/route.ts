@@ -10,7 +10,7 @@ import {
 
 const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
 type WhatsAppButton = { id: string; title: string }
-type MaytapiMediaType = "image" | "document"
+type MaytapiMediaType = "image" | "document" | "media"
 
 function personalize(
   template: string,
@@ -39,7 +39,7 @@ function getButtons(raw: unknown): WhatsAppButton[] {
 }
 
 function getMediaType(raw: unknown): MaytapiMediaType {
-  if (raw === "image" || raw === "document") return raw
+  if (raw === "image") return "image"
   return "document"
 }
 
@@ -205,16 +205,12 @@ export async function POST(
         : null
     const buttons = getButtons(message.buttons)
 
+    const mediaType = getMediaType(message.media_type)
     const sendResult = mediaUrl
-      ? await sendWhatsAppMedia(
-          lead.phone,
-          getMediaType(message.media_type),
-          mediaUrl,
-          {
-            caption: processedMessage,
-            filename: message.media_filename ?? undefined,
-          }
-        )
+      ? await sendWhatsAppMedia(lead.phone, mediaType, mediaUrl, {
+          caption: mediaType === "document" ? undefined : processedMessage,
+          filename: message.media_filename ?? undefined,
+        })
       : buttons.length > 0
         ? await sendWhatsAppWithButtons(lead.phone, processedMessage, buttons)
         : await sendWhatsAppMessage(lead.phone, processedMessage)
@@ -224,6 +220,16 @@ export async function POST(
         { error: sendResult.error ?? "Failed to send message" },
         { status: 502 }
       )
+    }
+
+    if (mediaUrl && mediaType === "document" && processedMessage.trim()) {
+      const textResult = await sendWhatsAppMessage(lead.phone, processedMessage)
+      if (!textResult.success) {
+        return NextResponse.json(
+          { error: textResult.error ?? "Failed to send document caption" },
+          { status: 502 }
+        )
+      }
     }
 
     const { data: nextMessage } = await supabase
