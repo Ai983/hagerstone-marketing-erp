@@ -40,7 +40,8 @@ function getButtons(raw: unknown): WhatsAppButton[] {
 
 function getMediaType(raw: unknown): MaytapiMediaType {
   if (raw === "image") return "image"
-  return "document"
+  if (raw === "document") return "document"
+  return "media"
 }
 
 export async function POST(
@@ -255,6 +256,8 @@ export async function POST(
       notes: processedMessage,
       campaign_id: campaignId,
       is_automated: true,
+      media_url: mediaUrl,
+      media_type: mediaUrl ? message.media_type ?? getMediaType(message.media_type) : null,
     })
 
     await supabase

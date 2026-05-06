@@ -30,6 +30,7 @@ import {
   GripVertical,
   Image as ImageIcon,
   Loader2,
+  Music,
   Paperclip,
   Plus,
   Save,
@@ -43,11 +44,11 @@ import { cn } from "@/lib/utils"
 
 const BUCKET_NAME = "campaign-media"
 const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
-const ACCEPTED_FILE_TYPES = "image/*,.pdf,.doc,.docx,video/*"
+const ACCEPTED_FILE_TYPES = "image/*,.pdf,.doc,.docx,video/*,audio/*,.mp3,.m4a,.aac,.ogg,.wav"
 
 // ── Types ───────────────────────────────────────────────────────────
 
-export type MediaType = "image" | "document" | "video"
+export type MediaType = "image" | "document" | "video" | "audio"
 
 export interface MessageButtonDraft {
   id: string
@@ -70,10 +71,12 @@ export interface MessageDraft {
 function detectMediaType(file: File): MediaType {
   if (file.type.startsWith("image/")) return "image"
   if (file.type.startsWith("video/")) return "video"
+  if (file.type.startsWith("audio/")) return "audio"
   // Some browsers don't set MIME for Office documents — fall back to extension
   const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
   if (["jpg", "jpeg", "png", "gif", "webp", "heic"].includes(ext)) return "image"
   if (["mp4", "mov", "webm", "mkv"].includes(ext)) return "video"
+  if (["mp3", "m4a", "aac", "ogg", "wav"].includes(ext)) return "audio"
   return "document"
 }
 
@@ -97,6 +100,12 @@ function contentTypeFallback(file: File): string | undefined {
     mp4: "video/mp4",
     mov: "video/quicktime",
     webm: "video/webm",
+    mkv: "video/x-matroska",
+    mp3: "audio/mpeg",
+    m4a: "audio/mp4",
+    aac: "audio/aac",
+    ogg: "audio/ogg",
+    wav: "audio/wav",
   }
   return map[ext]
 }
@@ -110,6 +119,7 @@ function formatFileSize(bytes: number): string {
 function typeBadge(media_type: MediaType | null): string {
   if (media_type === "image") return "IMAGE"
   if (media_type === "video") return "VIDEO"
+  if (media_type === "audio") return "AUDIO"
   if (media_type === "document") return "DOC"
   return "TEXT"
 }
@@ -117,6 +127,7 @@ function typeBadge(media_type: MediaType | null): string {
 function typeBadgeColor(media_type: MediaType | null): string {
   if (media_type === "image") return "bg-[#2E1A47] text-[#C084FC]"
   if (media_type === "video") return "bg-[#1E3A5F] text-[#60A5FA]"
+  if (media_type === "audio") return "bg-[#123A34] text-[#2DD4BF]"
   if (media_type === "document") return "bg-[#3A2413] text-[#FB923C]"
   return "bg-[#1A1A24] text-[#9090A8]"
 }
@@ -423,7 +434,7 @@ function SortableMessageRow({
                 </button>
               )}
               <p className="mt-1 text-[10px] text-[#5A5A72]">
-                Images, documents (.pdf, .doc, .docx) or video. Max 100 MB.
+                Images, documents (.pdf, .doc, .docx), video or audio (.mp3). Max 100 MB.
               </p>
             </div>
           )}
@@ -508,6 +519,17 @@ function SortableMessageRow({
                     />
                   </div>
                 )}
+                {hasMedia && message.media_type === "audio" && message.media_url && (
+                  <div className="border-b border-black/10 bg-black/5 px-3 py-2">
+                    <div className="mb-1 flex items-center gap-2 text-gray-700">
+                      <Music className="size-4" />
+                      <span className="truncate text-xs">
+                        {message.media_filename ?? "audio"}
+                      </span>
+                    </div>
+                    <audio src={message.media_url} controls className="w-full" />
+                  </div>
+                )}
 
                 {/* Caption / message body */}
                 {message.message_template.trim() && (
@@ -564,8 +586,22 @@ function AttachmentPreview({
   filename: string
   onRemove: () => void
 }) {
-  const Icon = mediaType === "image" ? ImageIcon : mediaType === "video" ? Video : FileText
-  const label = mediaType === "image" ? "Image" : mediaType === "video" ? "Video" : "Document"
+  const Icon =
+    mediaType === "image"
+      ? ImageIcon
+      : mediaType === "video"
+        ? Video
+        : mediaType === "audio"
+          ? Music
+          : FileText
+  const label =
+    mediaType === "image"
+      ? "Image"
+      : mediaType === "video"
+        ? "Video"
+        : mediaType === "audio"
+          ? "Audio"
+          : "Document"
   return (
     <div className="flex items-center gap-3 rounded-lg border border-[#2A2A3C] bg-[#0F0F15] p-2">
       {mediaType === "image" ? (

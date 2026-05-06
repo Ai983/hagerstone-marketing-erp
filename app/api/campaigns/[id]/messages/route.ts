@@ -4,7 +4,13 @@ import { createClient } from "@/lib/supabase/server"
 
 const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
 
-const ALLOWED_MEDIA_TYPES = new Set(["image", "document", "video"])
+const ALLOWED_MEDIA_TYPES = new Set(["image", "document", "video", "audio"])
+
+function getLegacyMessageType(mediaType?: string | null): "text" | "image" | "document" {
+  if (mediaType === "image") return "image"
+  if (mediaType) return "document"
+  return "text"
+}
 
 interface IncomingMessage {
   position: number
@@ -135,7 +141,9 @@ export async function PUT(
         delay_days: Math.max(0, Number(msg.delay_days) ?? 0),
         delay_hours: 0,
         message_template: (msg.message_template ?? "").trim(),
-        message_type: msg.media_type ?? "text",
+        // Keep this compatible with older DB constraints. The precise
+        // attachment kind is stored in `media_type`.
+        message_type: getLegacyMessageType(msg.media_type),
         media_url: msg.media_url ?? null,
         media_type: msg.media_type ?? null,
         media_filename: msg.media_filename ?? null,

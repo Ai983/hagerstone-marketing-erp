@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { format } from "date-fns"
-import { ExternalLink, FileText, Phone, RefreshCw, Send } from "lucide-react"
+import { ExternalLink, FileText, Music, Phone, RefreshCw, Send } from "lucide-react"
 import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
@@ -271,6 +271,44 @@ export function WhatsAppChatView({ lead }: Props) {
                                 display: "block",
                               }}
                             />
+                          ) : msg.media_type === "video" ? (
+                            <video
+                              src={msg.media_url}
+                              controls
+                              style={{
+                                maxWidth: "100%",
+                                borderRadius: 8,
+                                maxHeight: 220,
+                                display: "block",
+                              }}
+                            />
+                          ) : msg.media_type === "audio" ? (
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 6,
+                                background: "rgba(255,255,255,0.08)",
+                                border: "1px solid rgba(255,255,255,0.15)",
+                                borderRadius: 6,
+                                padding: "8px 10px",
+                                marginTop: 4,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  fontSize: 12,
+                                  color: "#F0F0FA",
+                                }}
+                              >
+                                <Music size={16} color="#F0F0FA" />
+                                Audio attachment
+                              </span>
+                              <audio src={msg.media_url} controls style={{ width: "100%" }} />
+                            </div>
                           ) : (
                             <a
                               href={msg.media_url}

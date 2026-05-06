@@ -159,6 +159,8 @@ export async function POST(
       const mediaType = firstMessage.media_type as
         | "image"
         | "document"
+        | "video"
+        | "audio"
         | null
       const buttons = Array.isArray(firstMessage.buttons)
         ? firstMessage.buttons
@@ -177,7 +179,7 @@ export async function POST(
         : []
 
       try {
-        const normalizedMediaType = mediaType === "image" ? "image" : "document"
+        const normalizedMediaType = mediaType === "image" ? "image" : "media"
         const result = mediaUrl
           ? await sendWhatsAppMedia(lead.phone, normalizedMediaType, mediaUrl, {
               caption: personalised,
@@ -196,6 +198,8 @@ export async function POST(
             notes: personalised.slice(0, 500),
             campaign_id: campaignId,
             is_automated: true,
+            media_url: mediaUrl,
+            media_type: firstMessage.media_type ?? null,
           })
 
           await supabase

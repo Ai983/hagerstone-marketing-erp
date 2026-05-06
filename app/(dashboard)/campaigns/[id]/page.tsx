@@ -51,7 +51,7 @@ interface MessageRow {
   delay_days: number
   message_template: string
   media_url: string | null
-  media_type: "image" | "document" | "video" | null
+  media_type: "image" | "document" | "video" | "audio" | null
   media_filename: string | null
   buttons: { id: string; title: string }[] | null
 }

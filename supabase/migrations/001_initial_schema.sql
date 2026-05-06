@@ -245,7 +245,7 @@ CREATE TABLE campaign_messages (
   delay_hours INTEGER NOT NULL DEFAULT 0,
 
   message_template TEXT NOT NULL,
-  message_type TEXT DEFAULT 'text' CHECK (message_type IN ('text', 'image', 'document', 'template')),
+  message_type TEXT DEFAULT 'text' CHECK (message_type IN ('text', 'image', 'document', 'video', 'audio', 'template')),
 
   created_at TIMESTAMPTZ DEFAULT NOW()
 );

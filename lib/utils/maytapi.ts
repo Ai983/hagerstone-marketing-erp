@@ -65,7 +65,7 @@ export async function sendWhatsAppMedia(
     },
     body: JSON.stringify({
       to_number: formatPhone(phone),
-      type: 'media',
+      type: type === 'image' ? 'image' : 'media',
       message: url,
       ...(options?.caption ? { text: options.caption } : {}),
       ...(options?.filename ? { filename: options.filename } : {}),

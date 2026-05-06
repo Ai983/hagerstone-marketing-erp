@@ -36,7 +36,8 @@ function getButtons(raw: unknown): WhatsAppButton[] {
 
 function getMediaType(raw: unknown): MaytapiMediaType {
   if (raw === "image") return "image"
-  return "document"
+  if (raw === "document") return "document"
+  return "media"
 }
 
 type SendLogClient = {
@@ -269,7 +270,7 @@ export async function GET(request: NextRequest) {
       campaign_id: enrollment.campaign_id,
       is_automated: true,
       media_url: mediaUrl ?? null,
-      media_type: mediaUrl ? getMediaType(message.media_type) : null,
+      media_type: mediaUrl ? message.media_type ?? getMediaType(message.media_type) : null,
     })
 
     await supabase
