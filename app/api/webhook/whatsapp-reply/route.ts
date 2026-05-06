@@ -76,13 +76,62 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
+    let campaignId: string | null = null
+    const { data: latestCampaignSend } = await supabase
+      .from("interactions")
+      .select("campaign_id")
+      .eq("lead_id", lead.id)
+      .in("type", ["whatsapp_sent", "campaign_message_sent"])
+      .not("campaign_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (latestCampaignSend?.campaign_id) {
+      const { data: enrollment } = await supabase
+        .from("campaign_enrollments")
+        .select("campaign_id")
+        .eq("lead_id", lead.id)
+        .eq("campaign_id", latestCampaignSend.campaign_id)
+        .maybeSingle()
+
+      campaignId = enrollment?.campaign_id ?? null
+    }
+
+    if (messageId) {
+      const { data: existingReply } = await supabase
+        .from("interactions")
+        .select("id")
+        .eq("whatsapp_message_id", messageId)
+        .maybeSingle()
+
+      if (existingReply) {
+        return NextResponse.json({ success: true, duplicate: true })
+      }
+    }
+
     // Log interaction
     await supabase.from("interactions").insert({
       lead_id: lead.id,
       type: "whatsapp_received",
       notes: messageText,
       is_automated: true,
+      campaign_id: campaignId,
+      whatsapp_message_id: messageId || null,
     })
+
+    if (campaignId) {
+      const { data: campaign } = await supabase
+        .from("campaigns")
+        .select("total_replies")
+        .eq("id", campaignId)
+        .maybeSingle()
+
+      await supabase
+        .from("campaigns")
+        .update({ total_replies: (campaign?.total_replies ?? 0) + 1 })
+        .eq("id", campaignId)
+    }
 
     // Notify assigned rep + all admins
     const usersToNotify = new Set<string>()

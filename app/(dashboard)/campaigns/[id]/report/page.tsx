@@ -86,6 +86,7 @@ interface ReportData {
   enrollments: EnrollmentRow[]
   messages: MessageRow[]
   lastActivityByLead: Record<string, string>
+  replyCount: number
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -147,22 +148,51 @@ async function fetchReport(id: string): Promise<ReportData> {
   // Fetch latest interaction timestamp per enrolled lead
   const leadIds = Array.from(new Set(enrollments.map((e) => e.lead_id)))
   const lastActivityByLead: Record<string, string> = {}
+  let replyCount = 0
 
   if (leadIds.length > 0) {
     const { data: interactions } = await supabase
       .from("interactions")
-      .select("lead_id, created_at")
+      .select("lead_id, type, campaign_id, created_at")
       .in("lead_id", leadIds)
       .order("created_at", { ascending: false })
 
     for (const row of (interactions ?? []) as Array<{
       lead_id: string
+      type: string
+      campaign_id: string | null
       created_at: string
     }>) {
       if (!lastActivityByLead[row.lead_id]) {
         lastActivityByLead[row.lead_id] = row.created_at
       }
     }
+
+    const enrollmentByLead = new Map(
+      enrollments.map((enrollment) => [enrollment.lead_id, enrollment])
+    )
+    const repliedLeadIds = new Set<string>()
+
+    for (const row of (interactions ?? []) as Array<{
+      lead_id: string
+      type: string
+      campaign_id: string | null
+      created_at: string
+    }>) {
+      if (row.type !== "whatsapp_received") continue
+      if (row.campaign_id && row.campaign_id !== id) continue
+
+      const enrollment = enrollmentByLead.get(row.lead_id)
+      if (!enrollment) continue
+
+      // Count replies from enrolled leads after they entered this campaign.
+      // Older webhook rows may not have campaign_id, so this keeps reports accurate.
+      if (new Date(row.created_at) >= new Date(enrollment.enrolled_at)) {
+        repliedLeadIds.add(row.lead_id)
+      }
+    }
+
+    replyCount = repliedLeadIds.size
   }
 
   return {
@@ -170,6 +200,7 @@ async function fetchReport(id: string): Promise<ReportData> {
     enrollments,
     messages: (messagesRes.data ?? []) as MessageRow[],
     lastActivityByLead,
+    replyCount,
   }
 }
 
@@ -292,7 +323,7 @@ export default function CampaignReportPage() {
       (sum, e) => sum + (e.current_message_position ?? 0),
       0
     )
-    const replies = data?.campaign?.total_replies ?? 0
+    const replies = data?.replyCount ?? data?.campaign?.total_replies ?? 0
 
     // Converted = enrollments marked completed OR lead is in Won stage
     const converted = enrollments.reduce((count, e) => {
