@@ -16,6 +16,12 @@ import {
   Panel,
   BackgroundVariant,
   MarkerType,
+  Handle,
+  Position,
+  BaseEdge,
+  EdgeLabelRenderer,
+  getBezierPath,
+  type EdgeProps,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import {
@@ -27,10 +33,12 @@ import {
   HelpCircle,
   ArrowRightLeft,
   CheckSquare,
+  GitBranch,
   UserPlus,
   Bot,
   Image,
   Tag,
+  Trash2,
   X,
   Zap,
 } from "lucide-react"
@@ -41,7 +49,7 @@ import { toast } from "sonner"
 type NodeType =
   | "send_text" | "send_media" | "send_buttons"
   | "ask_question" | "move_stage" | "create_task"
-  | "enroll_campaign" | "end" | "trigger"
+  | "enroll_campaign" | "condition" | "end" | "trigger"
 
 interface NodeConfig {
   message?: string
@@ -57,8 +65,24 @@ interface NodeConfig {
   task_type?: string
   task_due_hours?: number
   campaign_id?: string
+  branches?: Branch[]
   keywords?: string[]
   trigger_type?: string
+  trigger_match?: string
+  _canvas_x?: number
+  _canvas_y?: number
+}
+
+interface Branch {
+  id: string
+  label: string
+  color: string
+  conditions: {
+    field: string
+    operator: string
+    value: string
+  }[]
+  next_node_id: string | null
 }
 
 interface ChatbotFlow {
@@ -70,6 +94,7 @@ interface ChatbotFlow {
   trigger_keywords: string[]
   trigger_match: string
   priority: number
+  _canvas_trigger_pos?: { x: number; y: number } | null
 }
 
 const NODE_DEFS: Record<NodeType, { label: string; color: string; icon: React.ElementType; bg: string }> = {
@@ -81,6 +106,7 @@ const NODE_DEFS: Record<NodeType, { label: string; color: string; icon: React.El
   move_stage:      { label: "Move Stage",        color: "#10B981", bg: "#10B98120", icon: ArrowRightLeft },
   create_task:     { label: "Create Task",       color: "#EF4444", bg: "#EF444420", icon: CheckSquare },
   enroll_campaign: { label: "Enroll Campaign",   color: "#EC4899", bg: "#EC489920", icon: UserPlus },
+  condition:       { label: "Condition",         color: "#A855F7", bg: "#A855F720", icon: GitBranch },
   end:             { label: "End Flow",          color: "#5A5A72", bg: "#5A5A7220", icon: Bot },
 }
 
@@ -122,6 +148,12 @@ function ChatbotNode({ data, selected }: { data: { type: NodeType; config: NodeC
       case "move_stage": return data.config.stage_slug || "No stage set"
       case "create_task": return data.config.task_title?.slice(0, 40) || "No title set"
       case "enroll_campaign": return data.config.campaign_id ? "Campaign set" : "No campaign set"
+      case "condition": {
+        const branches = (data.config.branches as Branch[] | undefined) ?? []
+        return branches.length > 0
+          ? branches.map(b => b.label).join(" / ")
+          : "No branches configured"
+      }
       case "end": return "Flow ends here"
       default: return ""
     }
@@ -132,23 +164,419 @@ function ChatbotNode({ data, selected }: { data: { type: NodeType; config: NodeC
       className="relative min-w-[200px] max-w-[240px] rounded-xl border-2 bg-[#111118] shadow-lg transition-all"
       style={{
         borderColor: selected ? def.color : "#2A2A3C",
-        boxShadow: selected ? `0 0 0 2px ${def.color}40` : "0 4px 12px rgba(0,0,0,0.4)",
+        boxShadow: selected
+          ? `0 0 0 3px ${def.color}50, 0 0 20px ${def.color}30`
+          : "0 4px 12px rgba(0,0,0,0.4)",
+        transform: selected ? "scale(1.03)" : "scale(1)",
+        transition: "all 0.15s ease",
       }}
     >
-      <div className="flex items-center gap-2 rounded-t-xl p-3" style={{ background: def.bg }}>
-        <div className="flex size-7 items-center justify-center rounded-lg" style={{ background: `${def.color}30` }}>
+      {/* Selected indicator bar at top */}
+      {selected && (
+        <div
+          className="absolute -top-0.5 left-4 right-4 h-0.5 rounded-full"
+          style={{ background: def.color }}
+        />
+      )}
+
+      {/* Target handle */}
+      {data.type !== "trigger" && (
+        <Handle
+          type="target"
+          position={Position.Left}
+          style={{
+            background: selected ? def.color : "#3A3A52",
+            width: 12,
+            height: 12,
+            border: `2px solid ${selected ? "#111118" : "#2A2A3C"}`,
+            left: -6,
+            transition: "all 0.15s ease",
+          }}
+        />
+      )}
+
+      {/* Header */}
+      <div
+        className="flex items-center gap-2 rounded-t-xl p-3"
+        style={{
+          background: selected ? `${def.color}30` : def.bg,
+          transition: "background 0.15s ease",
+        }}
+      >
+        <div
+          className="flex size-7 items-center justify-center rounded-lg"
+          style={{ background: `${def.color}30` }}
+        >
           <Icon size={14} style={{ color: def.color }} />
         </div>
         <span className="text-xs font-semibold text-[#F0F0FA]">{def.label}</span>
+        {selected && (
+          <span
+            className="ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+            style={{ background: def.color, color: "#fff" }}
+          >
+            Selected
+          </span>
+        )}
       </div>
+
+      {/* Preview */}
       <div className="px-3 py-2">
-        <p className="text-[11px] text-[#9090A8] leading-relaxed line-clamp-2">{getPreview()}</p>
+        <p className="text-[11px] text-[#9090A8] leading-relaxed line-clamp-2">
+          {getPreview()}
+        </p>
       </div>
+
+      {/* Source handles - multiple for condition node, single for others */}
+      {data.type === "condition" ? (
+        <>
+          {((data.config.branches as Branch[] | undefined) ?? [
+            { id: "yes", label: "Yes", color: "#10B981", conditions: [], next_node_id: null },
+            { id: "no", label: "No", color: "#EF4444", conditions: [], next_node_id: null },
+            { id: "default", label: "Default", color: "#5A5A72", conditions: [], next_node_id: null },
+          ]).map((branch: Branch, idx: number, arr: Branch[]) => (
+            <Handle
+              key={branch.id}
+              id={branch.id}
+              type="source"
+              position={Position.Right}
+              style={{
+                background: branch.color,
+                width: 12,
+                height: 12,
+                border: "2px solid #111118",
+                right: -6,
+                top: `${((idx + 1) / (arr.length + 1)) * 100}%`,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  right: 16,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: branch.color,
+                  color: "#fff",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  padding: "1px 5px",
+                  borderRadius: 4,
+                  whiteSpace: "nowrap",
+                  pointerEvents: "none",
+                }}
+              >
+                {branch.label}
+              </div>
+            </Handle>
+          ))}
+        </>
+      ) : (
+        data.type !== "end" && (
+          <Handle
+            type="source"
+            position={Position.Right}
+            style={{
+              background: selected ? def.color : "#3A3A52",
+              width: 12,
+              height: 12,
+              border: `2px solid ${selected ? "#111118" : "#2A2A3C"}`,
+              right: -6,
+              transition: "all 0.15s ease",
+            }}
+          />
+        )
+      )}
     </div>
   )
 }
 
 const nodeTypes = { chatbotNode: ChatbotNode }
+
+let setEdgesOutside: (updater: Edge[] | ((edges: Edge[]) => Edge[])) => void = () => {}
+
+function DeletableEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+}: EdgeProps) {
+  const [hovered, setHovered] = useState(false)
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  })
+
+  return (
+    <>
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={{
+          ...style,
+          stroke: hovered ? "#EF4444" : "#3B82F6",
+          strokeWidth: hovered ? 2.5 : 2,
+          transition: "stroke 0.2s, stroke-width 0.2s",
+        }}
+      />
+      {/* Wide invisible stroke for easy hover */}
+      <path
+        d={edgePath}
+        fill="none"
+        strokeWidth={30}
+        stroke="transparent"
+        style={{ cursor: "pointer" }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      />
+      <EdgeLabelRenderer>
+        {hovered && (
+          <div
+            style={{
+              position: "absolute",
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              pointerEvents: "all",
+              zIndex: 1000,
+            }}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setEdgesOutside((eds: Edge[]) => eds.filter((ed: Edge) => ed.id !== id))
+              }}
+              className="flex items-center justify-center rounded-full border border-[#EF4444] bg-[#111118] p-1.5 shadow-xl transition hover:scale-110 hover:bg-[#EF4444]"
+              title="Delete connection"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:stroke-white">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+              </svg>
+            </button>
+          </div>
+        )}
+      </EdgeLabelRenderer>
+    </>
+  )
+}
+
+const edgeTypes = { deletable: DeletableEdge }
+
+const CONDITION_FIELDS = [
+  { value: "message_text", label: "Message Text" },
+  { value: "lead_stage", label: "Lead Stage" },
+  { value: "lead_category", label: "Lead Category" },
+  { value: "lead_city", label: "Lead City" },
+  { value: "lead_budget", label: "Lead Budget" },
+  { value: "last_answer", label: "Last Answer" },
+]
+
+const CONDITION_OPERATORS = [
+  { value: "contains", label: "contains" },
+  { value: "equals", label: "equals" },
+  { value: "starts_with", label: "starts with" },
+  { value: "not_equals", label: "does not equal" },
+  { value: "greater_than", label: "greater than" },
+  { value: "less_than", label: "less than" },
+]
+
+const BRANCH_COLORS = ["#10B981", "#EF4444", "#3B82F6", "#F59E0B", "#8B5CF6", "#5A5A72"]
+
+function ConditionNodeConfig({
+  branches,
+  onChange,
+}: {
+  branches: Branch[]
+  onChange: (branches: Branch[]) => void
+}) {
+  function addBranch() {
+    const newBranch: Branch = {
+      id: crypto.randomUUID(),
+      label: `Branch ${branches.length + 1}`,
+      color: BRANCH_COLORS[branches.length % BRANCH_COLORS.length],
+      conditions: [],
+      next_node_id: null,
+    }
+    onChange([...branches, newBranch])
+  }
+
+  function updateBranch(id: string, updates: Partial<Branch>) {
+    onChange(branches.map(b => b.id === id ? { ...b, ...updates } : b))
+  }
+
+  function deleteBranch(id: string) {
+    if (branches.length <= 1) return
+    onChange(branches.filter(b => b.id !== id))
+  }
+
+  function addCondition(branchId: string) {
+    const branch = branches.find(b => b.id === branchId)
+    if (!branch) return
+    updateBranch(branchId, {
+      conditions: [
+        ...branch.conditions,
+        { field: "message_text", operator: "contains", value: "" },
+      ],
+    })
+  }
+
+  function updateCondition(
+    branchId: string,
+    condIdx: number,
+    updates: Partial<{ field: string; operator: string; value: string }>
+  ) {
+    const branch = branches.find(b => b.id === branchId)
+    if (!branch) return
+    const updated = branch.conditions.map((c, i) =>
+      i === condIdx ? { ...c, ...updates } : c
+    )
+    updateBranch(branchId, { conditions: updated })
+  }
+
+  function deleteCondition(branchId: string, condIdx: number) {
+    const branch = branches.find(b => b.id === branchId)
+    if (!branch) return
+    updateBranch(branchId, {
+      conditions: branch.conditions.filter((_, i) => i !== condIdx),
+    })
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">
+          Branches ({branches.length})
+        </p>
+        <button
+          onClick={addBranch}
+          className="inline-flex items-center gap-1 rounded-lg bg-[#A855F720] px-2 py-1 text-[11px] text-[#A855F7] hover:bg-[#A855F730]"
+        >
+          <Plus size={11} /> Add Branch
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {branches.map((branch, bIdx) => (
+          <div
+            key={branch.id}
+            className="overflow-hidden rounded-xl border"
+            style={{ borderColor: `${branch.color}40` }}
+          >
+            {/* Branch header */}
+            <div
+              className="flex items-center gap-2 px-3 py-2"
+              style={{ background: `${branch.color}15` }}
+            >
+              <div
+                className="size-3 shrink-0 rounded-full"
+                style={{ background: branch.color }}
+              />
+              <input
+                value={branch.label}
+                onChange={e => updateBranch(branch.id, { label: e.target.value })}
+                className="flex-1 bg-transparent text-xs font-semibold text-[#F0F0FA] outline-none"
+                placeholder="Branch label"
+              />
+              <div className="flex items-center gap-1">
+                {BRANCH_COLORS.map(color => (
+                  <button
+                    key={color}
+                    onClick={() => updateBranch(branch.id, { color })}
+                    className="size-4 rounded-full border-2 transition"
+                    style={{
+                      background: color,
+                      borderColor: branch.color === color ? "#fff" : "transparent",
+                    }}
+                  />
+                ))}
+                {branches.length > 1 && (
+                  <button
+                    onClick={() => deleteBranch(branch.id)}
+                    className="ml-1 rounded p-0.5 text-[#5A5A72] hover:text-[#EF4444]"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Conditions */}
+            <div className="p-3 space-y-2">
+              {branch.conditions.length === 0 ? (
+                <p className="py-1 text-center text-[10px] text-[#5A5A72]">
+                  {bIdx === branches.length - 1
+                    ? "Default - matches when no other branch matches"
+                    : "No conditions - click + to add"}
+                </p>
+              ) : (
+                branch.conditions.map((cond, cIdx) => (
+                  <div key={cIdx} className="flex items-center gap-1.5">
+                    <select
+                      value={cond.field}
+                      onChange={e => updateCondition(branch.id, cIdx, { field: e.target.value })}
+                      className="h-8 flex-1 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 text-[11px] text-[#F0F0FA] outline-none focus:border-[#A855F7]"
+                    >
+                      {CONDITION_FIELDS.map(f => (
+                        <option key={f.value} value={f.value}>{f.label}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={cond.operator}
+                      onChange={e => updateCondition(branch.id, cIdx, { operator: e.target.value })}
+                      className="h-8 flex-1 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 text-[11px] text-[#F0F0FA] outline-none focus:border-[#A855F7]"
+                    >
+                      {CONDITION_OPERATORS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    <input
+                      value={cond.value}
+                      onChange={e => updateCondition(branch.id, cIdx, { value: e.target.value })}
+                      placeholder="value"
+                      className="h-8 w-20 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 text-[11px] text-[#F0F0FA] outline-none focus:border-[#A855F7]"
+                    />
+                    <button
+                      onClick={() => deleteCondition(branch.id, cIdx)}
+                      className="rounded p-1 text-[#5A5A72] hover:text-[#EF4444]"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                ))
+              )}
+              <button
+                onClick={() => addCondition(branch.id)}
+                className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-[#2A2A3C] py-1.5 text-[10px] text-[#5A5A72] hover:border-[#A855F7] hover:text-[#A855F7]"
+              >
+                <Plus size={10} /> Add Condition
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-lg bg-[#A855F715] p-3 border border-[#A855F730]">
+        <p className="text-[10px] text-[#A855F7]">
+          Branches are checked top to bottom. First matching branch wins.
+          Last branch with no conditions = Default fallback.
+          Connect each branch handle (right side) to the next node.
+        </p>
+      </div>
+    </div>
+  )
+}
 
 // ── Config panel ───────────────────────────────────────────────────────────
 
@@ -168,6 +596,11 @@ function ConfigPanel({
   const Icon = def.icon
   const [config, setConfig] = useState<NodeConfig>(data.config)
 
+  // Re-sync config when selected node changes
+  useEffect(() => {
+    setConfig(data.config)
+  }, [node.id, data.config])
+
   function update(key: string, value: unknown) {
     const updated = { ...config, [key]: value }
     setConfig(updated)
@@ -177,26 +610,64 @@ function ConfigPanel({
   return (
     <div className="flex h-full flex-col">
       {/* Panel header */}
-      <div className="flex items-center justify-between border-b border-[#2A2A3C] p-4">
+      <div
+        className="flex items-center justify-between p-4"
+        style={{
+          borderBottom: `2px solid ${def.color}40`,
+          background: `${def.color}10`,
+        }}
+      >
         <div className="flex items-center gap-2">
-          <div className="flex size-7 items-center justify-center rounded-lg" style={{ background: def.bg }}>
-            <Icon size={14} style={{ color: def.color }} />
+          <div
+            className="flex size-8 items-center justify-center rounded-lg"
+            style={{ background: def.bg }}
+          >
+            <Icon size={16} style={{ color: def.color }} />
           </div>
-          <span className="text-sm font-semibold text-[#F0F0FA]">{def.label}</span>
+          <div>
+            <p className="text-sm font-semibold text-[#F0F0FA]">{def.label}</p>
+            <p className="text-[10px] text-[#5A5A72]">Configure this step</p>
+          </div>
         </div>
         <div className="flex items-center gap-1">
           {data.type !== "trigger" && (
             <button
               onClick={() => onDelete(node.id)}
-              className="rounded p-1.5 text-[#5A5A72] hover:bg-[#EF444420] hover:text-[#EF4444]"
+              title="Delete this node"
+              className="rounded-lg p-1.5 text-[#5A5A72] transition hover:bg-[#EF444420] hover:text-[#EF4444]"
             >
-              <X size={14} />
+              <Trash2 size={14} />
             </button>
           )}
-          <button onClick={onClose} className="rounded p-1.5 text-[#5A5A72] hover:text-[#F0F0FA]">
+          <button
+            onClick={onClose}
+            title="Close panel"
+            className="rounded-lg p-1.5 text-[#5A5A72] transition hover:bg-[#2A2A3C] hover:text-[#F0F0FA]"
+          >
             <X size={14} />
           </button>
         </div>
+      </div>
+
+      {/* Current value preview badge */}
+      <div className="border-b border-[#2A2A3C] bg-[#0A0A0F] px-4 py-2">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-[#5A5A72]">Current Value</p>
+        <p className="mt-0.5 truncate text-xs text-[#9090A8]">
+          {(() => {
+            switch (data.type) {
+              case "trigger": return config.keywords?.join(", ") || "No keywords"
+              case "send_text": return config.message?.slice(0, 60) || "No message set"
+              case "send_media": return config.media_url ? `${config.media_type} - ${config.media_url.split("/").pop()}` : "No media set"
+              case "send_buttons": return config.buttons?.map((b: { title: string }) => b.title).join(" | ") || "No buttons set"
+              case "ask_question": return config.question?.slice(0, 60) || "No question set"
+              case "move_stage": return config.stage_slug ? STAGE_OPTIONS.find(s => s.value === config.stage_slug)?.label ?? config.stage_slug : "No stage set"
+              case "create_task": return config.task_title ? `${config.task_title} (${config.task_type ?? "call"}, ${config.task_due_hours ?? 2}h)` : "No task configured"
+              case "enroll_campaign": return config.campaign_id ? `Campaign: ${config.campaign_id.slice(0, 12)}...` : "No campaign set"
+              case "end": return "Flow ends here"
+              default: return "Not configured"
+            }
+          })()}
+        </p>
       </div>
 
       {/* Panel body */}
@@ -298,7 +769,7 @@ function ConfigPanel({
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Save answer to</label>
+              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Save answer to lead field</label>
               <select
                 value={String(config.save_to_field ?? "")}
                 onChange={e => update("save_to_field", e.target.value)}
@@ -376,22 +847,116 @@ function ConfigPanel({
               placeholder="Paste campaign UUID"
               className="h-10 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
             />
-            <p className="mt-1 text-[10px] text-[#5A5A72]">Go to Campaigns → copy ID from the URL</p>
+            <p className="mt-1 text-[10px] text-[#5A5A72]">Go to Campaigns and copy ID from the URL</p>
           </div>
+        )}
+
+        {data.type === "condition" && (
+          <ConditionNodeConfig
+            branches={(config.branches as Branch[] | undefined) ?? [
+              { id: crypto.randomUUID(), label: "Yes", color: "#10B981", conditions: [], next_node_id: null },
+              { id: crypto.randomUUID(), label: "No", color: "#EF4444", conditions: [], next_node_id: null },
+              { id: crypto.randomUUID(), label: "Default", color: "#5A5A72", conditions: [], next_node_id: null },
+            ]}
+            onChange={(branches) => update("branches", branches)}
+          />
         )}
 
         {data.type === "end" && (
           <div className="rounded-lg bg-[#5A5A7220] p-4 text-center">
             <Bot size={24} className="mx-auto mb-2 text-[#5A5A72]" />
-            <p className="text-xs text-[#9090A8]">This node ends the chatbot flow. No configuration needed.</p>
+            <p className="text-xs text-[#9090A8]">This node ends the chatbot flow.</p>
           </div>
         )}
 
         {data.type === "trigger" && (
-          <div className="rounded-lg bg-[#F59E0B20] p-4">
-            <p className="text-xs text-[#F59E0B]">⚡ Trigger settings are configured in the chatbot settings. This node represents when the flow starts.</p>
+          <div className="space-y-4">
+            <div className="rounded-lg bg-[#F59E0B15] p-3 border border-[#F59E0B30]">
+              <p className="text-xs text-[#F59E0B]">Edit trigger keywords and settings below. Click Save in toolbar to persist changes.</p>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Trigger Type</label>
+              <select
+                value={String(config.trigger_type ?? "keyword")}
+                onChange={e => update("trigger_type", e.target.value)}
+                className="h-10 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none focus:border-[#F59E0B]"
+              >
+                <option value="keyword">Keyword Match</option>
+                <option value="first_message">First Message from Lead</option>
+                <option value="any_message">Any Incoming Message</option>
+              </select>
+            </div>
+
+            {(config.trigger_type === "keyword" || !config.trigger_type) && (
+              <>
+                <div>
+                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">
+                    Keywords (comma separated)
+                  </label>
+                  <textarea
+                    value={(config.keywords ?? []).join(", ")}
+                    onChange={e => {
+                      const keywords = e.target.value
+                        .split(",")
+                        .map(k => k.trim())
+                        .filter(Boolean)
+                      update("keywords", keywords)
+                    }}
+                    placeholder="interested, yes, haan, tell me more, batao"
+                    rows={4}
+                    className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] p-3 text-sm text-[#F0F0FA] outline-none focus:border-[#F59E0B] resize-none"
+                  />
+                  <p className="mt-1 text-[10px] text-[#5A5A72]">Separate keywords with commas. Case insensitive.</p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Match Type</label>
+                  <select
+                    value={String(config.trigger_match ?? "contains")}
+                    onChange={e => update("trigger_match", e.target.value)}
+                    className="h-10 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none focus:border-[#F59E0B]"
+                  >
+                    <option value="contains">Contains keyword</option>
+                    <option value="exact">Exact match only</option>
+                    <option value="starts_with">Starts with keyword</option>
+                  </select>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Current Keywords</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(config.keywords ?? []).length === 0 ? (
+                      <p className="text-xs text-[#5A5A72]">No keywords set</p>
+                    ) : (
+                      (config.keywords ?? []).map((kw: string, i: number) => (
+                        <div key={i} className="flex items-center gap-1 rounded-full bg-[#F59E0B20] pl-2.5 pr-1 py-1">
+                          <span className="text-xs text-[#F59E0B]">{kw}</span>
+                          <button
+                            onClick={() => {
+                              const updated = (config.keywords ?? []).filter((_: string, idx: number) => idx !== i)
+                              update("keywords", updated)
+                            }}
+                            className="flex size-4 items-center justify-center rounded-full hover:bg-[#F59E0B40]"
+                          >
+                            <X size={10} className="text-[#F59E0B]" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
+      </div>
+
+      {/* Footer - save hint */}
+      <div className="border-t border-[#2A2A3C] bg-[#0A0A0F] px-4 py-3">
+        <p className="text-center text-[10px] text-[#5A5A72]">
+          Changes auto-update. Click <span className="text-[#3B82F6]">Save</span> in toolbar to persist
+        </p>
       </div>
     </div>
   )
@@ -407,6 +972,7 @@ const ADD_NODE_TYPES: { type: NodeType; label: string; icon: React.ElementType; 
   { type: "move_stage",      label: "Move Stage",      icon: ArrowRightLeft,  color: "#10B981", desc: "Move pipeline stage" },
   { type: "create_task",     label: "Create Task",     icon: CheckSquare,     color: "#EF4444", desc: "Create follow-up task" },
   { type: "enroll_campaign", label: "Enroll Campaign", icon: UserPlus,        color: "#EC4899", desc: "Add to drip campaign" },
+  { type: "condition",       label: "Condition",       icon: GitBranch,       color: "#A855F7", desc: "Branch based on reply or lead data" },
   { type: "end",             label: "End Flow",        icon: Bot,             color: "#5A5A72", desc: "End the conversation" },
 ]
 
@@ -423,6 +989,8 @@ export default function ChatbotFlowBuilderPage() {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
   const [showAddPanel, setShowAddPanel] = useState(false)
 
+  setEdgesOutside = setEdges
+
   // Load flow data
   useEffect(() => {
     async function load() {
@@ -435,6 +1003,7 @@ export default function ChatbotFlowBuilderPage() {
         type: string
         position: number
         config: NodeConfig
+        branches?: Branch[]
         next_node_id: string | null
       }[] = data.nodes ?? []
 
@@ -442,30 +1011,43 @@ export default function ChatbotFlowBuilderPage() {
       const rfNodes: Node[] = []
 
       // Add trigger node first
+      const triggerPos = data.flow?._canvas_trigger_pos
       rfNodes.push({
         id: "trigger",
         type: "chatbotNode",
-        position: { x: 100, y: 100 },
+        position: triggerPos
+          ? { x: triggerPos.x, y: triggerPos.y }
+          : { x: 80, y: 200 },
         data: {
           type: "trigger",
           label: "Trigger",
           config: {
             keywords: data.flow?.trigger_keywords ?? [],
             trigger_type: data.flow?.trigger_type,
+            trigger_match: data.flow?.trigger_match,
           },
         },
       })
 
       // Add flow nodes
       dbNodes.forEach((n, i) => {
+        // Use saved canvas position if available, otherwise calculate default
+        const savedX = typeof n.config._canvas_x === "number" ? n.config._canvas_x : null
+        const savedY = typeof n.config._canvas_y === "number" ? n.config._canvas_y : null
+        const position = savedX !== null && savedY !== null
+          ? { x: savedX, y: savedY }
+          : { x: 380 + i * 300, y: 200 }
+
         rfNodes.push({
           id: n.id,
           type: "chatbotNode",
-          position: { x: 100, y: 220 + i * 160 },
+          position,
           data: {
             type: n.type as NodeType,
             label: NODE_DEFS[n.type as NodeType]?.label ?? n.type,
-            config: n.config,
+            config: n.type === "condition"
+              ? { ...n.config, branches: n.branches ?? [] }
+              : n.config,
           },
         })
       })
@@ -479,17 +1061,44 @@ export default function ChatbotFlowBuilderPage() {
           id: `trigger-${dbNodes[0].id}`,
           source: "trigger",
           target: dbNodes[0].id,
+          type: "deletable",
           markerEnd: { type: MarkerType.ArrowClosed, color: "#3B82F6" },
           style: { stroke: "#3B82F6", strokeWidth: 2 },
           animated: true,
         })
       }
-      dbNodes.forEach((n) => {
-        if (n.next_node_id) {
+      dbNodes.forEach((n: {
+        id: string
+        type: string
+        next_node_id: string | null
+        branches?: Branch[]
+        config: NodeConfig
+      }) => {
+        if (n.type === "condition" && n.branches && n.branches.length > 0) {
+          // Add one edge per branch
+          n.branches.forEach((branch: Branch) => {
+            if (branch.next_node_id) {
+              rfEdges.push({
+                id: `${n.id}-${branch.id}-${branch.next_node_id}`,
+                source: n.id,
+                sourceHandle: branch.id,
+                target: branch.next_node_id,
+                type: "deletable",
+                label: branch.label,
+                labelStyle: { fill: branch.color, fontWeight: 700, fontSize: 10 },
+                labelBgStyle: { fill: "#111118", fillOpacity: 0.9 },
+                markerEnd: { type: MarkerType.ArrowClosed, color: branch.color },
+                style: { stroke: branch.color, strokeWidth: 2 },
+                animated: true,
+              })
+            }
+          })
+        } else if (n.next_node_id) {
           rfEdges.push({
             id: `${n.id}-${n.next_node_id}`,
             source: n.id,
             target: n.next_node_id,
+            type: "deletable",
             markerEnd: { type: MarkerType.ArrowClosed, color: "#3B82F6" },
             style: { stroke: "#3B82F6", strokeWidth: 2 },
             animated: true,
@@ -504,26 +1113,56 @@ export default function ChatbotFlowBuilderPage() {
 
   const onConnect = useCallback(
     (connection: Connection) => {
+      // Find source node to determine color
+      const sourceNode = nodes.find(n => n.id === connection.source)
+      const sourceData = sourceNode?.data as { type: NodeType; config: NodeConfig } | undefined
+
+      let edgeColor = "#3B82F6"
+      let edgeLabel = ""
+
+      if (sourceData?.type === "condition" && connection.sourceHandle) {
+        const branches = (sourceData.config.branches as Branch[] | undefined) ?? []
+        const branch = branches.find(b => b.id === connection.sourceHandle)
+        if (branch) {
+          edgeColor = branch.color
+          edgeLabel = branch.label
+        }
+      }
+
       setEdges(eds => addEdge({
         ...connection,
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#3B82F6" },
-        style: { stroke: "#3B82F6", strokeWidth: 2 },
+        type: "deletable",
+        label: edgeLabel || undefined,
+        labelStyle: edgeLabel ? { fill: edgeColor, fontWeight: 700, fontSize: 10 } : undefined,
+        labelBgStyle: edgeLabel ? { fill: "#111118", fillOpacity: 0.9 } : undefined,
+        markerEnd: { type: MarkerType.ArrowClosed, color: edgeColor },
+        style: { stroke: edgeColor, strokeWidth: 2 },
         animated: true,
       }, eds))
     },
-    [setEdges]
+    [setEdges, nodes]
   )
 
   function addNode(type: NodeType) {
     const id = crypto.randomUUID()
+    const maxX = nodes.reduce((max, n) => Math.max(max, n.position.x), 0)
+    const defaultConfig: NodeConfig = type === "condition"
+      ? {
+          branches: [
+            { id: crypto.randomUUID(), label: "Yes", color: "#10B981", conditions: [], next_node_id: null },
+            { id: crypto.randomUUID(), label: "No", color: "#EF4444", conditions: [], next_node_id: null },
+            { id: crypto.randomUUID(), label: "Default", color: "#5A5A72", conditions: [], next_node_id: null },
+          ],
+        }
+      : {}
     const newNode: Node = {
       id,
       type: "chatbotNode",
-      position: { x: 100 + Math.random() * 200, y: 200 + nodes.length * 160 },
+      position: { x: maxX + 300, y: 200 },
       data: {
         type,
         label: NODE_DEFS[type].label,
-        config: {},
+        config: defaultConfig,
       },
     }
     setNodes(nds => [...nds, newNode])
@@ -556,9 +1195,20 @@ export default function ChatbotFlowBuilderPage() {
       // Build ordered node list from edges
       const flowNodes = nodes.filter(n => n.id !== "trigger")
 
-      // Build adjacency from edges
+      // Build adjacency from edges - handle both regular and condition (branched) edges
       const edgeMap: Record<string, string> = {}
-      edges.forEach(e => { if (e.source !== "trigger") edgeMap[e.source] = e.target })
+      const branchEdgeMap: Record<string, Record<string, string>> = {}
+
+      edges.forEach(e => {
+        if (e.source === "trigger") return
+        if (e.sourceHandle) {
+          // Condition branch edge
+          if (!branchEdgeMap[e.source]) branchEdgeMap[e.source] = {}
+          branchEdgeMap[e.source][e.sourceHandle] = e.target
+        } else {
+          edgeMap[e.source] = e.target
+        }
+      })
 
       // Find first node (connected from trigger)
       const triggerEdge = edges.find(e => e.source === "trigger")
@@ -582,15 +1232,67 @@ export default function ChatbotFlowBuilderPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nodes: orderedNodes.map((n, i) => ({
-            type: (n.data as { type: string }).type,
-            position: i,
-            config: (n.data as { config: NodeConfig }).config,
-          })),
+          nodes: orderedNodes.map((n, i) => {
+            const nodeData = n.data as { type: string; config: NodeConfig }
+            const branches = (nodeData.config.branches as Branch[] | undefined) ?? []
+
+            // For condition nodes, resolve next_node_id per branch from edges
+            const resolvedBranches = nodeData.type === "condition"
+              ? branches.map((b: Branch) => ({
+                  ...b,
+                  next_node_id: branchEdgeMap[n.id]?.[b.id] ?? b.next_node_id ?? null,
+                }))
+              : branches
+
+            // Find what this node connects to via regular edges
+            const nextNodeId = edgeMap[n.id] ?? null
+
+            return {
+              temp_id: n.id,
+              type: nodeData.type,
+              position: i,
+              config: {
+                ...nodeData.config,
+                _canvas_x: n.position.x,
+                _canvas_y: n.position.y,
+              },
+              branches: resolvedBranches,
+              next_node_id: nodeData.type === "condition" ? null : nextNodeId,
+            }
+          }),
         }),
       })
 
       if (res.ok) {
+        // Also update trigger settings if trigger node was edited
+        const triggerNode = nodes.find(n => n.id === "trigger")
+        if (triggerNode) {
+          const triggerConfig = triggerNode.data as { config: NodeConfig }
+          if (triggerConfig.config.keywords !== undefined || triggerConfig.config.trigger_type !== undefined) {
+            await fetch(`/api/chatbot/flows/${flowId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                trigger_keywords: triggerConfig.config.keywords ?? flow?.trigger_keywords ?? [],
+                trigger_type: triggerConfig.config.trigger_type ?? flow?.trigger_type ?? "keyword",
+                trigger_match: triggerConfig.config.trigger_match ?? flow?.trigger_match ?? "contains",
+                _canvas_trigger_pos: triggerNode
+                  ? { x: triggerNode.position.x, y: triggerNode.position.y }
+                  : undefined,
+              }),
+            })
+            // Update local flow state
+            if (flow) {
+              setFlow({
+                ...flow,
+                trigger_keywords: (triggerConfig.config.keywords as string[]) ?? flow.trigger_keywords,
+                trigger_type: (triggerConfig.config.trigger_type as string) ?? flow.trigger_type,
+                trigger_match: (triggerConfig.config.trigger_match as string) ?? flow.trigger_match,
+                _canvas_trigger_pos: { x: triggerNode.position.x, y: triggerNode.position.y },
+              })
+            }
+          }
+        }
         toast.success("Flow saved! ✅")
       } else {
         toast.error("Failed to save flow")
@@ -687,11 +1389,13 @@ export default function ChatbotFlowBuilderPage() {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             onNodeClick={(_, node) => setSelectedNode(node)}
             onPaneClick={() => setSelectedNode(null)}
             fitView
             style={{ background: "#0A0A0F" }}
             defaultEdgeOptions={{
+              type: "deletable",
               markerEnd: { type: MarkerType.ArrowClosed, color: "#3B82F6" },
               style: { stroke: "#3B82F6", strokeWidth: 2 },
               animated: true,
@@ -703,6 +1407,7 @@ export default function ChatbotFlowBuilderPage() {
                 background: "#111118",
                 border: "1px solid #2A2A3C",
                 borderRadius: 8,
+                overflow: "hidden",
               }}
             />
             <MiniMap
@@ -759,6 +1464,38 @@ export default function ChatbotFlowBuilderPage() {
           </div>
         )}
       </div>
+      <style>{`
+        .react-flow__controls-button {
+          background: #111118 !important;
+          border-bottom: 1px solid #2A2A3C !important;
+          color: #9090A8 !important;
+          fill: #9090A8 !important;
+        }
+        .react-flow__controls-button:hover {
+          background: #1A1A24 !important;
+          fill: #F0F0FA !important;
+        }
+        .react-flow__controls-button svg {
+          fill: #9090A8 !important;
+        }
+        .react-flow__controls-button:hover svg {
+          fill: #F0F0FA !important;
+        }
+        .react-flow__minimap {
+          background: #111118 !important;
+          border: 1px solid #2A2A3C !important;
+          border-radius: 8px !important;
+        }
+        .react-flow__attribution {
+          display: none !important;
+        }
+        .react-flow__handle {
+          cursor: crosshair !important;
+        }
+        .react-flow__edge-path {
+          cursor: pointer !important;
+        }
+      `}</style>
     </main>
   )
 }

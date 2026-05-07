@@ -72,14 +72,17 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
           type: string
           position: number
           config: Record<string, unknown>
+          branches?: unknown[]
           next_node_id?: string | null
           temp_id?: string
         }, idx: number) => ({
+          id: n.temp_id,
           flow_id: params.id,
           type: n.type,
           position: n.position ?? idx,
           config: n.config ?? {},
-          next_node_id: null, // handled separately
+          branches: n.branches ?? [],
+          next_node_id: null, // Will be updated after insert with real IDs
         }))
       )
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -91,13 +94,33 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     .eq("flow_id", params.id)
     .order("position", { ascending: true })
 
-  // Wire up next_node_id sequentially
-  if (nodes && nodes.length > 1) {
-    for (let i = 0; i < nodes.length - 1; i++) {
-      await supabase
-        .from("chatbot_nodes")
-        .update({ next_node_id: nodes[i + 1].id })
-        .eq("id", nodes[i].id)
+  // Wire up next_node_id from saved node data (NOT sequential auto-wiring)
+  // The frontend saves next_node_id per node based on actual edge connections
+  if (nodes && nodes.length > 0) {
+    // Build a position-to-id map from freshly inserted nodes
+    const positionToId: Record<number, string> = {}
+    nodes.forEach((n: { id: string; position: number }) => {
+      positionToId[n.position] = n.id
+    })
+
+    // Update each node's next_node_id based on what frontend sent
+    for (let i = 0; i < body.nodes.length; i++) {
+      const frontendNode = body.nodes[i]
+      const dbNode = nodes[i]
+      if (!dbNode) continue
+
+      // Only auto-wire next_node_id for non-condition, non-end nodes
+      // that don't already have a next_node_id set from branches
+      if (
+        frontendNode.type !== "condition" &&
+        frontendNode.type !== "end" &&
+        frontendNode.next_node_id !== undefined
+      ) {
+        await supabase
+          .from("chatbot_nodes")
+          .update({ next_node_id: frontendNode.next_node_id ?? null })
+          .eq("id", dbNode.id)
+      }
     }
   }
 

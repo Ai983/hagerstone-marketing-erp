@@ -44,7 +44,7 @@ export async function matchAndRunChatbot(
         .maybeSingle()
 
       if (node) {
-        await executeNode(supabase, node, phone, leadId, node.flow_id)
+        await executeNode(supabase, node, messageText, phone, leadId, node.flow_id)
         return true
       }
     }
@@ -120,7 +120,7 @@ export async function matchAndRunChatbot(
     if (!session) return false
 
     // Execute first node
-    await executeNode(supabase, firstNode, phone, leadId, matchedFlow.id, session.id)
+    await executeNode(supabase, firstNode, messageText, phone, leadId, matchedFlow.id, session.id)
     return true
 
   } catch (error) {
@@ -203,7 +203,7 @@ async function processAnswer(
     })
     .eq("id", session.id)
 
-  await executeNode(supabase, nextNode, phone, leadId, session.flow_id, session.id)
+  await executeNode(supabase, nextNode, answer, phone, leadId, session.flow_id, session.id)
 }
 
 async function executeNode(
@@ -211,6 +211,13 @@ async function executeNode(
   node: {
     id: string
     type: string
+    branches?: {
+      id: string
+      label: string
+      color: string
+      conditions: { field: string; operator: string; value: string }[]
+      next_node_id: string | null
+    }[]
     config: {
       message?: string
       media_url?: string
@@ -229,6 +236,7 @@ async function executeNode(
     next_node_id: string | null
     flow_id?: string
   },
+  text: string,
   phone: string,
   leadId: string,
   flowId: string,
@@ -348,6 +356,127 @@ async function executeNode(
       }
       break
 
+    case "condition": {
+      if (!node.branches || node.branches.length === 0) break
+
+      // Get current lead data for evaluation
+      const { data: leadData } = await supabase
+        .from("leads")
+        .select("stage:stage_id(slug), category, city, estimated_budget")
+        .eq("id", leadId)
+        .maybeSingle()
+
+      // Get last answer from chatbot_answers
+      const { data: lastAnswer } = await supabase
+        .from("chatbot_answers")
+        .select("answer")
+        .eq("lead_id", leadId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const leadStage = Array.isArray(leadData?.stage)
+        ? leadData?.stage[0]?.slug
+        : (leadData?.stage as unknown as { slug?: string } | null)?.slug
+
+      // Evaluate each branch in order, find first matching
+      let matchedBranch = null
+
+      for (const branch of node.branches) {
+        // Default branch - always matches if no conditions
+        if (!branch.conditions || branch.conditions.length === 0) {
+          if (!matchedBranch) matchedBranch = branch
+          continue
+        }
+
+        // Check all conditions in this branch (AND logic)
+        const allMatch = branch.conditions.every((cond: {
+          field: string
+          operator: string
+          value: string
+        }) => {
+          let fieldValue = ""
+
+          switch (cond.field) {
+            case "message_text":
+              fieldValue = text.toLowerCase()
+              break
+            case "lead_stage":
+              fieldValue = leadStage ?? ""
+              break
+            case "lead_category":
+              fieldValue = leadData?.category ?? ""
+              break
+            case "lead_city":
+              fieldValue = leadData?.city?.toLowerCase() ?? ""
+              break
+            case "lead_budget":
+              fieldValue = String(leadData?.estimated_budget ?? "0")
+              break
+            case "last_answer":
+              fieldValue = (lastAnswer?.answer ?? "").toLowerCase()
+              break
+          }
+
+          const condValue = cond.value.toLowerCase()
+
+          switch (cond.operator) {
+            case "contains":
+              return fieldValue.includes(condValue)
+            case "equals":
+              return fieldValue === condValue
+            case "starts_with":
+              return fieldValue.startsWith(condValue)
+            case "not_equals":
+              return fieldValue !== condValue
+            case "greater_than":
+              return parseFloat(fieldValue) > parseFloat(cond.value)
+            case "less_than":
+              return parseFloat(fieldValue) < parseFloat(cond.value)
+            default:
+              return false
+          }
+        })
+
+        if (allMatch) {
+          matchedBranch = branch
+          break
+        }
+      }
+
+      // If no branch matched, use default (last branch with no conditions)
+      if (!matchedBranch) {
+        matchedBranch = node.branches.find((b: { conditions: unknown[] }) =>
+          !b.conditions || b.conditions.length === 0
+        )
+      }
+
+      console.log("Condition node - matched branch:", matchedBranch?.label)
+
+      if (matchedBranch?.next_node_id) {
+        const { data: branchNode } = await supabase
+          .from("chatbot_nodes")
+          .select("*")
+          .eq("id", matchedBranch.next_node_id)
+          .maybeSingle()
+
+        if (branchNode) {
+          if (sessionId) {
+            await supabase
+              .from("chatbot_sessions")
+              .update({
+                current_node_id: matchedBranch.next_node_id,
+                last_activity_at: new Date().toISOString(),
+              })
+              .eq("id", sessionId)
+          }
+          await new Promise(r => setTimeout(r, 800))
+          await executeNode(supabase, branchNode, text, phone, leadId, flowId, sessionId)
+        }
+      }
+      return // Don't auto-advance for condition nodes
+    }
+
     case "end":
       if (sessionId) {
         await supabase
@@ -381,7 +510,7 @@ async function executeNode(
       }
       // Small delay between nodes
       await new Promise((r) => setTimeout(r, 1500))
-      await executeNode(supabase, nextNode, phone, leadId, flowId, sessionId)
+      await executeNode(supabase, nextNode, text, phone, leadId, flowId, sessionId)
     } else {
       if (sessionId) {
         await supabase
