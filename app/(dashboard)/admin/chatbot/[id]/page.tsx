@@ -455,8 +455,8 @@ function ConditionNodeConfig({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="box-border w-full min-w-0 space-y-3 overflow-x-hidden">
+      <div className="flex min-w-0 items-center justify-between gap-2">
         <p className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">
           Branches ({branches.length})
         </p>
@@ -472,12 +472,12 @@ function ConditionNodeConfig({
         {branches.map((branch, bIdx) => (
           <div
             key={branch.id}
-            className="overflow-hidden rounded-xl border"
+            className="w-full overflow-hidden rounded-lg border"
             style={{ borderColor: `${branch.color}40` }}
           >
             {/* Branch header */}
             <div
-              className="flex items-center gap-2 px-3 py-2"
+              className="flex min-w-0 items-start gap-2 px-3 py-2"
               style={{ background: `${branch.color}15` }}
             >
               <div
@@ -487,21 +487,23 @@ function ConditionNodeConfig({
               <input
                 value={branch.label}
                 onChange={e => updateBranch(branch.id, { label: e.target.value })}
-                className="flex-1 bg-transparent text-xs font-semibold text-[#F0F0FA] outline-none"
+                className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-[#F0F0FA] outline-none"
                 placeholder="Branch label"
               />
-              <div className="flex items-center gap-1">
-                {BRANCH_COLORS.map(color => (
-                  <button
-                    key={color}
-                    onClick={() => updateBranch(branch.id, { color })}
-                    className="size-4 rounded-full border-2 transition"
-                    style={{
-                      background: color,
-                      borderColor: branch.color === color ? "#fff" : "transparent",
-                    }}
-                  />
-                ))}
+              <div className="flex shrink-0 items-start gap-1">
+                <div className="flex max-w-[92px] flex-wrap gap-1">
+                  {BRANCH_COLORS.map(color => (
+                    <button
+                      key={color}
+                      onClick={() => updateBranch(branch.id, { color })}
+                      className="size-4 rounded-full border-2 transition"
+                      style={{
+                        background: color,
+                        borderColor: branch.color === color ? "#fff" : "transparent",
+                      }}
+                    />
+                  ))}
+                </div>
                 {branches.length > 1 && (
                   <button
                     onClick={() => deleteBranch(branch.id)}
@@ -514,7 +516,7 @@ function ConditionNodeConfig({
             </div>
 
             {/* Conditions */}
-            <div className="p-3 space-y-2">
+            <div className="w-full min-w-0 space-y-2 p-3">
               {branch.conditions.length === 0 ? (
                 <p className="py-1 text-center text-[10px] text-[#5A5A72]">
                   {bIdx === branches.length - 1
@@ -523,11 +525,11 @@ function ConditionNodeConfig({
                 </p>
               ) : (
                 branch.conditions.map((cond, cIdx) => (
-                  <div key={cIdx} className="flex items-center gap-1.5">
+                  <div key={cIdx} className="flex w-full min-w-0 items-center gap-1.5">
                     <select
                       value={cond.field}
                       onChange={e => updateCondition(branch.id, cIdx, { field: e.target.value })}
-                      className="h-8 flex-1 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 text-[11px] text-[#F0F0FA] outline-none focus:border-[#A855F7]"
+                      className="h-8 w-[98px] shrink-0 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-1.5 text-[10px] text-[#F0F0FA] outline-none focus:border-[#A855F7]"
                     >
                       {CONDITION_FIELDS.map(f => (
                         <option key={f.value} value={f.value}>{f.label}</option>
@@ -536,7 +538,7 @@ function ConditionNodeConfig({
                     <select
                       value={cond.operator}
                       onChange={e => updateCondition(branch.id, cIdx, { operator: e.target.value })}
-                      className="h-8 flex-1 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 text-[11px] text-[#F0F0FA] outline-none focus:border-[#A855F7]"
+                      className="h-8 w-[82px] shrink-0 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-1.5 text-[10px] text-[#F0F0FA] outline-none focus:border-[#A855F7]"
                     >
                       {CONDITION_OPERATORS.map(o => (
                         <option key={o.value} value={o.value}>{o.label}</option>
@@ -546,7 +548,7 @@ function ConditionNodeConfig({
                       value={cond.value}
                       onChange={e => updateCondition(branch.id, cIdx, { value: e.target.value })}
                       placeholder="value"
-                      className="h-8 w-20 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 text-[11px] text-[#F0F0FA] outline-none focus:border-[#A855F7]"
+                      className="h-8 min-w-0 flex-1 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-1.5 text-[10px] text-[#F0F0FA] outline-none focus:border-[#A855F7]"
                     />
                     <button
                       onClick={() => deleteCondition(branch.id, cIdx)}
@@ -672,7 +674,7 @@ function ConfigPanel({
       </div>
 
       {/* Panel body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="box-border flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4">
 
         {data.type === "send_text" && (
           <div>
@@ -1509,7 +1511,7 @@ export default function ChatbotFlowBuilderPage() {
 
         {/* Config panel */}
         {selectedNode && !showAddPanel && (
-          <div className="w-80 border-l border-[#2A2A3C] bg-[#111118] overflow-y-auto">
+          <div className="w-[320px] min-w-[320px] max-w-[320px] overflow-y-auto overflow-x-hidden border-l border-[#2A2A3C] bg-[#111118]">
             <ConfigPanel
               node={selectedNode}
               onUpdate={updateNodeConfig}
