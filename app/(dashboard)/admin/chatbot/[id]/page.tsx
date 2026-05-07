@@ -1247,8 +1247,13 @@ export default function ChatbotFlowBuilderPage() {
             // Find what this node connects to via regular edges
             const nextNodeId = edgeMap[n.id] ?? null
 
+            // Find position of next node
+            const nextNodeIndex = nextNodeId
+              ? orderedNodes.findIndex(on => on.id === nextNodeId)
+              : -1
+
             return {
-              temp_id: n.id,
+              _original_id: n.id,
               type: nodeData.type,
               position: i,
               config: {
@@ -1258,6 +1263,7 @@ export default function ChatbotFlowBuilderPage() {
               },
               branches: resolvedBranches,
               next_node_id: nodeData.type === "condition" ? null : nextNodeId,
+              next_node_position: nextNodeIndex >= 0 ? nextNodeIndex : null,
             }
           }),
         }),
