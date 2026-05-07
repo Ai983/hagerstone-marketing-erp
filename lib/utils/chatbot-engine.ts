@@ -248,6 +248,12 @@ async function executeNode(
     case "send_text":
       if (cfg.message) {
         await sendWhatsAppMessage(phone, cfg.message)
+        await supabase.from("interactions").insert({
+          lead_id: leadId,
+          type: "whatsapp_sent",
+          notes: cfg.message,
+          is_automated: true,
+        })
       }
       break
 
@@ -259,6 +265,12 @@ async function executeNode(
           cfg.media_url,
           { caption: cfg.caption, filename: cfg.media_filename }
         )
+        await supabase.from("interactions").insert({
+          lead_id: leadId,
+          type: "whatsapp_sent",
+          notes: cfg.caption ?? `[Media: ${cfg.media_type ?? "file"}]`,
+          is_automated: true,
+        })
       }
       break
 
@@ -269,12 +281,24 @@ async function executeNode(
           title: b.title,
         }))
         await sendWhatsAppWithButtons(phone, cfg.message, buttons)
+        await supabase.from("interactions").insert({
+          lead_id: leadId,
+          type: "whatsapp_sent",
+          notes: `${cfg.message}\n\nButtons: ${cfg.buttons.map((b: { title: string }) => b.title).join(" | ")}`,
+          is_automated: true,
+        })
       }
       break
 
     case "ask_question":
       if (cfg.question) {
         await sendWhatsAppMessage(phone, cfg.question)
+        await supabase.from("interactions").insert({
+          lead_id: leadId,
+          type: "whatsapp_sent",
+          notes: cfg.question,
+          is_automated: true,
+        })
         if (sessionId) {
           await supabase
             .from("chatbot_sessions")

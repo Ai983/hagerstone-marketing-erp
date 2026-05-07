@@ -81,7 +81,16 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
           type: n.type,
           position: n.position ?? idx,
           config: n.config ?? {},
-          branches: n.branches ?? [],
+          branches: ((n.branches ?? []) as {
+            id: string
+            label: string
+            color: string
+            conditions: unknown[]
+            next_node_id?: string | null
+          }[]).map((b) => ({
+            ...b,
+            next_node_id: b.next_node_id && b.next_node_id !== "" ? b.next_node_id : null,
+          })),
           next_node_id: null, // Will be updated after insert with real IDs
         }))
       )
@@ -97,28 +106,19 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   // Wire up next_node_id from saved node data (NOT sequential auto-wiring)
   // The frontend saves next_node_id per node based on actual edge connections
   if (nodes && nodes.length > 0) {
-    // Build a position-to-id map from freshly inserted nodes
-    const positionToId: Record<number, string> = {}
-    nodes.forEach((n: { id: string; position: number }) => {
-      positionToId[n.position] = n.id
-    })
-
-    // Update each node's next_node_id based on what frontend sent
     for (let i = 0; i < body.nodes.length; i++) {
       const frontendNode = body.nodes[i]
       const dbNode = nodes[i]
       if (!dbNode) continue
 
-      // Only auto-wire next_node_id for non-condition, non-end nodes
-      // that don't already have a next_node_id set from branches
-      if (
-        frontendNode.type !== "condition" &&
-        frontendNode.type !== "end" &&
-        frontendNode.next_node_id !== undefined
-      ) {
+      const nextId = frontendNode.next_node_id && frontendNode.next_node_id !== ""
+        ? frontendNode.next_node_id
+        : null
+
+      if (frontendNode.type !== "condition" && frontendNode.type !== "end") {
         await supabase
           .from("chatbot_nodes")
-          .update({ next_node_id: frontendNode.next_node_id ?? null })
+          .update({ next_node_id: nextId })
           .eq("id", dbNode.id)
       }
     }
