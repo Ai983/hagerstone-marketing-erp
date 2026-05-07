@@ -95,6 +95,7 @@ interface ChatbotFlow {
   trigger_match: string
   priority: number
   _canvas_trigger_pos?: { x: number; y: number } | null
+  edges_data?: Edge[]
 }
 
 const NODE_DEFS: Record<NodeType, { label: string; color: string; icon: React.ElementType; bg: string }> = {
@@ -1002,6 +1003,8 @@ export default function ChatbotFlowBuilderPage() {
         id: string
         type: string
         position: number
+        position_x?: number | null
+        position_y?: number | null
         config: NodeConfig
         branches?: Branch[]
         next_node_id: string | null
@@ -1032,8 +1035,16 @@ export default function ChatbotFlowBuilderPage() {
       // Add flow nodes
       dbNodes.forEach((n, i) => {
         // Use saved canvas position if available, otherwise calculate default
-        const savedX = typeof n.config._canvas_x === "number" ? n.config._canvas_x : null
-        const savedY = typeof n.config._canvas_y === "number" ? n.config._canvas_y : null
+        const savedX = typeof n.position_x === "number"
+          ? n.position_x
+          : typeof n.config._canvas_x === "number"
+            ? n.config._canvas_x
+            : null
+        const savedY = typeof n.position_y === "number"
+          ? n.position_y
+          : typeof n.config._canvas_y === "number"
+            ? n.config._canvas_y
+            : null
         const position = savedX !== null && savedY !== null
           ? { x: savedX, y: savedY }
           : { x: 380 + i * 300, y: 200 }
@@ -1055,7 +1066,13 @@ export default function ChatbotFlowBuilderPage() {
       setNodes(rfNodes)
 
       // Build edges — trigger → first node, then sequential
-      const rfEdges: Edge[] = []
+      const savedEdges = Array.isArray(data.flow?.edges_data)
+        ? (data.flow.edges_data as Edge[])
+        : []
+      const rfEdges: Edge[] = savedEdges.length > 0
+        ? savedEdges.map(edge => ({ ...edge, type: "deletable" }))
+        : []
+      if (rfEdges.length === 0) {
       if (dbNodes.length > 0) {
         rfEdges.push({
           id: `trigger-${dbNodes[0].id}`,
@@ -1105,6 +1122,7 @@ export default function ChatbotFlowBuilderPage() {
           })
         }
       })
+      }
       setEdges(rfEdges)
       setLoading(false)
     }
@@ -1253,9 +1271,12 @@ export default function ChatbotFlowBuilderPage() {
               : -1
 
             return {
+              id: n.id,
               _original_id: n.id,
               type: nodeData.type,
               position: i,
+              position_x: n.position.x,
+              position_y: n.position.y,
               config: {
                 ...nodeData.config,
                 _canvas_x: n.position.x,
@@ -1266,10 +1287,38 @@ export default function ChatbotFlowBuilderPage() {
               next_node_position: nextNodeIndex >= 0 ? nextNodeIndex : null,
             }
           }),
+          edges: edges.map(edge => ({
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            sourceHandle: edge.sourceHandle ?? null,
+            targetHandle: edge.targetHandle ?? null,
+            type: "deletable",
+            label: edge.label,
+            markerEnd: edge.markerEnd,
+            style: edge.style,
+            animated: edge.animated,
+            labelStyle: edge.labelStyle,
+            labelBgStyle: edge.labelBgStyle,
+          })),
         }),
       })
 
       if (res.ok) {
+        const saveData = await res.json()
+        const idMap = (saveData.id_map ?? {}) as Record<string, string>
+        if (Object.keys(idMap).length > 0) {
+          setNodes(nds => nds.map(node => ({
+            ...node,
+            id: idMap[node.id] ?? node.id,
+          })))
+          setEdges(eds => eds.map(edge => ({
+            ...edge,
+            source: idMap[edge.source] ?? edge.source,
+            target: idMap[edge.target] ?? edge.target,
+          })))
+          setSelectedNode(prev => prev ? { ...prev, id: idMap[prev.id] ?? prev.id } : null)
+        }
         // Also update trigger settings if trigger node was edited
         const triggerNode = nodes.find(n => n.id === "trigger")
         if (triggerNode) {
