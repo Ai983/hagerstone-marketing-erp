@@ -313,7 +313,7 @@ async function executeNode(
         due_at: new Date(
           Date.now() + (cfg.task_due_hours ?? 2) * 60 * 60 * 1000
         ).toISOString(),
-        is_completed: false,
+        completed_at: null,
       })
       break
     }
