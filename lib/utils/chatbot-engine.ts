@@ -18,20 +18,46 @@ export async function matchAndRunChatbot(
   const supabase = getServiceClient()
 
   try {
-    // Check if lead has an active waiting session first
+    // Check if lead has an in-progress session first.
     const { data: activeSession } = await supabase
       .from("chatbot_sessions")
-      .select("*, flow:chatbot_flows(*), current_node:chatbot_nodes(*)")
+      .select("*")
       .eq("lead_id", leadId)
-      .eq("status", "waiting_answer")
+      .in("status", ["active", "waiting_answer"])
       .order("last_activity_at", { ascending: false })
       .limit(1)
       .maybeSingle()
 
     if (activeSession) {
-      // Lead is in a flow waiting for an answer - process the answer
-      await processAnswer(supabase, activeSession, messageText, phone, leadId)
-      return true
+      const { data: currentNode } = await supabase
+        .from("chatbot_nodes")
+        .select("*")
+        .eq("id", activeSession.current_node_id)
+        .maybeSingle()
+
+      if (
+        currentNode?.type === "ask_question" ||
+        activeSession.status === "waiting_answer"
+      ) {
+        if (currentNode?.type !== "ask_question") {
+          console.warn("Chatbot session waiting for answer but current node is not ask_question", {
+            sessionId: activeSession.id,
+            currentNodeId: activeSession.current_node_id,
+            currentNodeType: currentNode?.type,
+          })
+          return false
+        }
+
+        // Lead is in a flow waiting for an answer - process the answer
+        await processAnswer(
+          supabase,
+          { ...activeSession, current_node: currentNode },
+          messageText,
+          phone,
+          leadId
+        )
+        return true
+      }
     }
 
     // Check for button reply matching a chatbot node
