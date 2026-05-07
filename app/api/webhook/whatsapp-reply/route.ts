@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { matchAndRunChatbot } from "@/lib/utils/chatbot-engine"
 
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -192,6 +193,19 @@ export async function POST(req: NextRequest) {
         is_completed: false,
       })
       console.log("Call task created for:", lead.full_name)
+    }
+
+    // ── Run chatbot automation if lead found ──
+    try {
+      const botButtonId = message?.buttons_reply?.id ?? message?.selectedButtonId ?? undefined
+      await matchAndRunChatbot(
+        phone,
+        messageText,
+        lead.id,
+        botButtonId
+      )
+    } catch (chatbotError) {
+      console.error("Chatbot engine error (non-fatal):", chatbotError)
     }
 
     console.log("Webhook processed for lead:", lead.full_name)

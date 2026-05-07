@@ -6,10 +6,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
   ArrowLeft,
-  UserPlus,
   Loader2,
   Power,
-  Send,
 } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
@@ -49,8 +47,6 @@ async function fetchUsers(): Promise<UserRow[]> {
 export default function AdminUsersPage() {
   const queryClient = useQueryClient()
   const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const [inviteEmail, setInviteEmail] = useState("")
-  const [inviting, setInviting] = useState(false)
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["admin-users"],
@@ -72,27 +68,6 @@ export default function AdminUsersPage() {
     }
   }
 
-  const handleInvite = async () => {
-    const email = inviteEmail.trim()
-    if (!email) return
-    setInviting(true)
-    try {
-      const res = await fetch("/api/admin/invite-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Invite failed")
-      toast.success(`Invite sent to ${email}`)
-      setInviteEmail("")
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Invite failed")
-    } finally {
-      setInviting(false)
-    }
-  }
-
   return (
     <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
       <div className="mx-auto max-w-6xl">
@@ -109,34 +84,6 @@ export default function AdminUsersPage() {
               Users
             </h1>
             <p className="text-sm text-[#9090A8]">Manage team members and roles.</p>
-          </div>
-        </div>
-
-        {/* Invite */}
-        <div className="mb-6 rounded-xl border border-[#2A2A3C] bg-[#111118] p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <UserPlus className="size-4 text-[#3B82F6]" />
-            <h2 className="text-sm font-semibold text-[#F0F0FA]">Invite User</h2>
-          </div>
-          <p className="mb-3 text-xs text-[#9090A8]">
-            Sends a magic-link invitation via Supabase Auth.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <input
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="teammate@hagerstone.com"
-              className="min-w-[240px] flex-1 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6]"
-            />
-            <button
-              onClick={handleInvite}
-              disabled={inviting || !inviteEmail.trim()}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#3B82F6] px-4 py-2 text-xs font-medium text-white transition hover:bg-[#2563EB] disabled:opacity-50"
-            >
-              {inviting ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />}
-              Send Invite
-            </button>
           </div>
         </div>
 
