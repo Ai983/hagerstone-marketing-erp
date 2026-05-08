@@ -12,6 +12,10 @@ import {
   Pencil,
   MessageCircle,
   MessageSquare,
+  Mail,
+  Eye,
+  Link2,
+  ChevronDown,
   CheckCircle2,
   CircleDot,
   AlertTriangle,
@@ -77,7 +81,7 @@ async function fetchCurrentProfile(): Promise<Profile | null> {
 
 // ── Tab definitions ─────────────────────────────────────────────────
 
-const tabs = ["Overview", "Timeline", "WhatsApp", "Tasks", "Campaigns", "AI"] as const
+const tabs = ["Overview", "Timeline", "WhatsApp", "Email", "Tasks", "Campaigns", "AI"] as const
 type TabName = (typeof tabs)[number]
 
 // Shorter labels used on phone widths so all 6 tabs fit without
@@ -86,6 +90,7 @@ const tabShortLabels: Record<TabName, string> = {
   Overview: "Info",
   Timeline: "History",
   WhatsApp: "Chat",
+  Email: "Email",
   Tasks: "Tasks",
   Campaigns: "Camp",
   AI: "AI",
@@ -1875,6 +1880,390 @@ function OverviewTab({
 
 // ── Tab 3: Tasks ────────────────────────────────────────────────────
 
+interface EmailTemplate {
+  id: string
+  name: string
+  subject: string
+  body_html: string
+  category: string
+}
+
+interface EmailLog {
+  id: string
+  subject: string
+  body_html: string
+  status: "sent" | "delivered" | "opened" | "clicked" | "bounced" | "failed"
+  to_email: string
+  opened_count: number | null
+  clicked_count: number | null
+  created_at: string
+  sender: { full_name: string | null } | { full_name: string | null }[] | null
+}
+
+function stripHtml(html: string) {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
+}
+
+function renderEmailTemplate(html: string, variables: Record<string, string>) {
+  let rendered = html
+  Object.entries(variables).forEach(([key, value]) => {
+    rendered = rendered.replaceAll(`{{${key}}}`, value || "")
+  })
+  return rendered
+}
+
+function EmailTab({
+  lead,
+  currentProfile,
+  onSent,
+}: {
+  lead: Lead
+  currentProfile: Profile | null | undefined
+  onSent: () => void
+}) {
+  const queryClient = useQueryClient()
+  const [toEmail, setToEmail] = useState(lead.email ?? "")
+  const [selectedTemplateId, setSelectedTemplateId] = useState("")
+  const [subject, setSubject] = useState("")
+  const [bodyHtml, setBodyHtml] = useState("")
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
+  const [sending, setSending] = useState(false)
+  const [savingEmail, setSavingEmail] = useState(false)
+
+  useEffect(() => {
+    setToEmail(lead.email ?? "")
+    setSelectedTemplateId("")
+    setSubject("")
+    setBodyHtml("")
+    setExpandedLogId(null)
+  }, [lead.id, lead.email])
+
+  const variables = useMemo(
+    () => ({
+      lead_name: lead.full_name ?? "",
+      rep_name: currentProfile?.full_name ?? lead.assignee?.full_name ?? "",
+      company_name: lead.company_name ?? "",
+      service_line: (lead.service_line ?? "").replaceAll("_", " "),
+      visit_date: "",
+      city: lead.city ?? "",
+    }),
+    [currentProfile?.full_name, lead]
+  )
+
+  const templatesQuery = useQuery({
+    queryKey: ["email-templates"],
+    queryFn: async () => {
+      const res = await fetch("/api/email/templates")
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to load templates")
+      return data.templates as EmailTemplate[]
+    },
+  })
+
+  const logsQuery = useQuery({
+    queryKey: ["lead-email-logs", lead.id],
+    queryFn: async () => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from("email_logs")
+        .select("id, subject, body_html, status, to_email, opened_count, clicked_count, created_at, sender:sent_by(full_name)")
+        .eq("lead_id", lead.id)
+        .order("created_at", { ascending: false })
+      if (error) throw error
+      return (data ?? []) as EmailLog[]
+    },
+  })
+
+  const selectedTemplate = templatesQuery.data?.find((t) => t.id === selectedTemplateId)
+  const renderedSubject = renderEmailTemplate(subject, variables)
+  const renderedBody = renderEmailTemplate(bodyHtml, variables)
+
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplateId(templateId)
+    const template = templatesQuery.data?.find((t) => t.id === templateId)
+    if (template) {
+      setSubject(template.subject)
+      setBodyHtml(template.body_html)
+    }
+  }
+
+  const saveLeadEmail = async () => {
+    const trimmed = toEmail.trim()
+    if (!trimmed) {
+      toast.error("Enter an email address first")
+      return
+    }
+    if (trimmed === (lead.email ?? "")) return
+    setSavingEmail(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from("leads")
+        .update({ email: trimmed })
+        .eq("id", lead.id)
+      if (error) throw error
+      toast.success("Lead email updated")
+      queryClient.invalidateQueries({ queryKey: ["lead-detail", lead.id] })
+      queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update email")
+    } finally {
+      setSavingEmail(false)
+    }
+  }
+
+  const handleSend = async () => {
+    if (!toEmail.trim() || !subject.trim() || !bodyHtml.trim()) {
+      toast.error("To email, subject and body are required")
+      return
+    }
+    setSending(true)
+    try {
+      const res = await fetch("/api/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lead_id: lead.id,
+          to_email: toEmail.trim(),
+          subject: renderedSubject,
+          html: renderedBody,
+          template_id: selectedTemplate?.id,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Email send failed")
+      toast.success(`Email sent to ${toEmail.trim()}`)
+      queryClient.invalidateQueries({ queryKey: ["lead-email-logs", lead.id] })
+      onSent()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Email send failed")
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="thin-scrollbar flex-1 overflow-y-auto p-4">
+      <div className="space-y-4">
+        <section className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-4">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-[#F0F0FA]">Compose & Send</h3>
+              <p className="text-xs text-[#9090A8]">Send templated or custom email to this lead.</p>
+            </div>
+            <Mail className="size-5 text-[#3B82F6]" />
+          </div>
+
+          {!lead.email && (
+            <div className="mb-4 rounded-lg border border-[#92400E]/40 bg-[#2A1F10] p-3">
+              <p className="mb-2 text-xs font-medium text-[#FBBF24]">
+                No email address saved for this lead
+              </p>
+              <div className="flex gap-2">
+                <input
+                  value={toEmail}
+                  onChange={(e) => setToEmail(e.target.value)}
+                  placeholder="lead@example.com"
+                  className="h-9 flex-1 rounded-lg border border-[#92400E]/40 bg-[#0A0A0F] px-3 text-sm text-[#F0F0FA] outline-none focus:border-[#F59E0B]"
+                />
+                <button
+                  type="button"
+                  onClick={saveLeadEmail}
+                  disabled={savingEmail}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#F59E0B] px-3 text-xs font-semibold text-[#111118] disabled:opacity-60"
+                >
+                  {savingEmail && <Loader2 className="size-3.5 animate-spin" />}
+                  Save
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3">
+            <label>
+              <span className="mb-1 block text-[11px] font-medium uppercase text-[#9090A8]">To</span>
+              <div className="flex gap-2">
+                <input
+                  value={toEmail}
+                  onChange={(e) => setToEmail(e.target.value)}
+                  placeholder="lead@example.com"
+                  className="h-10 flex-1 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+                />
+                {savingEmail && <Loader2 className="mt-3 size-4 animate-spin text-[#9090A8]" />}
+              </div>
+            </label>
+
+            <label>
+              <span className="mb-1 block text-[11px] font-medium uppercase text-[#9090A8]">Template</span>
+              <select
+                value={selectedTemplateId}
+                onChange={(e) => handleTemplateChange(e.target.value)}
+                className="h-10 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+              >
+                <option value="">Select a template or write custom</option>
+                {(templatesQuery.data ?? []).map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span className="mb-1 block text-[11px] font-medium uppercase text-[#9090A8]">Subject</span>
+              <input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Email subject"
+                className="h-10 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+              />
+            </label>
+
+            <label>
+              <span className="mb-1 block text-[11px] font-medium uppercase text-[#9090A8]">Body</span>
+              <textarea
+                value={bodyHtml}
+                onChange={(e) => setBodyHtml(e.target.value)}
+                rows={8}
+                placeholder="<p>Hi {{lead_name}},</p>"
+                className="w-full resize-y rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+              />
+              <span className="mt-1 block text-[11px] text-[#9090A8]">
+                Available: {"{{lead_name}}"}, {"{{rep_name}}"}, {"{{company_name}}"}, {"{{service_line}}"}, {"{{city}}"}
+              </span>
+            </label>
+          </div>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsPreviewOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-2 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1F1F2E]"
+            >
+              <Eye className="size-3.5" />
+              Preview
+            </button>
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={sending}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#3B82F6] px-3 py-2 text-xs font-medium text-white transition hover:bg-[#2563EB] disabled:opacity-50"
+            >
+              {sending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+              Send
+            </button>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-4">
+          <h3 className="mb-3 text-sm font-semibold text-[#F0F0FA]">Sent Emails</h3>
+          {logsQuery.isLoading ? (
+            <div className="flex h-24 items-center justify-center">
+              <Loader2 className="size-5 animate-spin text-[#9090A8]" />
+            </div>
+          ) : (logsQuery.data ?? []).length === 0 ? (
+            <div className="rounded-lg border border-dashed border-[#2A2A3C] py-10 text-center text-sm text-[#9090A8]">
+              <Mail className="mx-auto mb-3 size-8 text-[#5A5A72]" />
+              No emails sent yet
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(logsQuery.data ?? []).map((log) => {
+                const sender = Array.isArray(log.sender) ? log.sender[0] : log.sender
+                const expanded = expandedLogId === log.id
+                return (
+                  <div key={log.id} className="rounded-lg border border-[#2A2A3C] bg-[#1A1A24]">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedLogId(expanded ? null : log.id)}
+                      className="flex w-full items-center justify-between gap-3 p-3 text-left"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-[#F0F0FA]">{log.subject}</p>
+                        <p className="mt-1 text-xs text-[#9090A8]">
+                          Sent by {sender?.full_name ?? "Unknown"} {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <EmailStatusPill log={log} />
+                        <ChevronDown className={cn("size-4 text-[#9090A8] transition", expanded && "rotate-180")} />
+                      </div>
+                    </button>
+                    {expanded && (
+                      <div className="border-t border-[#2A2A3C] p-3">
+                        <div
+                          className="rounded-lg bg-[#0A0A0F] p-3 text-sm text-[#F0F0FA]"
+                          dangerouslySetInnerHTML={{ __html: log.body_html }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {isPreviewOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
+          <div className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118]">
+            <div className="flex items-center justify-between border-b border-[#2A2A3C] px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-[#F0F0FA]">{renderedSubject || "Preview"}</p>
+                <p className="text-xs text-[#9090A8]">To: {toEmail || "-"}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPreviewOpen(false)}
+                className="rounded-lg p-2 text-[#9090A8] transition hover:bg-[#1A1A24] hover:text-[#F0F0FA]"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="thin-scrollbar max-h-[70vh] overflow-y-auto p-5">
+              <div
+                className="rounded-lg bg-white p-5 text-sm leading-relaxed text-gray-900"
+                dangerouslySetInnerHTML={{ __html: renderedBody || "<p>No body yet.</p>" }}
+              />
+              {!renderedBody && (
+                <p className="mt-3 text-xs text-[#9090A8]">{stripHtml(bodyHtml)}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EmailStatusPill({ log }: { log: EmailLog }) {
+  if (log.status === "opened") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-[#163322] px-2 py-0.5 text-[11px] font-medium text-[#34D399]">
+        <Eye className="size-3" />
+        👁 Opened {log.opened_count ?? 1} times
+      </span>
+    )
+  }
+  if (log.status === "clicked") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-[#2E1A47] px-2 py-0.5 text-[11px] font-medium text-[#C084FC]">
+        <Link2 className="size-3" />
+        🔗 Clicked
+      </span>
+    )
+  }
+  if (log.status === "bounced" || log.status === "failed") {
+    return <span className="rounded-full bg-[#7F1D1D] px-2 py-0.5 text-[11px] font-medium text-white">⚠ Bounced</span>
+  }
+  if (log.status === "delivered") {
+    return <span className="rounded-full bg-[#1E3A5F] px-2 py-0.5 text-[11px] font-medium text-[#60A5FA]">Delivered</span>
+  }
+  return <span className="rounded-full bg-[#1F1F2E] px-2 py-0.5 text-[11px] font-medium text-[#C7C7D8]">Sent</span>
+}
+
 function TasksTab({
   leadId,
   tasks,
@@ -2817,6 +3206,7 @@ export function LeadDrawer() {
                       {tab === "WhatsApp" && (
                         <MessageCircle className="size-3.5" />
                       )}
+                      {tab === "Email" && <Mail className="size-3.5" />}
                       <span className="md:hidden">{tabShortLabels[tab]}</span>
                       <span className="hidden md:inline">{tab}</span>
                       {tab === "WhatsApp" &&
@@ -2899,6 +3289,14 @@ export function LeadDrawer() {
                           <Loader2 className="size-6 animate-spin text-[#9090A8]" />
                         </div>
                       ))}
+
+                    {activeTab === "Email" && lead && (
+                      <EmailTab
+                        lead={lead}
+                        currentProfile={profileQuery.data}
+                        onSent={refreshInteractions}
+                      />
+                    )}
 
                     {activeTab === "Tasks" && lead && (
                       <TasksTab

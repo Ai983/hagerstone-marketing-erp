@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 async function fetchSidebarCounts(currentUserId: string | null) {
   const supabase = createClient()
 
-  const [unassignedRes, overdueRes] = await Promise.all([
+  const [unassignedRes, overdueRes, adminOverdueRes] = await Promise.all([
     supabase
       .from("leads")
       .select("id", { count: "exact", head: true })
@@ -21,11 +21,17 @@ async function fetchSidebarCounts(currentUserId: string | null) {
           .eq("is_overdue", true)
           .is("completed_at", null)
       : Promise.resolve({ count: 0 }),
+    supabase
+      .from("overdue_tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("is_overdue", true)
+      .is("completed_at", null),
   ])
 
   return {
     unassignedLeads: unassignedRes.count ?? 0,
     overdueTasks: overdueRes.count ?? 0,
+    adminOverdueTasks: adminOverdueRes.count ?? 0,
   }
 }
 

@@ -49,7 +49,10 @@ interface MessageRow {
   id: string
   position: number
   delay_days: number
+  channel: "whatsapp" | "email" | null
   message_template: string
+  email_subject: string | null
+  email_template_id: string | null
   media_url: string | null
   media_type: "image" | "document" | "video" | "audio" | null
   media_filename: string | null
@@ -167,11 +170,14 @@ export default function CampaignDetailPage() {
 
   const initialMessages: MessageDraft[] = useMemo(() => {
     return (data?.messages ?? []).map((m) => ({
-      id: m.id,
-      position: m.position,
-      delay_days: m.delay_days,
-      message_template: m.message_template,
-      media_url: m.media_url ?? null,
+        id: m.id,
+        position: m.position,
+        delay_days: m.delay_days,
+        channel: m.channel ?? "whatsapp",
+        message_template: m.message_template,
+        email_subject: m.email_subject ?? "",
+        email_template_id: m.email_template_id ?? null,
+        media_url: m.media_url ?? null,
       media_type: m.media_type ?? null,
       media_filename: m.media_filename ?? null,
       buttons: Array.isArray(m.buttons) ? m.buttons : [],

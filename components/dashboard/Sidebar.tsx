@@ -8,6 +8,7 @@ import {
   Activity,
   BarChart2,
   Bot,
+  ClipboardList,
   CheckSquare,
   ChevronLeft,
   ChevronRight,
@@ -16,6 +17,7 @@ import {
   Kanban,
   Loader2,
   LogOut,
+  Mail,
   Megaphone,
   Settings,
   Shield,
@@ -30,7 +32,7 @@ import { cn } from "@/lib/utils"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { createClient } from "@/lib/supabase/client"
 
-type BadgeKey = "inbox" | "activities"
+type BadgeKey = "inbox" | "activities" | "adminTasks"
 
 type Role = "admin" | "manager" | "founder" | "marketing" | "sales_rep"
 
@@ -60,6 +62,8 @@ const primaryNavigation: ReadonlyArray<NavItem> = [
 
 const secondaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/admin", label: "Admin", icon: Settings, roles: ["admin"] },
+  { href: "/admin/tasks", label: "All Tasks", icon: ClipboardList, badgeKey: "adminTasks", roles: ["admin", "manager", "founder"] },
+  { href: "/admin/email-templates", label: "Email Templates", icon: Mail, roles: ["admin", "manager", "marketing"] },
   { href: "/admin/chatbot", label: "Chatbot Builder", icon: Bot, roles: ["admin"] },
   { href: "/admin/audit-log", label: "Audit Log", icon: Shield, roles: ["admin", "founder"] },
   { href: "/admin/whatsapp-health", label: "WA Health", icon: Activity, roles: ["admin", "manager", "founder"] },
@@ -71,6 +75,7 @@ interface SidebarProps {
   badges?: {
     inbox?: number
     activities?: number
+    adminTasks?: number
   }
 }
 
@@ -172,7 +177,7 @@ interface SidebarBodyProps {
   collapsed: boolean
   fullName: string
   role: string
-  badges?: { inbox?: number; activities?: number }
+  badges?: { inbox?: number; activities?: number; adminTasks?: number }
   isSigningOut: boolean
   onLogout: () => void
   onToggleCollapse?: () => void
@@ -318,7 +323,11 @@ function SidebarBody({
             <div className="my-3 border-t border-[#2A2A3C]" />
             {visibleSecondary.map((item) => {
               const Icon = item.icon
-              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/admin" && pathname.startsWith(`${item.href}/`))
+              const badgeCount = getBadge(item.badgeKey)
+              const isOverdueBadge = item.badgeKey === "adminTasks"
 
               return (
                 <Link
@@ -334,8 +343,34 @@ function SidebarBody({
                   )}
                   title={collapsed ? item.label : undefined}
                 >
-                  <Icon className="size-4 shrink-0" />
-                  {!collapsed ? <span>{item.label}</span> : null}
+                  <div className="relative">
+                    <Icon className="size-4 shrink-0" />
+                    {collapsed && badgeCount != null && (
+                      <span
+                        className={cn(
+                          "absolute -right-1.5 -top-1.5 flex min-w-[14px] items-center justify-center rounded-full px-1 text-[9px] font-semibold text-white",
+                          isOverdueBadge ? "bg-[#EF4444]" : "bg-[#3B82F6]"
+                        )}
+                      >
+                        {badgeCount > 99 ? "99+" : badgeCount}
+                      </span>
+                    )}
+                  </div>
+                  {!collapsed ? (
+                    <>
+                      <span>{item.label}</span>
+                      {badgeCount != null && (
+                        <span
+                          className={cn(
+                            "ml-auto min-w-[20px] rounded-full px-1.5 py-0.5 text-center text-[10px] font-semibold text-white",
+                            isOverdueBadge ? "bg-[#EF4444]" : "bg-[#3B82F6]"
+                          )}
+                        >
+                          {badgeCount > 99 ? "99+" : badgeCount}
+                        </span>
+                      )}
+                    </>
+                  ) : null}
                 </Link>
               )
             })}

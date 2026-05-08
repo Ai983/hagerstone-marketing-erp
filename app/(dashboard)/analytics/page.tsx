@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
+  Mail,
 } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
@@ -140,6 +141,30 @@ async function fetchKpis(from: Date, to: Date) {
   }
 }
 
+async function fetchEmailStats() {
+  const supabase = createClient()
+  const from = startOfMonth(new Date()).toISOString()
+  const { data, error } = await supabase
+    .from("email_logs")
+    .select("id, status, opened_count, clicked_count")
+    .gte("created_at", from)
+
+  if (error) throw error
+
+  const logs = data ?? []
+  const totalSent = logs.length
+  const opened = logs.filter((log) => (log.opened_count ?? 0) > 0 || log.status === "opened" || log.status === "clicked").length
+  const clicked = logs.filter((log) => (log.clicked_count ?? 0) > 0 || log.status === "clicked").length
+  const bounced = logs.filter((log) => log.status === "bounced").length
+
+  return {
+    totalSent,
+    openRate: totalSent > 0 ? Math.round((opened / totalSent) * 100) : 0,
+    clickRate: totalSent > 0 ? Math.round((clicked / totalSent) * 100) : 0,
+    bounced,
+  }
+}
+
 async function fetchCurrentProfile(): Promise<Profile | null> {
   const { user, profile } = await getCachedUserAndProfile()
   if (!user) return null
@@ -221,6 +246,28 @@ function SectionCard({
 
 // ── Page ────────────────────────────────────────────────────────────
 
+function MiniEmailMetric({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string
+  value: string
+  icon: typeof Users
+}) {
+  return (
+    <div className="rounded-lg border border-[#2A2A3C] bg-[#1A1A24] p-3">
+      <div className="mb-2 flex items-center gap-2 text-[#9090A8]">
+        <Icon className="size-3.5" />
+        <span className="text-[11px] font-medium uppercase">{label}</span>
+      </div>
+      <p className="font-[family-name:var(--font-heading)] text-xl font-semibold text-[#F0F0FA]">
+        {value}
+      </p>
+    </div>
+  )
+}
+
 export default function AnalyticsPage() {
   const [rangeKey, setRangeKey] = useState<RangeKey>("this_month")
   const [customStart, setCustomStart] = useState("")
@@ -239,6 +286,11 @@ export default function AnalyticsPage() {
   const kpiQuery = useQuery({
     queryKey: ["analytics-kpis", range.from.toISOString(), range.to.toISOString()],
     queryFn: () => fetchKpis(range.from, range.to),
+  })
+
+  const emailStatsQuery = useQuery({
+    queryKey: ["analytics-email-stats"],
+    queryFn: fetchEmailStats,
   })
 
   const canSeeRepTable =
@@ -299,6 +351,39 @@ export default function AnalyticsPage() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="mb-6">
+        <SectionCard title="Email Performance" subtitle="This month">
+          {emailStatsQuery.isLoading || !emailStatsQuery.data ? (
+            <div className="flex h-20 items-center justify-center">
+              <Loader2 className="size-5 animate-spin text-[#9090A8]" />
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-4">
+              <MiniEmailMetric
+                label="Total Sent"
+                value={emailStatsQuery.data.totalSent.toString()}
+                icon={Mail}
+              />
+              <MiniEmailMetric
+                label="Open Rate"
+                value={`${emailStatsQuery.data.openRate}%`}
+                icon={CheckCircle2}
+              />
+              <MiniEmailMetric
+                label="Click Rate"
+                value={`${emailStatsQuery.data.clickRate}%`}
+                icon={UserPlus}
+              />
+              <MiniEmailMetric
+                label="Bounced"
+                value={emailStatsQuery.data.bounced.toString()}
+                icon={XCircle}
+              />
+            </div>
+          )}
+        </SectionCard>
       </div>
 
       {/* 1. KPI Row */}

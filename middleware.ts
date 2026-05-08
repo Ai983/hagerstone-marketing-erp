@@ -57,7 +57,7 @@ export async function middleware(request: NextRequest) {
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, role")
       .eq("id", user.id)
       .maybeSingle()
 
@@ -78,6 +78,31 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(
         new URL(hasProfile ? "/pipeline" : "/onboarding", request.url)
       )
+    }
+
+    if (hasProfile && request.nextUrl.pathname.startsWith("/admin")) {
+      const role = profile?.role
+      const isAdminRole = role === "admin" || role === "founder"
+      const isManagerAdminPath =
+        request.nextUrl.pathname === "/admin/tasks" ||
+        request.nextUrl.pathname.startsWith("/admin/tasks/") ||
+        request.nextUrl.pathname === "/admin/whatsapp-health" ||
+        request.nextUrl.pathname.startsWith("/admin/whatsapp-health/")
+      const isEmailTemplatesPath =
+        request.nextUrl.pathname === "/admin/email-templates" ||
+        request.nextUrl.pathname.startsWith("/admin/email-templates/")
+
+      if (role === "sales_rep" || (role === "marketing" && !isEmailTemplatesPath)) {
+        return NextResponse.redirect(new URL("/activities", request.url))
+      }
+
+      if (role === "manager" && !isManagerAdminPath) {
+        return NextResponse.redirect(new URL("/admin/tasks", request.url))
+      }
+
+      if (!isAdminRole && role !== "manager") {
+        return NextResponse.redirect(new URL("/pipeline", request.url))
+      }
     }
   }
 

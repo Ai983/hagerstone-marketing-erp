@@ -15,7 +15,10 @@ function getLegacyMessageType(mediaType?: string | null): "text" | "image" | "do
 interface IncomingMessage {
   position: number
   delay_days: number
+  channel?: "whatsapp" | "email"
   message_template: string
+  email_subject?: string | null
+  email_template_id?: string | null
   media_url?: string | null
   media_type?: string | null
   media_filename?: string | null
@@ -84,6 +87,12 @@ export async function PUT(
           { status: 400 }
         )
       }
+      if (m.channel === "email" && !m.email_subject?.trim()) {
+        return NextResponse.json(
+          { error: "Each email message must have a subject" },
+          { status: 400 }
+        )
+      }
       if (m.media_type && !ALLOWED_MEDIA_TYPES.has(m.media_type)) {
         return NextResponse.json(
           { error: `Invalid media_type "${m.media_type}"` },
@@ -140,7 +149,10 @@ export async function PUT(
         position: index + 1,
         delay_days: Math.max(0, Number(msg.delay_days) ?? 0),
         delay_hours: 0,
+        channel: msg.channel ?? "whatsapp",
         message_template: (msg.message_template ?? "").trim(),
+        email_subject: msg.channel === "email" ? msg.email_subject?.trim() ?? null : null,
+        email_template_id: msg.channel === "email" ? msg.email_template_id ?? null : null,
         // Keep this compatible with older DB constraints. The precise
         // attachment kind is stored in `media_type`.
         message_type: getLegacyMessageType(msg.media_type),

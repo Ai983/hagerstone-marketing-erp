@@ -6,6 +6,7 @@ import {
   sendWhatsAppMessage,
   sendWhatsAppWithButtons,
 } from "@/lib/utils/maytapi"
+import { renderTemplate, sendEmail } from "@/lib/utils/resend"
 
 export const dynamic = "force-dynamic"
 type WhatsAppButton = { id: string; title: string }
@@ -15,6 +16,22 @@ function personalize(template: string, lead: { full_name?: string | null; compan
   return template
     .replace(/\[Name\]/g, lead.full_name ?? "")
     .replace(/\[Company\]/g, lead.company_name ?? "your company")
+}
+
+function getEmailVariables(lead: {
+  full_name?: string | null
+  company_name?: string | null
+  service_line?: string | null
+  city?: string | null
+}) {
+  return {
+    lead_name: lead.full_name ?? "",
+    company_name: lead.company_name ?? "",
+    service_line: (lead.service_line ?? "").replaceAll("_", " "),
+    city: lead.city ?? "",
+    visit_date: "",
+    rep_name: "Hagerstone Team",
+  }
 }
 
 function getButtons(raw: unknown): WhatsAppButton[] {
@@ -101,7 +118,7 @@ export async function GET(request: NextRequest) {
       *,
       lead:leads(
         id, full_name, company_name,
-        phone, whatsapp_opted_in, assigned_to
+        phone, email, whatsapp_opted_in, assigned_to, service_line, city
       ),
       campaign:campaigns(id, name, status)
     `
@@ -145,39 +162,6 @@ export async function GET(request: NextRequest) {
       })
       continue
     }
-    if (!lead?.phone) {
-      results.skipped++
-      await logCampaignSend(supabase, {
-        campaign_id: enrollment.campaign_id,
-        enrollment_id: enrollment.id,
-        lead_id: lead?.id ?? null,
-        lead_name: lead?.full_name ?? "Unknown",
-        phone: lead?.phone ?? "",
-        message_position: enrollment.current_message_position ?? null,
-        message_preview: "Skipped",
-        status: "skipped",
-        error_message: "No phone / not opted in / inactive",
-        sleep_seconds: 0,
-      })
-      continue
-    }
-    if (!lead.whatsapp_opted_in) {
-      results.skipped++
-      await logCampaignSend(supabase, {
-        campaign_id: enrollment.campaign_id,
-        enrollment_id: enrollment.id,
-        lead_id: lead.id,
-        lead_name: lead.full_name ?? "Unknown",
-        phone: lead.phone,
-        message_position: enrollment.current_message_position ?? null,
-        message_preview: "Skipped",
-        status: "skipped",
-        error_message: "No phone / not opted in / inactive",
-        sleep_seconds: 0,
-      })
-      continue
-    }
-
     const nextPosition = (enrollment.current_message_position ?? 0) + 1
 
     const { data: message } = await supabase
@@ -210,6 +194,98 @@ export async function GET(request: NextRequest) {
     const buttons = getButtons(message.buttons)
     const sleepSeconds = Math.floor(Math.random() * 50) + 1
 
+    if (message.channel === "email") {
+      if (!lead?.email) {
+        results.skipped++
+        await logCampaignSend(supabase, {
+          campaign_id: enrollment.campaign_id,
+          enrollment_id: enrollment.id,
+          lead_id: lead?.id ?? null,
+          lead_name: lead?.full_name ?? "Unknown",
+          phone: lead?.phone ?? "",
+          message_position: nextPosition,
+          message_preview: "Email skipped",
+          status: "skipped",
+          error_message: "No email address on lead",
+          sleep_seconds: 0,
+        })
+        continue
+      }
+
+      try {
+        const variables = getEmailVariables(lead)
+        const emailSubject = renderTemplate(
+          message.email_subject ?? campaign?.name ?? "Hagerstone",
+          variables
+        )
+        const emailHtml = renderTemplate(
+          message.message_template ?? "",
+          variables
+        )
+        const email = await sendEmail({
+          to: lead.email,
+          subject: emailSubject,
+          html: emailHtml,
+          leadId: lead.id,
+          campaignId: enrollment.campaign_id,
+          templateId: message.email_template_id ?? undefined,
+        })
+
+        await supabase.from("email_logs").insert({
+          lead_id: lead.id,
+          sent_by: null,
+          template_id: message.email_template_id ?? null,
+          resend_email_id: email?.id ?? null,
+          to_email: lead.email,
+          from_email: process.env.EMAIL_FROM!,
+          subject: emailSubject,
+          body_html: emailHtml,
+          status: "sent",
+          campaign_id: enrollment.campaign_id,
+        })
+
+        await supabase.from("interactions").insert({
+          lead_id: lead.id,
+          type: "email_sent",
+          title: "Campaign email sent",
+          notes: emailSubject,
+          campaign_id: enrollment.campaign_id,
+          is_automated: true,
+        })
+      } catch (err) {
+        results.failed++
+        await logCampaignSend(supabase, {
+          campaign_id: enrollment.campaign_id,
+          enrollment_id: enrollment.id,
+          lead_id: lead?.id ?? null,
+          lead_name: lead?.full_name ?? "Unknown",
+          phone: lead?.phone ?? "",
+          message_position: nextPosition,
+          message_preview: processedMessage.slice(0, 100),
+          status: "failed",
+          error_message: err instanceof Error ? err.message : "Email send failed",
+          sleep_seconds: 0,
+        })
+        continue
+      }
+    } else {
+      if (!lead?.phone || !lead.whatsapp_opted_in) {
+        results.skipped++
+        await logCampaignSend(supabase, {
+          campaign_id: enrollment.campaign_id,
+          enrollment_id: enrollment.id,
+          lead_id: lead?.id ?? null,
+          lead_name: lead?.full_name ?? "Unknown",
+          phone: lead?.phone ?? "",
+          message_position: nextPosition,
+          message_preview: "Skipped",
+          status: "skipped",
+          error_message: "No phone / not opted in / inactive",
+          sleep_seconds: 0,
+        })
+        continue
+      }
+
     const mediaType = getMediaType(message.media_type)
     const sendResult = mediaUrl
       ? await sendWhatsAppMedia(lead.phone, mediaType, mediaUrl, {
@@ -237,6 +313,7 @@ export async function GET(request: NextRequest) {
       })
       continue
     }
+    }
 
     const { data: nextMessage } = await supabase
       .from("campaign_messages")
@@ -263,15 +340,17 @@ export async function GET(request: NextRequest) {
       })
       .eq("id", enrollment.id)
 
-    await supabase.from("interactions").insert({
-      lead_id: lead.id,
-      type: "whatsapp_sent",
-      notes: processedMessage,
-      campaign_id: enrollment.campaign_id,
-      is_automated: true,
-      media_url: mediaUrl ?? null,
-      media_type: mediaUrl ? message.media_type ?? getMediaType(message.media_type) : null,
-    })
+    if (message.channel !== "email") {
+      await supabase.from("interactions").insert({
+        lead_id: lead.id,
+        type: "whatsapp_sent",
+        notes: processedMessage,
+        campaign_id: enrollment.campaign_id,
+        is_automated: true,
+        media_url: mediaUrl ?? null,
+        media_type: mediaUrl ? message.media_type ?? getMediaType(message.media_type) : null,
+      })
+    }
 
     await supabase
       .from("campaigns")
@@ -295,7 +374,7 @@ export async function GET(request: NextRequest) {
       enrollment_id: enrollment.id,
       lead_id: lead.id,
       lead_name: lead.full_name ?? "Unknown",
-      phone: lead.phone,
+      phone: lead.phone ?? "",
       message_position: nextPosition,
       message_preview: processedMessage.slice(0, 100),
       status: "sent",

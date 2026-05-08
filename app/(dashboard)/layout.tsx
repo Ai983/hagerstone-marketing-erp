@@ -62,6 +62,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         badges={{
           inbox: counts?.unassignedLeads,
           activities: counts?.overdueTasks,
+          adminTasks: counts?.adminOverdueTasks,
         }}
       />
       <div className="min-h-screen bg-transparent lg:ml-[var(--sidebar-w)] lg:transition-[margin] lg:duration-200">

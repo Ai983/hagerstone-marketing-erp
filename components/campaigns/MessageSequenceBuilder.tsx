@@ -30,6 +30,8 @@ import {
   GripVertical,
   Image as ImageIcon,
   Loader2,
+  Mail,
+  MessageCircle,
   Music,
   Paperclip,
   Plus,
@@ -59,7 +61,10 @@ export interface MessageDraft {
   id: string // local-only — for stable React keys + dnd
   position: number
   delay_days: number
+  channel: "whatsapp" | "email"
   message_template: string
+  email_subject: string
+  email_template_id: string | null
   media_url: string | null
   media_type: MediaType | null
   media_filename: string | null
@@ -164,6 +169,7 @@ function SortableMessageRow({
   const charCount = message.message_template.length
   const overLimit = charCount > 1000
   const hasMedia = Boolean(message.media_url)
+  const isEmail = message.channel === "email"
 
   const handleFileSelect = async (file: File) => {
     if (uploading) return // guard against double-clicks
@@ -340,6 +346,29 @@ function SortableMessageRow({
         <div className="min-w-0 flex-1 space-y-3">
           {/* Delay + type badge row */}
           <div className="flex flex-wrap items-center gap-2">
+            <div className="mr-2 grid grid-cols-2 rounded-lg border border-[#2A2A3C] bg-[#0F0F15] p-1">
+              {(["whatsapp", "email"] as const).map((channel) => (
+                <button
+                  key={channel}
+                  type="button"
+                  disabled={!canEdit}
+                  onClick={() => onChange(message.id, { channel })}
+                  className={cn(
+                    "inline-flex h-7 items-center justify-center gap-1 rounded-md px-2 text-[11px] font-medium transition",
+                    message.channel === channel
+                      ? "bg-[#1E3A5F] text-[#60A5FA]"
+                      : "text-[#9090A8] hover:bg-[#1A1A24] hover:text-[#F0F0FA]"
+                  )}
+                >
+                  {channel === "email" ? (
+                    <Mail className="size-3" />
+                  ) : (
+                    <MessageCircle className="size-3" />
+                  )}
+                  {channel === "email" ? "Email" : "WhatsApp"}
+                </button>
+              ))}
+            </div>
             <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">
               Send after
             </label>
@@ -367,6 +396,19 @@ function SortableMessageRow({
             </span>
           </div>
 
+          {isEmail && (
+            <input
+              type="text"
+              value={message.email_subject}
+              onChange={(e) =>
+                onChange(message.id, { email_subject: e.target.value })
+              }
+              disabled={!canEdit}
+              placeholder="Email subject"
+              className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6] disabled:opacity-50"
+            />
+          )}
+
           {/* Message body */}
           <textarea
             value={message.message_template}
@@ -375,7 +417,9 @@ function SortableMessageRow({
             }
             disabled={!canEdit}
             placeholder={
-              hasMedia
+              isEmail
+                ? "<p>Hi {{lead_name}}, following up...</p>"
+                : hasMedia
                 ? "Caption (shown below the attachment)…"
                 : "Hi {{name}}, just following up on your enquiry…"
             }
@@ -394,7 +438,7 @@ function SortableMessageRow({
           </div>
 
           {/* Attachment block */}
-          {canEdit && (
+          {canEdit && !isEmail && (
             <div>
               <input
                 ref={fileInputRef}
@@ -439,7 +483,7 @@ function SortableMessageRow({
             </div>
           )}
 
-          {canEdit && (
+          {canEdit && !isEmail && (
             <div className="mt-2">
               <p className="mb-1.5 text-[11px] uppercase tracking-[0.05em] text-[#9090A8]">
                 Quick Reply Buttons (optional)
@@ -484,7 +528,7 @@ function SortableMessageRow({
           )}
 
           {/* WhatsApp preview */}
-          {(message.message_template.trim() || hasMedia) && (
+          {!isEmail && (message.message_template.trim() || hasMedia) && (
             <div className="rounded-lg bg-[#1F2937] p-3">
               <p className="mb-1 text-[10px] uppercase tracking-wider text-[#9090A8]">
                 WhatsApp Preview
@@ -555,6 +599,14 @@ function SortableMessageRow({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+          {isEmail && message.message_template.trim() && (
+            <div className="rounded-lg bg-white p-3 text-xs leading-relaxed text-gray-900">
+              <p className="mb-2 font-semibold">
+                {message.email_subject || "Email subject"}
+              </p>
+              <div dangerouslySetInnerHTML={{ __html: message.message_template }} />
             </div>
           )}
         </div>
@@ -684,7 +736,10 @@ export function MessageSequenceBuilder({
         id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         position: items.length + 1,
         delay_days: items.length === 0 ? 0 : 2,
+        channel: "whatsapp",
         message_template: "",
+        email_subject: "",
+        email_template_id: null,
         media_url: null,
         media_type: null,
         media_filename: null,
@@ -713,6 +768,10 @@ export function MessageSequenceBuilder({
       toast.error("One or more messages exceed 1000 characters")
       return
     }
+    if (messages.some((m) => m.channel === "email" && !m.email_subject.trim())) {
+      toast.error("Every email step needs a subject")
+      return
+    }
     if (messages.some((m) => (m.buttons ?? []).length > 3)) {
       toast.error("Each message can have at most 3 quick reply buttons")
       return
@@ -735,7 +794,10 @@ export function MessageSequenceBuilder({
           messages: messages.map((m) => ({
             position: m.position,
             delay_days: m.delay_days,
+            channel: m.channel,
             message_template: m.message_template,
+            email_subject: m.email_subject,
+            email_template_id: m.email_template_id,
             media_url: m.media_url,
             media_type: m.media_type,
             media_filename: m.media_filename,
