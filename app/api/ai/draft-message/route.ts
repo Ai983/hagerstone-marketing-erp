@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null)
   const leadId = body?.lead_id as string | undefined
   const context = (body?.context as string | undefined)?.trim()
+  const forceRefresh = Boolean(body?.force_refresh ?? body?.force)
 
   if (!leadId) {
     return NextResponse.json({ error: "lead_id is required" }, { status: 400 })
@@ -36,7 +37,28 @@ export async function POST(request: NextRequest) {
   }
   const supabase = createServiceClient(url, serviceKey)
 
-  // Fetch lead + last 3 interactions
+  if (!forceRefresh) {
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
+    const { data: cached } = await supabase
+      .from("ai_suggestions")
+      .select("content, created_at")
+      .eq("lead_id", leadId)
+      .eq("type", "draft_message")
+      .gte("created_at", twelveHoursAgo)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (cached?.content) {
+      return NextResponse.json({
+        ...(cached.content as DraftMessage),
+        cached: true,
+        cached_at: cached.created_at,
+      })
+    }
+  }
+
+  // Fetch lead + last 5 interactions
   const { data: lead, error: leadError } = await supabase
     .from("leads")
     .select(
@@ -54,7 +76,7 @@ export async function POST(request: NextRequest) {
     .select("type, title, notes, outcome, created_at")
     .eq("lead_id", leadId)
     .order("created_at", { ascending: false })
-    .limit(3)
+    .limit(5)
 
   const stage = Array.isArray(lead.stage) ? lead.stage[0] : lead.stage
   const stageName = (stage as { name?: string } | null)?.name ?? "Unknown"
@@ -93,7 +115,7 @@ export async function POST(request: NextRequest) {
     const { data: draft } = await callClaudeJSON<DraftMessage>({
       system: SYSTEM_PROMPT,
       userMessage,
-      maxTokens: 500,
+      maxTokens: 150,
       temperature: 0.6,
     })
 
@@ -102,13 +124,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Log (but don't cache — drafts are always fresh)
-    await supabase.from("ai_suggestions").insert({
+    const now = new Date().toISOString()
+    await supabase.from("ai_suggestions").upsert({
       type: "draft_message",
       lead_id: leadId,
       content: draft,
-    })
+      created_at: now,
+      updated_at: now,
+    }, { onConflict: "lead_id,type" })
 
-    return NextResponse.json(draft)
+    return NextResponse.json({ ...draft, cached: false, generated_at: now })
   } catch (err) {
     if (err instanceof ClaudeError) {
       return NextResponse.json(

@@ -2642,6 +2642,38 @@ function CampaignsTab({
 
 // ── Tab 5: AI ───────────────────────────────────────────────────────
 
+function CacheStatusBadge({
+  cached,
+  loading,
+  onRegenerate,
+}: {
+  cached: boolean
+  loading: boolean
+  onRegenerate: () => void
+}) {
+  if (!cached) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-[#163322] px-2 py-0.5 text-[11px] font-medium text-[#34D399]">
+        ✨ Just generated
+      </span>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#1E3A5F] px-2 py-0.5 text-[11px] font-medium text-[#60A5FA]">
+      ⚡ Cached
+      <button
+        type="button"
+        onClick={onRegenerate}
+        disabled={loading}
+        className="font-semibold text-white underline-offset-2 hover:underline disabled:opacity-50"
+      >
+        Regenerate
+      </button>
+    </span>
+  )
+}
+
 function AITab({ lead }: { lead: Lead }) {
   const [recapLoading, setRecapLoading] = useState(false)
   const [recapData, setRecapData] = useState<{
@@ -2649,22 +2681,28 @@ function AITab({ lead }: { lead: Lead }) {
     sentiment: string
     next_action: string
     message_angle: string
+    cached?: boolean
+    cached_at?: string
+    generated_at?: string
   } | null>(null)
 
   const [draftLoading, setDraftLoading] = useState(false)
   const [draftData, setDraftData] = useState<{
     message: string
     tone: string
+    cached?: boolean
+    cached_at?: string
+    generated_at?: string
   } | null>(null)
 
-  const handleRecap = async () => {
+  const handleRecap = async (forceRefresh = false) => {
     setRecapLoading(true)
-    setRecapData(null)
+    if (!forceRefresh) setRecapData(null)
     try {
       const res = await fetch("/api/ai/lead-recap", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lead_id: lead.id }),
+        body: JSON.stringify({ lead_id: lead.id, force_refresh: forceRefresh }),
       })
       const data = await res.json()
       setRecapData(data)
@@ -2675,14 +2713,18 @@ function AITab({ lead }: { lead: Lead }) {
     }
   }
 
-  const handleDraft = async () => {
+  const handleDraft = async (forceRefresh = false) => {
     setDraftLoading(true)
-    setDraftData(null)
+    if (!forceRefresh) setDraftData(null)
     try {
       const res = await fetch("/api/ai/draft-message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lead_id: lead.id, lead_name: lead.full_name }),
+        body: JSON.stringify({
+          lead_id: lead.id,
+          lead_name: lead.full_name,
+          force_refresh: forceRefresh,
+        }),
       })
       const data = await res.json()
       setDraftData(data)
@@ -2713,7 +2755,7 @@ function AITab({ lead }: { lead: Lead }) {
             AI-generated summary of this lead&apos;s journey and recommended next steps.
           </p>
           <button
-            onClick={handleRecap}
+            onClick={() => handleRecap(false)}
             disabled={recapLoading}
             className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#3B82F6] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#2563EB] disabled:opacity-50"
           >
@@ -2723,6 +2765,11 @@ function AITab({ lead }: { lead: Lead }) {
 
           {recapData && (
             <div className="mt-3 space-y-2 rounded-lg border border-[#2A2A3C] bg-[#111118] p-3">
+              <CacheStatusBadge
+                cached={Boolean(recapData.cached)}
+                onRegenerate={() => handleRecap(true)}
+                loading={recapLoading}
+              />
               <p className="text-xs leading-relaxed text-[#F0F0FA]">{recapData.summary}</p>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-[#9090A8]">Sentiment:</span>
@@ -2754,7 +2801,7 @@ function AITab({ lead }: { lead: Lead }) {
             Generate a context-aware follow-up message for this lead.
           </p>
           <button
-            onClick={handleDraft}
+            onClick={() => handleDraft(false)}
             disabled={draftLoading}
             className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#3B82F6] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#2563EB] disabled:opacity-50"
           >
@@ -2765,9 +2812,16 @@ function AITab({ lead }: { lead: Lead }) {
           {draftData && (
             <div className="mt-3 rounded-lg border border-[#2A2A3C] bg-[#111118] p-3">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] text-[#9090A8]">
-                  Tone: {draftData.tone}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] text-[#9090A8]">
+                    Tone: {draftData.tone}
+                  </span>
+                  <CacheStatusBadge
+                    cached={Boolean(draftData.cached)}
+                    onRegenerate={() => handleDraft(true)}
+                    loading={draftLoading}
+                  />
+                </div>
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(draftData.message)

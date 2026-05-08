@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => null)
   const leadId = body?.lead_id as string | undefined
-  const force = Boolean(body?.force)
+  const forceRefresh = Boolean(body?.force_refresh ?? body?.force)
 
   if (!leadId) {
     return NextResponse.json({ error: "lead_id is required" }, { status: 400 })
@@ -46,16 +46,16 @@ export async function POST(request: NextRequest) {
   }
   const supabase = createServiceClient(url, serviceKey)
 
-  // 1. Cache check: latest lead_recap within last hour
-  if (!force) {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  // 1. Cache check: latest lead_recap within last 24 hours
+  if (!forceRefresh) {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const { data: cached } = await supabase
       .from("ai_suggestions")
-      .select("content, generated_at")
+      .select("content, created_at")
       .eq("lead_id", leadId)
       .eq("type", "lead_recap")
-      .gte("generated_at", oneHourAgo)
-      .order("generated_at", { ascending: false })
+      .gte("created_at", twentyFourHoursAgo)
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         ...(cached.content as LeadRecap),
         cached: true,
-        generated_at: cached.generated_at,
+        cached_at: cached.created_at,
       })
     }
   }
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     .select("type, title, notes, outcome, created_at")
     .eq("lead_id", leadId)
     .order("created_at", { ascending: false })
-    .limit(10)
+    .limit(5)
 
   // 3. Build prompt
   const stage = Array.isArray(lead.stage) ? lead.stage[0] : lead.stage
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     const { data: recap } = await callClaudeJSON<LeadRecap>({
       system: SYSTEM_PROMPT,
       userMessage,
-      maxTokens: 1000,
+      maxTokens: 300,
       temperature: 0.4,
     })
 
@@ -143,13 +143,16 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Cache result
-    await supabase.from("ai_suggestions").insert({
+    const now = new Date().toISOString()
+    await supabase.from("ai_suggestions").upsert({
       type: "lead_recap",
       lead_id: leadId,
       content: recap,
-    })
+      created_at: now,
+      updated_at: now,
+    }, { onConflict: "lead_id,type" })
 
-    return NextResponse.json({ ...recap, cached: false, generated_at: new Date().toISOString() })
+    return NextResponse.json({ ...recap, cached: false, generated_at: now })
   } catch (err) {
     if (err instanceof ClaudeError) {
       return NextResponse.json(
