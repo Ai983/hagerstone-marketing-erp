@@ -16,6 +16,8 @@ import {
   Eye,
   Link2,
   ChevronDown,
+  Camera,
+  Film,
   CheckCircle2,
   CircleDot,
   AlertTriangle,
@@ -44,6 +46,7 @@ import { WhatsAppChatView } from "@/components/leads/WhatsAppChatView"
 import { LogCallModal } from "@/components/leads/LogCallModal"
 import { ScheduleFollowUpModal } from "@/components/leads/ScheduleFollowUpModal"
 import { SendWhatsAppModal } from "@/components/leads/SendWhatsAppModal"
+import { VideoInsertPanel } from "@/components/email/VideoInsertPanel"
 import { ReassignPopover } from "@/components/leads/ReassignPopover"
 import { StagePickerPopover } from "@/components/leads/StagePickerPopover"
 import { StageChangeModal } from "@/components/kanban/StageChangeModal"
@@ -1927,6 +1930,7 @@ function EmailTab({
   const [subject, setSubject] = useState("")
   const [bodyHtml, setBodyHtml] = useState("")
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [isVideoPanelOpen, setIsVideoPanelOpen] = useState(false)
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [savingEmail, setSavingEmail] = useState(false)
@@ -1936,6 +1940,7 @@ function EmailTab({
     setSelectedTemplateId("")
     setSubject("")
     setBodyHtml("")
+    setIsVideoPanelOpen(false)
     setExpandedLogId(null)
   }, [lead.id, lead.email])
 
@@ -1986,6 +1991,19 @@ function EmailTab({
       setSubject(template.subject)
       setBodyHtml(template.body_html)
     }
+  }
+
+  const appendToBody = (html: string) => {
+    setBodyHtml((prev) => `${prev}${prev.trim() ? "\n\n" : ""}${html}`)
+  }
+
+  const handleInsertImage = () => {
+    const imageUrl = window.prompt("Paste image URL")
+    if (!imageUrl?.trim()) return
+    const alt = window.prompt("Image alt text", "Hagerstone image") ?? "Hagerstone image"
+    appendToBody(
+      `<p style="text-align:center;"><img src="${imageUrl.trim()}" alt="${alt}" style="max-width:100%; height:auto; border-radius:8px;" /></p>`
+    )
   }
 
   const saveLeadEmail = async () => {
@@ -2122,6 +2140,43 @@ function EmailTab({
 
             <label>
               <span className="mb-1 block text-[11px] font-medium uppercase text-[#9090A8]">Body</span>
+              <div className="mb-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleInsertImage}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-1.5 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1F1F2E]"
+                >
+                  <Camera className="size-3.5" />
+                  Insert Image
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsVideoPanelOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-1.5 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1F1F2E]"
+                >
+                  <Film className="size-3.5" />
+                  Insert Video
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-1.5 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1F1F2E]"
+                >
+                  <Eye className="size-3.5" />
+                  Preview
+                </button>
+              </div>
+              {isVideoPanelOpen && (
+                <div className="mb-3">
+                  <VideoInsertPanel
+                    onCancel={() => setIsVideoPanelOpen(false)}
+                    onInsert={(html) => {
+                      appendToBody(html)
+                      setIsVideoPanelOpen(false)
+                    }}
+                  />
+                </div>
+              )}
               <textarea
                 value={bodyHtml}
                 onChange={(e) => setBodyHtml(e.target.value)}
@@ -2136,14 +2191,6 @@ function EmailTab({
           </div>
 
           <div className="mt-4 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setIsPreviewOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-2 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1F1F2E]"
-            >
-              <Eye className="size-3.5" />
-              Preview
-            </button>
             <button
               type="button"
               onClick={handleSend}

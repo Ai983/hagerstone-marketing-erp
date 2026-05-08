@@ -90,6 +90,28 @@ SELECT * FROM (VALUES
   'Still thinking about it? We are here - Hagerstone',
   '<h2>Hi {{lead_name}},</h2><p>We noticed it has been a while since we last connected. We completely understand that decisions like these take time.</p><p>If you are still considering upgrading your space, we would love to reconnect and share some of our recent project work that might inspire you.</p><p>No pressure - just here when you are ready.</p><p>Best,<br/>{{rep_name}}<br/>Hagerstone International</p>',
   'general'
+),
+(
+  'Portfolio Showcase',
+  'See our latest interior design projects - Hagerstone',
+  '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 30px; background: #ffffff;">
+  
+  <div style="border-bottom: 3px solid #B8860B; padding-bottom: 20px; margin-bottom: 30px;">
+    <h1 style="color: #B8860B; margin: 0;">Hagerstone International</h1>
+    <p style="color: #666; margin: 5px 0 0 0; font-size: 13px;">Premium Interior Design & Build</p>
+  </div>
+
+  <p style="color: #333; font-size: 16px;">Dear <strong>{{lead_name}}</strong>,</p>
+  
+  <p style="color: #444; font-size: 15px; line-height: 1.7;">We would love to share some of our recent <strong>{{service_line}}</strong> projects that might inspire your vision.</p>
+
+  <!-- VIDEO THUMBNAIL GOES HERE - Rep will insert via Insert Video button -->
+
+  <p style="color: #444; font-size: 15px; line-height: 1.7; margin-top: 20px;">We would love to create something equally stunning for your space in <strong>{{city}}</strong>.</p>
+
+  <p style="color: #333; font-size: 15px;">Warm regards,<br/><strong>{{rep_name}}</strong><br/><span style="color: #B8860B;">Hagerstone International Pvt. Ltd.</span></p>
+</div>',
+  'general'
 )) AS starter(name, subject, body_html, category)
 WHERE NOT EXISTS (
   SELECT 1 FROM email_templates WHERE email_templates.name = starter.name

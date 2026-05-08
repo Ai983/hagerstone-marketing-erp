@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Copy, Edit, Loader2, Mail, Plus, Trash2, X } from "lucide-react"
+import { Camera, Copy, Edit, Film, Loader2, Mail, Plus, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
+import { VideoInsertPanel } from "@/components/email/VideoInsertPanel"
 import { cn } from "@/lib/utils"
 
 type Category =
@@ -273,11 +274,25 @@ function TemplateForm({
   const [subject, setSubject] = useState(template?.subject ?? "")
   const [bodyHtml, setBodyHtml] = useState(template?.body_html ?? "")
   const [saving, setSaving] = useState(false)
+  const [isVideoPanelOpen, setIsVideoPanelOpen] = useState(false)
 
   const bodySnippet = useMemo(() => stripHtml(bodyHtml), [bodyHtml])
 
   const insertVariable = (variable: string) => {
     setBodyHtml((prev) => `${prev}${prev.endsWith(" ") || !prev ? "" : " "}${variable}`)
+  }
+
+  const appendToBody = (html: string) => {
+    setBodyHtml((prev) => `${prev}${prev.trim() ? "\n\n" : ""}${html}`)
+  }
+
+  const handleInsertImage = () => {
+    const imageUrl = window.prompt("Paste image URL")
+    if (!imageUrl?.trim()) return
+    const alt = window.prompt("Image alt text", "Hagerstone image") ?? "Hagerstone image"
+    appendToBody(
+      `<p style="text-align:center;"><img src="${imageUrl.trim()}" alt="${alt}" style="max-width:100%; height:auto; border-radius:8px;" /></p>`
+    )
   }
 
   const save = async () => {
@@ -357,6 +372,35 @@ function TemplateForm({
                 <span className="mb-1 block text-[11px] font-medium uppercase text-[#9090A8]">
                   Body HTML
                 </span>
+                <div className="mb-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleInsertImage}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-1.5 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1F1F2E]"
+                  >
+                    <Camera className="size-3.5" />
+                    Insert Image
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsVideoPanelOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-1.5 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1F1F2E]"
+                  >
+                    <Film className="size-3.5" />
+                    Insert Video
+                  </button>
+                </div>
+                {isVideoPanelOpen && (
+                  <div className="mb-3">
+                    <VideoInsertPanel
+                      onCancel={() => setIsVideoPanelOpen(false)}
+                      onInsert={(html) => {
+                        appendToBody(html)
+                        setIsVideoPanelOpen(false)
+                      }}
+                    />
+                  </div>
+                )}
                 <textarea
                   value={bodyHtml}
                   onChange={(e) => setBodyHtml(e.target.value)}
