@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import type { PipelineStage } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -58,6 +59,7 @@ function getCellColor(bucketIndex: number, count: number, maxCount: number): str
 
 export function StageAgeHeatmap() {
   const router = useRouter()
+  const isMobile = useMediaQuery("(max-width: 768px)")
   const { data, isLoading, isError } = useQuery({
     queryKey: ["analytics-stage-age-heatmap"],
     queryFn: fetchStagesAndLeads,
@@ -114,6 +116,33 @@ export function StageAgeHeatmap() {
   }
 
   return (
+    isMobile ? (
+      <div className="space-y-3">
+        {grid.rows.map(({ stage, counts }) => (
+          <div key={stage.id} className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-3">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="size-2 rounded-full" style={{ backgroundColor: stage.color }} />
+              <p className="truncate text-sm font-medium text-[#F0F0FA]">{stage.name}</p>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {counts.map((count, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  disabled={count === 0}
+                  onClick={() => handleCellClick(stage.id, buckets[idx].slug)}
+                  className="rounded-lg border border-[#2A2A3C] p-2 text-center"
+                  style={{ backgroundColor: getCellColor(idx, count, grid.maxCount) }}
+                >
+                  <p className="text-[10px] text-white/80">{buckets[idx].label}</p>
+                  <p className="text-sm font-bold text-white">{count}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
     <div className="overflow-x-auto">
       <table className="w-full border-separate border-spacing-1">
         <thead>
@@ -171,5 +200,6 @@ export function StageAgeHeatmap() {
         <span>Click a cell to view those leads.</span>
       </div>
     </div>
+    )
   )
 }

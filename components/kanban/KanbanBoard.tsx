@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   closestCorners,
   DndContext,
@@ -17,13 +18,13 @@ import {
 } from "@dnd-kit/core"
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable"
 import { AnimatePresence, motion } from "framer-motion"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import { toast } from "sonner"
 
 import { DroppableColumn } from "@/components/kanban/DroppableColumn"
 import { KanbanFilters } from "@/components/kanban/KanbanFilters"
 import { LeadCardSkeleton } from "@/components/kanban/LeadCardSkeleton"
-import { LeadCard } from "@/components/kanban/LeadCard"
+import { LeadCard, MobileLeadCard } from "@/components/kanban/LeadCard"
 import { StageChangeModal } from "@/components/kanban/StageChangeModal"
 import { useKanban } from "@/lib/hooks/useKanban"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
@@ -63,7 +64,8 @@ function LoadingState() {
   )
 }
 
-export function KanbanBoard() {
+export function KanbanBoard({ isMobile }: { isMobile: boolean }) {
+  const router = useRouter()
   const { columns, leads, currentProfile, teamMembers, isLoading, isError, canFilterAssignedTo, updateLeadStage } =
     useKanban()
   const {
@@ -79,6 +81,13 @@ export function KanbanBoard() {
   const [recentlyMovedLeadId, setRecentlyMovedLeadId] = useState<string | null>(null)
   const [realtimeInsertedId, setRealtimeInsertedId] = useState<string | null>(null)
   const [realtimeFlashedId, setRealtimeFlashedId] = useState<string | null>(null)
+  const [activeMobileStage, setActiveMobileStage] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (isMobile && columns.length > 0 && !activeMobileStage) {
+      setActiveMobileStage(columns[0].stage.id)
+    }
+  }, [activeMobileStage, columns, isMobile])
 
   // ── Horizontal-scroll plumbing ────────────────────────────────────
   const boardRef = useRef<HTMLDivElement>(null)
@@ -358,6 +367,118 @@ export function KanbanBoard() {
           </div>
         </div>
       </div>
+    )
+  }
+
+  if (isMobile) {
+    const activeColumn = columns.find((column) => column.stage.id === activeMobileStage)
+    const activeLeads = activeColumn?.leads ?? []
+
+    return (
+      <>
+        <div className="flex h-full flex-col overflow-hidden">
+          <KanbanFilters
+            canFilterAssignedTo={canFilterAssignedTo}
+            currentUserId={currentProfile?.id}
+            teamMembers={teamMembers}
+          />
+
+          <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-[#2A2A3C] px-4 py-3">
+            {columns.map((column) => {
+              const stage = column.stage
+              const count = column.leads.length
+              const isActive = activeMobileStage === stage.id
+              return (
+                <button
+                  key={stage.id}
+                  onClick={() => setActiveMobileStage(stage.id)}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                    isActive ? "text-white shadow-lg" : "bg-[#1A1A24] text-[#9090A8]"
+                  }`}
+                  style={{
+                    backgroundColor: isActive ? stage.color : undefined,
+                    boxShadow: isActive ? `0 0 12px ${stage.color}40` : undefined,
+                  }}
+                >
+                  {stage.name}
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                      isActive ? "bg-white/20 text-white" : "bg-[#2A2A3C] text-[#9090A8]"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {activeColumn && (
+            <div className="flex shrink-0 items-center justify-between px-4 py-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <div
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: activeColumn.stage.color }}
+                />
+                <span className="truncate font-semibold text-[#F0F0FA]">
+                  {activeColumn.stage.name}
+                </span>
+                <span className="shrink-0 text-xs text-[#9090A8]">
+                  {activeLeads.length} leads
+                </span>
+              </div>
+
+              <button
+                onClick={() => router.push("/leads/new")}
+                className="flex items-center gap-1 rounded-lg bg-[#3B82F6] px-3 py-1.5 text-xs font-medium text-white"
+              >
+                <Plus size={14} />
+                Add Lead
+              </button>
+            </div>
+          )}
+
+          <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
+            {activeColumn && activeLeads.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <span className="mb-3 text-4xl">Empty</span>
+                <p className="text-sm text-[#9090A8]">No leads in this stage</p>
+                <button
+                  onClick={() => router.push("/leads/new")}
+                  className="mt-3 rounded-lg bg-[#3B82F6] px-4 py-2 text-sm text-white"
+                >
+                  + Add Lead
+                </button>
+              </div>
+            )}
+            {activeLeads.map((lead) => (
+              <MobileLeadCard
+                key={lead.id}
+                lead={lead}
+                stages={columns.map((column) => column.stage)}
+                onMoveStage={(leadId, stageId) => {
+                  if (lead.stage_id === stageId) return
+                  setPendingStageChange({
+                    leadId,
+                    fromStageId: lead.stage_id,
+                    toStageId: stageId,
+                  })
+                }}
+              />
+            ))}
+          </div>
+        </div>
+        <StageChangeModal
+          open={Boolean(pendingStageChange && pendingLead && pendingFromStage && pendingToStage)}
+          lead={pendingLead}
+          fromStage={pendingFromStage}
+          toStage={pendingToStage}
+          currentUserRole={currentProfile?.role}
+          isSubmitting={isSubmittingMove}
+          onCancel={handleModalCancel}
+          onConfirm={handleModalConfirm}
+        />
+      </>
     )
   }
 

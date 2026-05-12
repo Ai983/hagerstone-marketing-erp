@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts"
 import { createClient } from "@/lib/supabase/client"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import type { LeadSource } from "@/lib/types"
 
 const sourceColors: Record<LeadSource, string> = {
@@ -98,6 +99,7 @@ function buildDailyBuckets(leads: LeadRow[]): { data: DayBucket[]; sources: Lead
 }
 
 export function LeadSourceChart() {
+  const isMobile = useMediaQuery("(max-width: 768px)")
   const { data, isLoading, isError } = useQuery({
     queryKey: ["analytics-source-volume"],
     queryFn: fetchLeadsLast30Days,
@@ -140,21 +142,25 @@ export function LeadSourceChart() {
   }
 
   return (
-    <div className="h-72 w-full">
+    <div className="h-[200px] w-full md:h-72">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+        <BarChart
+          data={chartData}
+          margin={{ top: 5, right: isMobile ? 10 : 30, left: isMobile ? -20 : 0, bottom: 5 }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#2A2A3C" vertical={false} />
           <XAxis
             dataKey="label"
             stroke="#9090A8"
-            style={{ fontSize: 10 }}
+            style={{ fontSize: isMobile ? 10 : 12 }}
             tickLine={false}
             axisLine={{ stroke: "#2A2A3C" }}
-            interval={4}
+            interval={isMobile ? "preserveStartEnd" : 4}
           />
           <YAxis
             stroke="#9090A8"
-            style={{ fontSize: 10 }}
+            style={{ fontSize: isMobile ? 10 : 12 }}
+            width={isMobile ? 30 : 60}
             tickLine={false}
             axisLine={{ stroke: "#2A2A3C" }}
             allowDecimals={false}

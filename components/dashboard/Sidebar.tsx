@@ -29,6 +29,7 @@ import {
 import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { createClient } from "@/lib/supabase/client"
 
@@ -90,9 +91,15 @@ function getInitials(name: string) {
 
 export function Sidebar({ fullName, role, badges }: SidebarProps) {
   const router = useRouter()
-  const { isSidebarCollapsed, toggleSidebar } = useUIStore()
-  const isMobileNavOpen = useUIStore((s) => s.isMobileNavOpen)
-  const closeMobileNav = useUIStore((s) => s.closeMobileNav)
+  const isMobile = useMediaQuery("(max-width: 768px)")
+  const {
+    isSidebarCollapsed,
+    toggleSidebar,
+    isMobileSidebarOpen,
+    setMobileSidebarOpen,
+  } = useUIStore()
+  const isMobileNavOpen = isMobileSidebarOpen
+  const closeMobileNav = () => setMobileSidebarOpen(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
 
   const handleLogout = async () => {
@@ -117,7 +124,7 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
       {/* ── Desktop sidebar (lg+) ──────────────────────────────── */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-30 hidden h-screen flex-col border-r border-[#2A2A3C] bg-[#111118] transition-[width] duration-200 lg:flex",
+          "relative z-30 hidden h-full flex-col border-r border-[#2A2A3C] bg-[#111118] transition-[width] duration-200 md:flex",
           desktopWidth
         )}
       >
@@ -143,7 +150,7 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={closeMobileNav}
-              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+              className="fixed inset-0 z-40 bg-black/50 md:hidden"
             />
             <motion.aside
               key="mobile-nav-panel"
@@ -151,7 +158,7 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
-              className="fixed left-0 top-0 z-50 flex h-screen w-[280px] flex-col border-r border-[#2A2A3C] bg-[#111118] shadow-2xl lg:hidden"
+              className="fixed left-0 top-0 z-50 flex h-screen w-[280px] flex-col border-r border-[#2A2A3C] bg-[#111118] shadow-2xl md:hidden"
             >
               <SidebarBody
                 collapsed={false}
@@ -160,7 +167,7 @@ export function Sidebar({ fullName, role, badges }: SidebarProps) {
                 badges={badges}
                 isSigningOut={isSigningOut}
                 onLogout={handleLogout}
-                onItemClick={closeMobileNav}
+                onItemClick={isMobile ? closeMobileNav : undefined}
                 onCloseMobile={closeMobileNav}
               />
             </motion.aside>

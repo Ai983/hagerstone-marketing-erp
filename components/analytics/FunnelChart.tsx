@@ -75,7 +75,7 @@ export function FunnelChart() {
           <div key={stage.stage_id}>
             <div className="flex items-center gap-3">
               {/* Stage label */}
-              <div className="w-32 shrink-0">
+              <div className="w-24 shrink-0 md:w-32">
                 <div className="flex items-center gap-2">
                   <span
                     className="size-2 shrink-0 rounded-full"
@@ -105,7 +105,7 @@ export function FunnelChart() {
 
             {/* Conversion indicator between bars */}
             {conversionPct !== null && (
-              <div className="ml-32 flex items-center gap-1 py-1 pl-3 text-[11px] text-[#9090A8]">
+              <div className="ml-24 flex items-center gap-1 py-1 pl-3 text-[11px] text-[#9090A8] md:ml-32">
                 <ChevronRight className="size-3" />
                 <span>{conversionPct}% conversion</span>
               </div>

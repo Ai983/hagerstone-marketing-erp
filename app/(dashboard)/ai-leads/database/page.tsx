@@ -4,18 +4,22 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import {
+  ArrowLeft,
   Database,
   Download,
   ExternalLink,
   Loader2,
   Mail,
+  MapPin,
   Phone,
+  Plus,
   Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { cn } from "@/lib/utils"
 import type { UserRole } from "@/lib/types"
@@ -87,6 +91,8 @@ export default function AiLeadsDatabasePage() {
   const router = useRouter()
   const setLeadDrawerId = useUIStore((s) => s.setLeadDrawerId)
 
+  const isMobile = useMediaQuery("(max-width: 768px)")
+
   const [accessChecked, setAccessChecked] = useState(false)
   const [leads, setLeads] = useState<DbLead[]>([])
   const [loading, setLoading] = useState(true)
@@ -104,6 +110,7 @@ export default function AiLeadsDatabasePage() {
   )
   const [cityFilter, setCityFilter] = useState("")
   const [sortBy, setSortBy] = useState<"score" | "newest" | "company">("newest")
+  const [industryFilter, setIndustryFilter] = useState("")
   const [page, setPage] = useState(1)
 
   // Action state
@@ -191,6 +198,7 @@ export default function AiLeadsDatabasePage() {
         return false
       if (scoreFilter === "cold" && (l.score ?? 0) >= 60) return false
       if (cityQ && !(l.city ?? "").toLowerCase().includes(cityQ)) return false
+      if (industryFilter && (l.industry ?? "") !== industryFilter) return false
       return true
     })
     rows = [...rows]
@@ -213,6 +221,7 @@ export default function AiLeadsDatabasePage() {
     serviceFilter,
     scoreFilter,
     cityFilter,
+    industryFilter,
     sortBy,
   ])
 
@@ -222,10 +231,20 @@ export default function AiLeadsDatabasePage() {
     return filtered.slice(start, start + PAGE_SIZE)
   }, [filtered, page])
 
+  const uniqueIndustries = useMemo(() => {
+    const set = new Set(leads.map((l) => l.industry).filter(Boolean))
+    return Array.from(set).sort() as string[]
+  }, [leads])
+
+  const uniqueCities = useMemo(() => {
+    const set = new Set(leads.map((l) => l.city).filter(Boolean))
+    return Array.from(set).sort() as string[]
+  }, [leads])
+
   // Reset to page 1 on filter change
   useEffect(() => {
     setPage(1)
-  }, [search, statusFilter, contactFilter, serviceFilter, scoreFilter, cityFilter, sortBy])
+  }, [search, statusFilter, contactFilter, serviceFilter, scoreFilter, cityFilter, industryFilter, sortBy])
 
   // ── Actions ──────────────────────────────────────────────────────
   const updateLeadLocal = (id: string, patch: Partial<DbLead>) => {
@@ -386,337 +405,556 @@ export default function AiLeadsDatabasePage() {
   }
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
-      <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-[#1E3A5F] text-[#3B82F6]">
-              <Database className="size-5" />
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F]">
+      {isMobile ? (
+        /* ── Mobile layout ── */
+        <>
+          {/* Mobile Header */}
+          <div className="px-4 py-4">
+            <div className="mb-4 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="rounded-lg bg-[#1A1A24] p-2 text-[#9090A8]"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <div>
+                <h1 className="text-lg font-bold text-[#F0F0FA]">AI Leads Database</h1>
+                <p className="text-xs text-[#9090A8]">{filtered.length} companies found</p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
-                AI Leads Database
-              </h1>
-              <p className="text-sm text-[#9090A8]">
-                {stats.total.toLocaleString()} contactable lead
-                {stats.total === 1 ? "" : "s"} saved
-              </p>
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search companies..."
+                className="w-full rounded-xl border border-[#2A2A3C] bg-[#1F1F2E] px-4 py-3 text-base text-[#F0F0FA] outline-none"
+              />
+              <div className="flex gap-2">
+                <select
+                  value={industryFilter}
+                  onChange={(e) => setIndustryFilter(e.target.value)}
+                  className="flex-1 rounded-xl border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-3 text-sm text-[#F0F0FA] outline-none"
+                >
+                  <option value="">All Industries</option>
+                  {uniqueIndustries.map((ind) => (
+                    <option key={ind} value={ind}>{ind}</option>
+                  ))}
+                </select>
+                <select
+                  value={cityFilter}
+                  onChange={(e) => setCityFilter(e.target.value)}
+                  className="flex-1 rounded-xl border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-3 text-sm text-[#F0F0FA] outline-none"
+                >
+                  <option value="">All Cities</option>
+                  {uniqueCities.map((city) => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleClearSkipped}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#7F1D1D]/40 bg-[#2A1215]/40 px-3 py-2 text-xs font-medium text-[#F87171] transition hover:bg-[#2A1215]/70"
-            >
-              <Trash2 className="size-3.5" />
-              Clear Skipped
-            </button>
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#111118] px-3 py-2 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1A1A24]"
-            >
-              <Download className="size-3.5" />
-              Export CSV
-            </button>
-          </div>
-        </div>
 
-        {/* Stats */}
-        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
-            label="Contactable Leads"
-            value={stats.total}
-            accent="#3B82F6"
-          />
-          <StatCard label="Avg Score" value={stats.avgScore} accent="#34D399" />
-          <StatCard
-            label="Added to Pipeline"
-            value={stats.added}
-            accent="#A855F7"
-          />
-          <StatCard
-            label="Pending Review"
-            value={stats.pending}
-            accent="#F59E0B"
-          />
-        </div>
-
-        {/* Filters */}
-        <div className="mb-4 space-y-2 rounded-xl border border-[#2A2A3C] bg-[#111118] p-3">
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search company or contact..."
-              className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
-            />
-            <select
-              value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(e.target.value as "all" | LeadStatus)
-              }
-              className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-2 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
-            >
-              <option value="all">All Statuses</option>
-              <option value="new">New</option>
-              <option value="added">Added</option>
-              <option value="skipped">Skipped</option>
-              <option value="duplicate">Duplicate</option>
-            </select>
-            <select
-              value={contactFilter}
-              onChange={(e) =>
-                setContactFilter(
-                  e.target.value as "all" | "phone" | "email" | "linkedin"
-                )
-              }
-              className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-2 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
-            >
-              <option value="all">Any Contact</option>
-              <option value="phone">Has Phone</option>
-              <option value="email">Has Email</option>
-              <option value="linkedin">Has LinkedIn</option>
-            </select>
+          {/* Mobile Stats */}
+          <div className="mb-3 grid grid-cols-2 gap-2 px-4">
+            <StatCard label="Contactable Leads" value={stats.total} accent="#3B82F6" />
+            <StatCard label="Avg Score" value={stats.avgScore} accent="#34D399" />
+            <StatCard label="Added to Pipeline" value={stats.added} accent="#A855F7" />
+            <StatCard label="Pending Review" value={stats.pending} accent="#F59E0B" />
           </div>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
-            <select
-              value={serviceFilter}
-              onChange={(e) => setServiceFilter(e.target.value)}
-              className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-2 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
-            >
-              {SERVICE_LINE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={scoreFilter}
-              onChange={(e) =>
-                setScoreFilter(e.target.value as "all" | "hot" | "warm" | "cold")
-              }
-              className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-2 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
-            >
-              <option value="all">Any Score</option>
-              <option value="hot">Hot 80+</option>
-              <option value="warm">Warm 60+</option>
-              <option value="cold">Cold</option>
-            </select>
-            <input
-              type="text"
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-              placeholder="Filter by city..."
-              className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
-            />
-            <select
-              value={sortBy}
-              onChange={(e) =>
-                setSortBy(e.target.value as "score" | "newest" | "company")
-              }
-              className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-2 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
-            >
-              <option value="newest">Newest First</option>
-              <option value="score">Highest Score</option>
-              <option value="company">Company A–Z</option>
-            </select>
-          </div>
-        </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto rounded-xl border border-[#2A2A3C] bg-[#111118]">
-          {paginated.length === 0 ? (
-            <p className="py-12 text-center text-sm text-[#9090A8]">
-              No leads match these filters.
-            </p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-[#0A0A0F] text-[11px] uppercase tracking-wider text-[#9090A8]">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium">Company</th>
-                  <th className="px-3 py-2 text-left font-medium">Contact</th>
-                  <th className="px-3 py-2 text-left font-medium">Phone</th>
-                  <th className="px-3 py-2 text-left font-medium">Email</th>
-                  <th className="px-3 py-2 text-center font-medium">LinkedIn</th>
-                  <th className="px-3 py-2 text-left font-medium">AI Insight</th>
-                  <th className="px-3 py-2 text-left font-medium">Score</th>
-                  <th className="px-3 py-2 text-left font-medium">Status</th>
-                  <th className="px-3 py-2 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginated.map((lead) => {
-                  const score = getScoreBadge(lead.score)
-                  const status = statusStyles[lead.status]
-                  return (
-                    <tr
-                      key={lead.id}
-                      className="border-b border-[#2A2A3C]/60 transition hover:bg-[#1A1A24]/60"
+          {/* Mobile Cards */}
+          <div className="space-y-3 px-4 py-3">
+            {paginated.map((lead) => (
+              <div
+                key={lead.id}
+                className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-4 transition-transform active:scale-[0.99]"
+              >
+                {/* Row 1: Company + Industry badge */}
+                <div className="mb-2 flex items-start justify-between">
+                  <div className="mr-2 min-w-0 flex-1">
+                    <p className="text-base font-bold leading-tight text-[#F0F0FA]">
+                      {lead.company_name}
+                    </p>
+                    {lead.website && (
+                      <a
+                        href={lead.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-0.5 block text-xs text-[#3B82F6]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        🔗 {lead.website.replace(/^https?:\/\//, "").replace(/^www\./, "")}
+                      </a>
+                    )}
+                  </div>
+                  {lead.industry && (
+                    <span className="flex-shrink-0 rounded-full bg-[#8B5CF6]/10 px-2.5 py-1 text-[10px] font-medium text-[#8B5CF6]">
+                      {lead.industry}
+                    </span>
+                  )}
+                </div>
+
+                {/* Row 2: City */}
+                {lead.city && (
+                  <p className="mb-3 flex items-center gap-1 text-xs text-[#9090A8]">
+                    <MapPin size={11} />
+                    {lead.city}
+                  </p>
+                )}
+
+                {/* Row 3: Contact person */}
+                {lead.contact_name && (
+                  <div className="mb-3 flex items-center gap-2 rounded-xl bg-[#1A1A24] p-2.5">
+                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#3B82F6] text-xs font-bold text-white">
+                      {lead.contact_name[0]}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-medium text-[#F0F0FA]">
+                        {lead.contact_name}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Row 4: Contact actions */}
+                <div className="flex gap-2">
+                  {lead.phone ? (
+                    <a
+                      href={`tel:${lead.phone}`}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#1A1A24] py-2.5 text-xs font-medium text-[#10B981]"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <td className="px-3 py-3">
-                        <p className="font-medium text-[#F0F0FA]">
-                          {lead.company_name}
-                        </p>
-                        {lead.industry && (
-                          <p className="text-[11px] text-[#9090A8]">
-                            {lead.industry}
-                          </p>
-                        )}
-                        {lead.website && (
-                          <a
-                            href={lead.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[11px] text-[#3B82F6] hover:underline"
-                          >
-                            {lead.website
-                              .replace(/^https?:\/\//, "")
-                              .replace(/^www\./, "")}
-                          </a>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-xs text-[#F0F0FA]">
-                        {lead.contact_name ?? (
-                          <span className="text-[#5A5A72]">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        {lead.phone ? (
-                          <span className="inline-flex items-center gap-1 font-mono text-xs text-[#10B981]">
-                            <Phone size={11} />
-                            {lead.phone}
-                          </span>
-                        ) : (
-                          <span className="text-[#5A5A72]">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        {lead.email ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-[#3B82F6]">
-                            <Mail size={11} />
-                            {lead.email}
-                          </span>
-                        ) : (
-                          <span className="text-[#5A5A72]">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-center">
-                        {lead.linkedin_url ? (
-                          <a
-                            href={lead.linkedin_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[#0A66C2] hover:underline"
-                          >
-                            <ExternalLink size={13} />
-                          </a>
-                        ) : (
-                          <span className="text-[#5A5A72]">—</span>
-                        )}
-                      </td>
-                      {/* AI Insight — 2-line clamp, full text on hover.
-                          Source link tucked underneath when present. */}
-                      <td className="px-3 py-3">
-                        <div
-                          title={lead.ai_insight ?? ""}
-                          className="text-[11px] text-[#9090A8]"
-                          style={{
-                            maxWidth: 220,
-                            overflow: "hidden",
-                            display: "-webkit-box",
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: "vertical",
-                            cursor: lead.ai_insight ? "help" : "default",
-                          }}
-                        >
-                          {lead.ai_insight ?? "—"}
-                        </div>
-                        {lead.source_url && (
-                          <a
-                            href={lead.source_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-1 inline-block text-[10px] text-[#5A5A72] hover:text-[#9090A8] hover:underline"
-                          >
-                            Source ↗
-                          </a>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                          style={{ background: "#1F1F2E", color: "#9090A8" }}
-                        >
-                          {score}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className="rounded-full px-2 py-0.5 text-[11px] font-medium"
-                          style={{
-                            backgroundColor: status.bg,
-                            color: status.color,
-                          }}
-                        >
-                          {status.label}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        <ActionCell
-                          lead={lead}
-                          pending={pendingId === lead.id}
-                          onAdd={() => handleAddToPipeline(lead)}
-                          onSkip={() => handleStatusUpdate(lead, "skipped")}
-                          onRestore={() => handleStatusUpdate(lead, "new")}
-                          onView={() => {
-                            if (lead.pipeline_lead_id) {
-                              setLeadDrawerId(lead.pipeline_lead_id)
-                              router.push("/pipeline")
-                            }
-                          }}
-                        />
-                      </td>
-                    </tr>
+                      <Phone size={13} />
+                      {lead.phone}
+                    </a>
+                  ) : (
+                    <div className="flex flex-1 items-center justify-center rounded-xl bg-[#1A1A24] py-2.5 text-xs text-[#5A5A72]">
+                      No phone
+                    </div>
+                  )}
+                  {lead.email ? (
+                    <a
+                      href={`mailto:${lead.email}`}
+                      className="flex flex-1 items-center justify-center gap-1.5 truncate rounded-xl bg-[#1A1A24] px-2 py-2.5 text-xs font-medium text-[#3B82F6]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Mail size={13} className="flex-shrink-0" />
+                      <span className="truncate">{lead.email}</span>
+                    </a>
+                  ) : (
+                    <div className="flex flex-1 items-center justify-center rounded-xl bg-[#1A1A24] py-2.5 text-xs text-[#5A5A72]">
+                      No email
+                    </div>
+                  )}
+                </div>
+
+                {/* Row 5: Action button */}
+                {lead.status === "new" ? (
+                  <button
+                    type="button"
+                    onClick={() => handleAddToPipeline(lead)}
+                    disabled={pendingId === lead.id}
+                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#3B82F6]/10 py-2.5 text-xs font-medium text-[#3B82F6] active:bg-[#3B82F6]/20 disabled:opacity-50"
+                  >
+                    {pendingId === lead.id ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Plus size={14} />
+                    )}
+                    Import to Pipeline
+                  </button>
+                ) : lead.status === "added" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (lead.pipeline_lead_id) {
+                        setLeadDrawerId(lead.pipeline_lead_id)
+                        router.push("/pipeline")
+                      }
+                    }}
+                    disabled={!lead.pipeline_lead_id}
+                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#34D399]/10 py-2.5 text-xs font-medium text-[#34D399] disabled:opacity-40"
+                  >
+                    View in Pipeline →
+                  </button>
+                ) : null}
+              </div>
+            ))}
+
+            {/* Empty state */}
+            {paginated.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <span className="mb-4 text-5xl">🤖</span>
+                <p className="font-semibold text-[#F0F0FA]">No AI leads yet</p>
+                <p className="mt-1 text-sm text-[#9090A8]">Generate leads using AI above</p>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Pagination */}
+          {filtered.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between px-4 py-3 text-xs text-[#9090A8]">
+              <span>
+                {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of{" "}
+                {filtered.length}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="rounded-lg border border-[#2A2A3C] bg-[#111118] px-3 py-1.5 disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="rounded-lg border border-[#2A2A3C] bg-[#111118] px-3 py-1.5 disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        /* ── Desktop layout (unchanged) ── */
+        <div className="mx-auto max-w-7xl p-6">
+          {/* Header */}
+          <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-[#1E3A5F] text-[#3B82F6]">
+                <Database className="size-5" />
+              </div>
+              <div>
+                <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+                  AI Leads Database
+                </h1>
+                <p className="text-sm text-[#9090A8]">
+                  {stats.total.toLocaleString()} contactable lead
+                  {stats.total === 1 ? "" : "s"} saved
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleClearSkipped}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#7F1D1D]/40 bg-[#2A1215]/40 px-3 py-2 text-xs font-medium text-[#F87171] transition hover:bg-[#2A1215]/70"
+              >
+                <Trash2 className="size-3.5" />
+                Clear Skipped
+              </button>
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#111118] px-3 py-2 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1A1A24]"
+              >
+                <Download className="size-3.5" />
+                Export CSV
+              </button>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <StatCard
+              label="Contactable Leads"
+              value={stats.total}
+              accent="#3B82F6"
+            />
+            <StatCard label="Avg Score" value={stats.avgScore} accent="#34D399" />
+            <StatCard
+              label="Added to Pipeline"
+              value={stats.added}
+              accent="#A855F7"
+            />
+            <StatCard
+              label="Pending Review"
+              value={stats.pending}
+              accent="#F59E0B"
+            />
+          </div>
+
+          {/* Filters */}
+          <div className="mb-4 space-y-2 rounded-xl border border-[#2A2A3C] bg-[#111118] p-3">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search company or contact..."
+                className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+              />
+              <select
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as "all" | LeadStatus)
+                }
+                className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-2 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+              >
+                <option value="all">All Statuses</option>
+                <option value="new">New</option>
+                <option value="added">Added</option>
+                <option value="skipped">Skipped</option>
+                <option value="duplicate">Duplicate</option>
+              </select>
+              <select
+                value={contactFilter}
+                onChange={(e) =>
+                  setContactFilter(
+                    e.target.value as "all" | "phone" | "email" | "linkedin"
                   )
-                })}
-              </tbody>
-            </table>
+                }
+                className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-2 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+              >
+                <option value="all">Any Contact</option>
+                <option value="phone">Has Phone</option>
+                <option value="email">Has Email</option>
+                <option value="linkedin">Has LinkedIn</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
+              <select
+                value={serviceFilter}
+                onChange={(e) => setServiceFilter(e.target.value)}
+                className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-2 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+              >
+                {SERVICE_LINE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={scoreFilter}
+                onChange={(e) =>
+                  setScoreFilter(e.target.value as "all" | "hot" | "warm" | "cold")
+                }
+                className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-2 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+              >
+                <option value="all">Any Score</option>
+                <option value="hot">Hot 80+</option>
+                <option value="warm">Warm 60+</option>
+                <option value="cold">Cold</option>
+              </select>
+              <input
+                type="text"
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+                placeholder="Filter by city..."
+                className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+              />
+              <select
+                value={sortBy}
+                onChange={(e) =>
+                  setSortBy(e.target.value as "score" | "newest" | "company")
+                }
+                className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-2 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+              >
+                <option value="newest">Newest First</option>
+                <option value="score">Highest Score</option>
+                <option value="company">Company A–Z</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto rounded-xl border border-[#2A2A3C] bg-[#111118]">
+            {paginated.length === 0 ? (
+              <p className="py-12 text-center text-sm text-[#9090A8]">
+                No leads match these filters.
+              </p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-[#0A0A0F] text-[11px] uppercase tracking-wider text-[#9090A8]">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium">Company</th>
+                    <th className="px-3 py-2 text-left font-medium">Contact</th>
+                    <th className="px-3 py-2 text-left font-medium">Phone</th>
+                    <th className="px-3 py-2 text-left font-medium">Email</th>
+                    <th className="px-3 py-2 text-center font-medium">LinkedIn</th>
+                    <th className="px-3 py-2 text-left font-medium">AI Insight</th>
+                    <th className="px-3 py-2 text-left font-medium">Score</th>
+                    <th className="px-3 py-2 text-left font-medium">Status</th>
+                    <th className="px-3 py-2 text-right font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.map((lead) => {
+                    const score = getScoreBadge(lead.score)
+                    const status = statusStyles[lead.status]
+                    return (
+                      <tr
+                        key={lead.id}
+                        className="border-b border-[#2A2A3C]/60 transition hover:bg-[#1A1A24]/60"
+                      >
+                        <td className="px-3 py-3">
+                          <p className="font-medium text-[#F0F0FA]">
+                            {lead.company_name}
+                          </p>
+                          {lead.industry && (
+                            <p className="text-[11px] text-[#9090A8]">
+                              {lead.industry}
+                            </p>
+                          )}
+                          {lead.website && (
+                            <a
+                              href={lead.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] text-[#3B82F6] hover:underline"
+                            >
+                              {lead.website
+                                .replace(/^https?:\/\//, "")
+                                .replace(/^www\./, "")}
+                            </a>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-xs text-[#F0F0FA]">
+                          {lead.contact_name ?? (
+                            <span className="text-[#5A5A72]">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          {lead.phone ? (
+                            <span className="inline-flex items-center gap-1 font-mono text-xs text-[#10B981]">
+                              <Phone size={11} />
+                              {lead.phone}
+                            </span>
+                          ) : (
+                            <span className="text-[#5A5A72]">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          {lead.email ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-[#3B82F6]">
+                              <Mail size={11} />
+                              {lead.email}
+                            </span>
+                          ) : (
+                            <span className="text-[#5A5A72]">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          {lead.linkedin_url ? (
+                            <a
+                              href={lead.linkedin_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[#0A66C2] hover:underline"
+                            >
+                              <ExternalLink size={13} />
+                            </a>
+                          ) : (
+                            <span className="text-[#5A5A72]">—</span>
+                          )}
+                        </td>
+                        {/* AI Insight — 2-line clamp, full text on hover.
+                            Source link tucked underneath when present. */}
+                        <td className="px-3 py-3">
+                          <div
+                            title={lead.ai_insight ?? ""}
+                            className="text-[11px] text-[#9090A8]"
+                            style={{
+                              maxWidth: 220,
+                              overflow: "hidden",
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              cursor: lead.ai_insight ? "help" : "default",
+                            }}
+                          >
+                            {lead.ai_insight ?? "—"}
+                          </div>
+                          {lead.source_url && (
+                            <a
+                              href={lead.source_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-1 inline-block text-[10px] text-[#5A5A72] hover:text-[#9090A8] hover:underline"
+                            >
+                              Source ↗
+                            </a>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          <span
+                            className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                            style={{ background: "#1F1F2E", color: "#9090A8" }}
+                          >
+                            {score}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                            style={{
+                              backgroundColor: status.bg,
+                              color: status.color,
+                            }}
+                          >
+                            {status.label}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          <ActionCell
+                            lead={lead}
+                            pending={pendingId === lead.id}
+                            onAdd={() => handleAddToPipeline(lead)}
+                            onSkip={() => handleStatusUpdate(lead, "skipped")}
+                            onRestore={() => handleStatusUpdate(lead, "new")}
+                            onView={() => {
+                              if (lead.pipeline_lead_id) {
+                                setLeadDrawerId(lead.pipeline_lead_id)
+                                router.push("/pipeline")
+                              }
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Pagination */}
+          {filtered.length > 0 && (
+            <div className="mt-4 flex items-center justify-between text-xs text-[#9090A8]">
+              <span>
+                Showing {(page - 1) * PAGE_SIZE + 1}–
+                {Math.min(page * PAGE_SIZE, filtered.length)} of{" "}
+                {filtered.length} lead{filtered.length === 1 ? "" : "s"}
+              </span>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="rounded-md border border-[#2A2A3C] bg-[#0F0F15] px-3 py-1 transition hover:bg-[#1A1A24] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="rounded-md border border-[#2A2A3C] bg-[#0F0F15] px-3 py-1 transition hover:bg-[#1A1A24] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           )}
         </div>
-
-        {/* Pagination */}
-        {filtered.length > 0 && (
-          <div className="mt-4 flex items-center justify-between text-xs text-[#9090A8]">
-            <span>
-              Showing {(page - 1) * PAGE_SIZE + 1}–
-              {Math.min(page * PAGE_SIZE, filtered.length)} of{" "}
-              {filtered.length} lead{filtered.length === 1 ? "" : "s"}
-            </span>
-            <div className="flex gap-1">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="rounded-md border border-[#2A2A3C] bg-[#0F0F15] px-3 py-1 transition hover:bg-[#1A1A24] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Prev
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="rounded-md border border-[#2A2A3C] bg-[#0F0F15] px-3 py-1 transition hover:bg-[#1A1A24] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </main>
   )
 }

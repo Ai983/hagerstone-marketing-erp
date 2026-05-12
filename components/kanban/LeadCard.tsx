@@ -1,6 +1,7 @@
 "use client"
 
-import type { ButtonHTMLAttributes, CSSProperties } from "react"
+import type { ButtonHTMLAttributes, CSSProperties, MouseEvent } from "react"
+import { useRef, useState } from "react"
 import {
   differenceInDays,
   format,
@@ -8,9 +9,18 @@ import {
   isToday,
   isTomorrow,
 } from "date-fns"
-import { Clock, MapPin } from "lucide-react"
+import {
+  ArrowRight,
+  Briefcase,
+  Clock,
+  IndianRupee,
+  MapPin,
+  MessageCircle,
+  Phone,
+} from "lucide-react"
 
 import type { KanbanLead } from "@/lib/hooks/useKanban"
+import type { PipelineStage } from "@/lib/types"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { categoryConfig } from "@/lib/utils/lead-category"
@@ -39,6 +49,211 @@ function getInitials(name?: string | null) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("")
+}
+
+interface MobileLeadCardProps {
+  lead: KanbanLead
+  stages: PipelineStage[]
+  onMoveStage: (leadId: string, stageId: string) => void
+}
+
+export function MobileLeadCard({
+  lead,
+  stages,
+  onMoveStage,
+}: MobileLeadCardProps) {
+  const {
+    setLeadDrawerId,
+    setDrawerActiveTab,
+    setDrawerOpenLogCall,
+  } = useUIStore()
+  const { setSelectedLeadId } = useKanbanStore()
+  const [showStagePicker, setShowStagePicker] = useState(false)
+  const [showCallTip, setShowCallTip] = useState(true)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressTriggered = useRef(false)
+  const currentStage = stages.find((stage) => stage.id === lead.stage_id)
+
+  const openLeadDrawer = (tab: string) => {
+    setSelectedLeadId(lead.id)
+    setLeadDrawerId(lead.id)
+    setDrawerActiveTab(tab)
+  }
+
+  const clearCallTimer = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
+
+  const handleCallPressStart = () => {
+    longPressTriggered.current = false
+    clearCallTimer()
+    longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true
+      if (lead.phone) {
+        window.location.href = `tel:${lead.phone}`
+      }
+      setShowCallTip(false)
+    }, 500)
+  }
+
+  const handleCallPressEnd = () => {
+    clearCallTimer()
+  }
+
+  const handleCallTap = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    clearCallTimer()
+    if (longPressTriggered.current) {
+      longPressTriggered.current = false
+      return
+    }
+    setShowCallTip(false)
+    setDrawerOpenLogCall(true)
+    openLeadDrawer("Overview")
+  }
+
+  const categoryClass =
+    lead.category === "hot"
+      ? "bg-red-500/20 text-red-400"
+      : lead.category === "warm"
+        ? "bg-amber-500/20 text-amber-400"
+        : lead.category === "lukewarm"
+          ? "bg-yellow-500/20 text-yellow-400"
+          : "bg-blue-500/20 text-blue-400"
+  const categoryIcon =
+    lead.category === "hot"
+      ? "Hot"
+      : lead.category === "warm"
+        ? "Warm"
+        : lead.category === "lukewarm"
+          ? "Lukewarm"
+          : "Cold"
+
+  return (
+    <div
+      className="overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118] transition-transform active:scale-[0.99]"
+      onClick={() => setLeadDrawerId(lead.id)}
+    >
+      <div
+        className="h-1 w-full"
+        style={{ backgroundColor: currentStage?.color }}
+      />
+
+      <div className="p-4">
+        <div className="mb-2 flex items-start justify-between">
+          <div className="mr-2 min-w-0 flex-1">
+            <h3 className="truncate text-base font-semibold text-[#F0F0FA]">
+              {lead.full_name}
+            </h3>
+            {lead.company_name && (
+              <p className="mt-0.5 truncate text-xs text-[#9090A8]">
+                {lead.company_name}
+              </p>
+            )}
+          </div>
+          {lead.category && (
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${categoryClass}`}
+            >
+              {categoryIcon}
+            </span>
+          )}
+        </div>
+
+        <div className="mb-3 flex flex-wrap gap-2">
+          {lead.city && (
+            <span className="flex items-center gap-1 text-xs text-[#9090A8]">
+              <MapPin size={11} />
+              {lead.city}
+            </span>
+          )}
+          {lead.service_line && (
+            <span className="flex items-center gap-1 text-xs text-[#9090A8]">
+              <Briefcase size={11} />
+              {lead.service_line.replace(/_/g, " ")}
+            </span>
+          )}
+          {lead.estimated_budget && (
+            <span className="flex items-center gap-1 text-xs text-[#9090A8]">
+              <IndianRupee size={11} />
+              {lead.estimated_budget}
+            </span>
+          )}
+        </div>
+
+        <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
+          <button
+            type="button"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#1A1A24] py-2.5 text-xs font-medium text-[#10B981] active:bg-[#10B981]/20"
+            onMouseDown={handleCallPressStart}
+            onMouseUp={handleCallPressEnd}
+            onMouseLeave={handleCallPressEnd}
+            onTouchStart={handleCallPressStart}
+            onTouchEnd={handleCallPressEnd}
+            onClick={handleCallTap}
+          >
+            <Phone size={13} />
+            Call
+          </button>
+
+          <button
+            type="button"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#1A1A24] py-2.5 text-xs font-medium text-[#25D366] active:bg-[#25D366]/20"
+            onClick={(event) => {
+              event.stopPropagation()
+              openLeadDrawer("WhatsApp")
+            }}
+          >
+            <MessageCircle size={13} />
+            WhatsApp
+          </button>
+
+          <button
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#3B82F6]/10 py-2.5 text-xs font-medium text-[#3B82F6] active:bg-[#3B82F6]/20"
+            onClick={(event) => {
+              event.stopPropagation()
+              setShowStagePicker((open) => !open)
+            }}
+          >
+            <ArrowRight size={13} />
+            Move
+          </button>
+        </div>
+
+        {showCallTip && (
+          <p className="mt-2 text-[10px] text-[#5A5A72]">
+            Tip: Long press Call to dial directly
+          </p>
+        )}
+
+        {showStagePicker && (
+          <div
+            className="mt-3 flex gap-2 overflow-x-auto"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {stages
+              .filter((stage) => stage.id !== lead.stage_id)
+              .map((stage) => (
+                <button
+                  key={stage.id}
+                  onClick={() => {
+                    setShowStagePicker(false)
+                    onMoveStage(lead.id, stage.id)
+                  }}
+                  className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium text-white"
+                  style={{ backgroundColor: stage.color }}
+                >
+                  {stage.name}
+                </button>
+              ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function getStageAgeStyles(days: number) {

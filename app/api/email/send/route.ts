@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { createClient } from "@/lib/supabase/server"
+import { wrapInEmailTemplate } from "@/lib/utils/email-content"
 import { renderTemplate, sendEmail } from "@/lib/utils/resend"
 
 export async function POST(request: NextRequest) {
@@ -55,12 +56,15 @@ export async function POST(request: NextRequest) {
       visit_date: "",
     }
     const renderedHtml = renderTemplate(html, variables)
+    const finalHtml = renderedHtml.includes("Hagerstone International")
+      ? renderedHtml
+      : wrapInEmailTemplate(renderedHtml)
     const renderedSubject = renderTemplate(subject, variables)
 
     const email = await sendEmail({
       to: toEmail,
       subject: renderedSubject,
-      html: renderedHtml,
+      html: finalHtml,
       replyTo: profile?.email ?? user.email ?? undefined,
       leadId,
       sentBy: user.id,
@@ -77,7 +81,7 @@ export async function POST(request: NextRequest) {
         to_email: toEmail,
         from_email: process.env.EMAIL_FROM!,
         subject: renderedSubject,
-        body_html: renderedHtml,
+        body_html: finalHtml,
         status: "sent",
       })
       .select("id")

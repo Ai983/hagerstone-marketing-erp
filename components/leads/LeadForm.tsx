@@ -1,9 +1,8 @@
 "use client"
 
-import Link from "next/link"
 import { useMemo, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { AlertTriangle, Loader2 } from "lucide-react"
+import { AlertTriangle, ArrowLeft, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -84,14 +83,14 @@ const leadFormSchema = z.object({
 type LeadFormValues = z.infer<typeof leadFormSchema>
 type LeadFormInput = z.input<typeof leadFormSchema>
 
-const sectionClasses = "rounded-xl border border-[#2A2A3C] bg-[#111118] p-6"
+const sectionClasses = "rounded-xl border border-[#2A2A3C] bg-[#111118] p-4 md:p-6"
 const labelClasses =
   "mb-2 block text-[12px] uppercase tracking-[0.05em] text-[#9090A8]"
 const inputClasses =
-  "h-10 w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
+  "w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-4 py-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 md:px-3 md:text-sm"
 const selectClasses = inputClasses
 const textareaClasses =
-  "w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
+  "w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-4 py-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 md:px-3 md:text-sm"
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
@@ -113,6 +112,7 @@ interface LeadFormProps {
 
 export function LeadForm({ onSuccess }: LeadFormProps = {}) {
   const router = useRouter()
+  const isStandalone = !onSuccess
   const { createLead, checkDuplicate, getStageBySlug } = useLeads()
   const [formError, setFormError] = useState<string | null>(null)
   const [duplicateLead, setDuplicateLead] = useState<DuplicateLeadMatch | null>(null)
@@ -239,24 +239,32 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8 sm:px-8">
-      <Link
-        href="/leads"
-        className="inline-flex items-center text-sm text-[#9090A8] transition hover:text-[#F0F0FA]"
+    <div className={cn("mx-auto max-w-5xl", isStandalone ? "pb-28 md:pb-0" : "")}>
+      {isStandalone ? (
+        <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-[#2A2A3C] bg-[#0A0A0F] px-4 py-3 md:static md:mb-8 md:block md:border-b-0 md:bg-transparent md:px-6 md:py-8 lg:px-8">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="rounded-lg bg-[#1A1A24] p-2 text-[#9090A8] md:hidden"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="size-4" />
+          </button>
+          <div>
+            <h1 className="text-base font-bold text-[#F0F0FA] md:font-heading md:text-4xl md:font-semibold md:tracking-tight">
+              Add New Lead
+            </h1>
+            <p className="mt-2 hidden text-sm text-[#9090A8] md:block">
+              Add a lead manually to start tracking it in the pipeline.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className={cn("space-y-4 px-4 py-4 md:space-y-6 md:px-6 lg:px-8", onSuccess && "px-0 py-0")}
       >
-        ← All Leads
-      </Link>
-
-      <div className="mt-4 mb-8">
-        <h1 className="font-heading text-4xl font-semibold tracking-tight text-[#F0F0FA]">
-          New Lead
-        </h1>
-        <p className="mt-2 text-sm text-[#9090A8]">
-          Add a lead manually to start tracking it in the pipeline.
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {duplicateSummary ? (
           <div className="rounded-xl border border-[#7C4A15] bg-[#2A1B0D] p-4">
             <div className="flex items-start gap-3">
@@ -469,11 +477,17 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
           </div>
         </section>
 
-        <div className="flex justify-stretch sm:justify-end">
+        <div
+          className={cn(
+            "flex justify-stretch sm:justify-end",
+            isStandalone &&
+              "fixed bottom-0 left-0 right-0 z-20 border-t border-[#2A2A3C] bg-[#0A0A0F] p-4 md:relative md:border-0 md:bg-transparent md:p-0"
+          )}
+        >
           <button
             type="submit"
             disabled={isSubmittingLead}
-            className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#3B82F6] px-5 text-sm font-medium text-white transition hover:bg-[#2563EB] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-[#3B82F6] px-5 py-3.5 text-base font-semibold text-white transition hover:bg-[#2563EB] disabled:cursor-not-allowed disabled:opacity-70 md:w-auto md:rounded-lg md:py-2.5 md:text-sm"
           >
             {isSubmittingLead ? (
               <>

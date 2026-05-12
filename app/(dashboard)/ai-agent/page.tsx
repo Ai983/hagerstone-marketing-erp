@@ -109,7 +109,7 @@ function LeadPicker({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-2 text-left text-sm text-[#F0F0FA] transition hover:bg-[#1F1F2E]"
+        className="flex w-full items-center gap-2 rounded-xl border border-[#2A2A3C] bg-[#1A1A24] px-4 py-3 text-left text-base text-[#F0F0FA] transition hover:bg-[#1F1F2E] md:rounded-lg md:px-3 md:py-2 md:text-sm"
       >
         <User className="size-4 text-[#9090A8]" />
         {value ? (
@@ -137,7 +137,7 @@ function LeadPicker({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name or company…"
               autoFocus
-              className="w-full bg-transparent text-xs text-[#F0F0FA] placeholder-[#9090A8] outline-none"
+              className="w-full bg-transparent text-base text-[#F0F0FA] placeholder-[#9090A8] outline-none md:text-xs"
             />
           </div>
           <div className="thin-scrollbar max-h-64 overflow-y-auto">
@@ -305,19 +305,19 @@ export default function AIAgentPage() {
   }
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] pb-20 md:p-6 md:pb-6">
       <div className="mx-auto max-w-5xl">
         {/* Header */}
-        <div className="mb-6">
+        <div className="px-4 py-4 md:mb-6 md:px-0 md:py-0">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-[#1E3A5F] text-[#3B82F6]">
+            <div className="hidden size-10 items-center justify-center rounded-lg bg-[#1E3A5F] text-[#3B82F6] md:flex">
               <Sparkles className="size-5" />
             </div>
             <div>
-              <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+              <h1 className="text-xl font-bold text-[#F0F0FA] md:font-[family-name:var(--font-heading)] md:text-2xl md:font-semibold">
                 AI Agent
               </h1>
-              <p className="text-sm text-[#9090A8]">
+              <p className="mt-1 text-xs text-[#9090A8] md:mt-0 md:text-sm">
                 Pipeline intelligence, lead recaps, and message drafting — powered by Claude.
               </p>
             </div>
@@ -337,7 +337,7 @@ export default function AIAgentPage() {
           </div>
         )}
 
-        <div className="space-y-5">
+        <div className="space-y-4 px-4 md:space-y-5 md:px-0">
           {/* ── Section 1: Pipeline Intelligence ──────────────────── */}
           <AIAgentPanel
             number={1}

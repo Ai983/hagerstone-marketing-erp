@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { Inbox, Loader2, UserPlus, Check, Shield } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { useUIStore } from "@/lib/stores/uiStore"
 import type { LeadSource, Profile, ServiceLine } from "@/lib/types"
@@ -60,6 +61,7 @@ function formatLabel(value: string) {
 export default function InboxPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const isMobile = useMediaQuery("(max-width: 768px)")
   const { setLeadDrawerId } = useUIStore()
   const [pendingAssignId, setPendingAssignId] = useState<string | null>(null)
   const [selections, setSelections] = useState<Record<string, string>>({})
@@ -131,19 +133,19 @@ export default function InboxPage() {
   const team = data.team
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] pb-20 md:p-6 md:pb-0">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
-        <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="px-4 py-4 md:mb-5 md:px-0 md:py-0">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-[#1E3A5F] text-[#3B82F6]">
+            <div className="hidden size-10 items-center justify-center rounded-lg bg-[#1E3A5F] text-[#3B82F6] md:flex">
               <Inbox className="size-5" />
             </div>
             <div>
-              <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+              <h1 className="text-xl font-bold text-[#F0F0FA] md:font-[family-name:var(--font-heading)] md:text-2xl md:font-semibold">
                 Lead Inbox
               </h1>
-              <p className="text-sm text-[#9090A8]">
+              <p className="mt-1 text-xs text-[#9090A8] md:mt-0 md:text-sm">
                 {leads.length} unassigned lead{leads.length === 1 ? "" : "s"}
               </p>
             </div>
@@ -151,6 +153,79 @@ export default function InboxPage() {
         </div>
 
         {/* Table */}
+        {isMobile ? (
+          <div className="space-y-3 px-4">
+            {leads.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-[#2A2A3C] bg-[#111118] py-20 text-center">
+                <Check className="mb-3 size-10 text-[#34D399]" />
+                <p className="text-sm font-medium text-[#F0F0FA]">Inbox zero</p>
+                <p className="mt-1 text-xs text-[#9090A8]">All leads are assigned to a rep.</p>
+              </div>
+            ) : (
+              leads.map((lead) => (
+                <div
+                  key={lead.id}
+                  className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-4"
+                >
+                  <div className="mb-2 flex items-start justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setLeadDrawerId(lead.id)}
+                      className="min-w-0 text-left"
+                    >
+                      <p className="truncate text-base font-semibold text-[#F0F0FA]">
+                        {lead.full_name}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-[#9090A8]">
+                        {lead.company_name || "No company"}
+                      </p>
+                    </button>
+                    <span className="flex-shrink-0 rounded-lg bg-[#1A1A24] px-2 py-1 text-[10px] text-[#9090A8]">
+                      {formatLabel(lead.source)}
+                    </span>
+                  </div>
+                  <div className="mb-3 flex flex-wrap gap-3 text-xs text-[#9090A8]">
+                    <span>{lead.city || "No city"}</span>
+                    <span>{lead.service_line ? formatLabel(lead.service_line) : "No service"}</span>
+                    <span>{formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}</span>
+                  </div>
+                  <div className="grid gap-2">
+                    <select
+                      value={selections[lead.id] ?? ""}
+                      onChange={(event) =>
+                        setSelections((prev) => ({ ...prev, [lead.id]: event.target.value }))
+                      }
+                      className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+                    >
+                      <option value="">Select rep...</option>
+                      {team.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.full_name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => handleAssign(lead.id)}
+                      disabled={pendingAssignId === lead.id || !selections[lead.id]}
+                      className={cn(
+                        "flex w-full items-center justify-center gap-2 rounded-xl bg-[#3B82F6]/10 py-2.5 text-sm font-medium text-[#3B82F6]",
+                        (pendingAssignId === lead.id || !selections[lead.id]) && "opacity-50"
+                      )}
+                    >
+                      {pendingAssignId === lead.id ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <UserPlus className="size-4" />
+                      )}
+                      Assign to Rep
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        ) : (
         <div className="overflow-x-auto rounded-xl border border-[#2A2A3C] bg-[#111118]">
           {leads.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -248,6 +323,7 @@ export default function InboxPage() {
             </table>
           )}
         </div>
+        )}
       </div>
     </main>
   )

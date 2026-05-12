@@ -22,7 +22,7 @@ export function AIAgentPanel({
   children,
 }: AIAgentPanelProps) {
   return (
-    <section className="rounded-xl border border-[#2A2A3C] bg-[#0F0F15] p-5">
+    <section className="rounded-xl border border-[#2A2A3C] bg-[#0F0F15] p-4 md:p-5">
       <header className="mb-4 flex items-center gap-3">
         <span className="flex size-8 items-center justify-center rounded-lg bg-[#1E3A5F] text-xs font-semibold text-[#3B82F6]">
           {number}

@@ -30,14 +30,16 @@ import {
   Trophy,
   Plus,
   UserCircle,
-  ChevronRight,
   FileText,
   FileSpreadsheet,
   Upload,
   Download,
+  Code2,
+  CaseSensitive,
 } from "lucide-react"
 
 import { useUIStore } from "@/lib/stores/uiStore"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { useActivities } from "@/lib/hooks/useActivities"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { createClient } from "@/lib/supabase/client"
@@ -46,6 +48,7 @@ import { WhatsAppChatView } from "@/components/leads/WhatsAppChatView"
 import { LogCallModal } from "@/components/leads/LogCallModal"
 import { ScheduleFollowUpModal } from "@/components/leads/ScheduleFollowUpModal"
 import { SendWhatsAppModal } from "@/components/leads/SendWhatsAppModal"
+import { RichTextEditor } from "@/components/email/RichTextEditor"
 import { VideoInsertPanel } from "@/components/email/VideoInsertPanel"
 import { ReassignPopover } from "@/components/leads/ReassignPopover"
 import { StagePickerPopover } from "@/components/leads/StagePickerPopover"
@@ -56,6 +59,7 @@ import type { Lead, PipelineStage, PriceRevision, Profile, UserRole } from "@/li
 import type { KanbanLead } from "@/lib/hooks/useKanban"
 import type { TimelineInteraction } from "@/lib/hooks/useActivities"
 import { cn } from "@/lib/utils"
+import { plainTextToEmailHtml, type EmailEditorMode } from "@/lib/utils/email-content"
 
 const PRIVILEGED_ROLES = new Set<UserRole>(["admin", "manager", "founder"])
 
@@ -172,7 +176,7 @@ function LeadDrawerSkeleton() {
       {/* Quick actions */}
       <div className="border-t border-[#2A2A3C] p-4">
         <div className="mb-3 h-3 w-24 rounded bg-[#1A1A24]" />
-        <div className="grid grid-cols-2 gap-2">
+        <div className="mt-4 grid grid-cols-2 gap-2 md:flex md:gap-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-10 rounded-lg bg-[#1A1A24]" />
           ))}
@@ -1869,9 +1873,12 @@ function OverviewTab({
             <button
               key={label}
               onClick={action}
-              className="flex items-center gap-2 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-2 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1F1F2E]"
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-xl border border-[#2A2A3C] bg-[#1A1A24] px-3 py-3 text-sm font-medium text-[#F0F0FA] transition hover:bg-[#1F1F2E] md:py-2 md:text-xs",
+                label === "Send WhatsApp" && "bg-[#25D366]/10 text-[#25D366]"
+              )}
             >
-              <Icon className="size-3.5 text-[#9090A8]" />
+              <Icon className={cn("size-3.5 text-[#9090A8]", label === "Send WhatsApp" && "text-[#25D366]")} />
               {label}
             </button>
           ))}
@@ -1915,6 +1922,39 @@ function renderEmailTemplate(html: string, variables: Record<string, string>) {
   return rendered
 }
 
+function EmailModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: EmailEditorMode
+  onChange: (mode: EmailEditorMode) => void
+}) {
+  const options: { value: EmailEditorMode; label: string; icon: typeof Pencil }[] = [
+    { value: "rich", label: "Rich", icon: Pencil },
+    { value: "html", label: "HTML", icon: Code2 },
+    { value: "plain", label: "Plain", icon: CaseSensitive },
+  ]
+
+  return (
+    <div className="inline-flex rounded-lg border border-[#2A2A3C] bg-[#1A1A24] p-1">
+      {options.map(({ value, label, icon: Icon }) => (
+        <button
+          key={value}
+          type="button"
+          onClick={() => onChange(value)}
+          className={cn(
+            "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-[#9090A8] transition hover:text-[#F0F0FA]",
+            mode === value && "bg-[#3B82F6] text-white hover:text-white"
+          )}
+        >
+          <Icon className="size-3.5" />
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function EmailTab({
   lead,
   currentProfile,
@@ -1929,6 +1969,7 @@ function EmailTab({
   const [selectedTemplateId, setSelectedTemplateId] = useState("")
   const [subject, setSubject] = useState("")
   const [bodyHtml, setBodyHtml] = useState("")
+  const [editorMode, setEditorMode] = useState<EmailEditorMode>("rich")
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [isVideoPanelOpen, setIsVideoPanelOpen] = useState(false)
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
@@ -1940,6 +1981,7 @@ function EmailTab({
     setSelectedTemplateId("")
     setSubject("")
     setBodyHtml("")
+    setEditorMode("rich")
     setIsVideoPanelOpen(false)
     setExpandedLogId(null)
   }, [lead.id, lead.email])
@@ -1982,7 +2024,8 @@ function EmailTab({
 
   const selectedTemplate = templatesQuery.data?.find((t) => t.id === selectedTemplateId)
   const renderedSubject = renderEmailTemplate(subject, variables)
-  const renderedBody = renderEmailTemplate(bodyHtml, variables)
+  const emailBodyHtml = editorMode === "plain" ? plainTextToEmailHtml(bodyHtml) : bodyHtml
+  const renderedBody = renderEmailTemplate(emailBodyHtml, variables)
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplateId(templateId)
@@ -1990,6 +2033,7 @@ function EmailTab({
     if (template) {
       setSubject(template.subject)
       setBodyHtml(template.body_html)
+      setEditorMode("rich")
     }
   }
 
@@ -2138,8 +2182,11 @@ function EmailTab({
               />
             </label>
 
-            <label>
-              <span className="mb-1 block text-[11px] font-medium uppercase text-[#9090A8]">Body</span>
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span className="block text-[11px] font-medium uppercase text-[#9090A8]">Body</span>
+                <EmailModeToggle mode={editorMode} onChange={setEditorMode} />
+              </div>
               <div className="mb-2 flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -2177,17 +2224,25 @@ function EmailTab({
                   />
                 </div>
               )}
-              <textarea
-                value={bodyHtml}
-                onChange={(e) => setBodyHtml(e.target.value)}
-                rows={8}
-                placeholder="<p>Hi {{lead_name}},</p>"
-                className="w-full resize-y rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
-              />
+              {editorMode === "rich" ? (
+                <RichTextEditor
+                  content={bodyHtml}
+                  onChange={setBodyHtml}
+                  placeholder="Hi {{lead_name}},"
+                />
+              ) : (
+                <textarea
+                  value={bodyHtml}
+                  onChange={(e) => setBodyHtml(e.target.value)}
+                  rows={editorMode === "plain" ? 8 : 10}
+                  placeholder={editorMode === "plain" ? "Hi {{lead_name}}," : "<p>Hi {{lead_name}},</p>"}
+                  className="w-full resize-y rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+                />
+              )}
               <span className="mt-1 block text-[11px] text-[#9090A8]">
                 Available: {"{{lead_name}}"}, {"{{rep_name}}"}, {"{{company_name}}"}, {"{{service_line}}"}, {"{{city}}"}
               </span>
-            </label>
+            </div>
           </div>
 
           <div className="mt-4 flex justify-end gap-2">
@@ -2847,7 +2902,14 @@ function AITab({ lead }: { lead: Lead }) {
 // ── Main Drawer ─────────────────────────────────────────────────────
 
 export function LeadDrawer() {
-  const { leadDrawerId, setLeadDrawerId } = useUIStore()
+  const {
+    leadDrawerId,
+    setLeadDrawerId,
+    drawerActiveTab,
+    setDrawerActiveTab,
+    drawerOpenLogCall,
+    setDrawerOpenLogCall,
+  } = useUIStore()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<TabName>("Overview")
   const [lastWhatsAppViewedAt, setLastWhatsAppViewedAt] = useState<string | null>(
@@ -2908,6 +2970,20 @@ export function LeadDrawer() {
       setPendingToStage(null)
     }
   }, [leadDrawerId])
+
+  useEffect(() => {
+    if (!drawerActiveTab) return
+    if (tabs.includes(drawerActiveTab as TabName)) {
+      setActiveTab(drawerActiveTab as TabName)
+    }
+    setDrawerActiveTab(null)
+  }, [drawerActiveTab, setDrawerActiveTab])
+
+  useEffect(() => {
+    if (!drawerOpenLogCall || !leadDrawerId) return
+    setShowLogCall(true)
+    setDrawerOpenLogCall(false)
+  }, [drawerOpenLogCall, leadDrawerId, setDrawerOpenLogCall])
 
   useEffect(() => {
     if (activeTab === "WhatsApp") {
@@ -3198,21 +3274,17 @@ export function LeadDrawer() {
     }
   }, [lead])
 
-  // Detect viewport once on mount + on resize so drawer slides from
-  // the bottom on phones and from the right on tablet/desktop.
-  const [isMobile, setIsMobile] = useState(false)
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const mq = window.matchMedia("(max-width: 767px)")
-    const update = () => setIsMobile(mq.matches)
-    update()
-    mq.addEventListener("change", update)
-    return () => mq.removeEventListener("change", update)
-  }, [])
+  const isMobile = useMediaQuery("(max-width: 768px)")
 
-  const drawerInitial = isMobile ? { y: "100%" } : { x: "100%" }
-  const drawerAnimate = isMobile ? { y: 0 } : { x: 0 }
-  const drawerExit = isMobile ? { y: "100%" } : { x: "100%" }
+  const drawerInitial = {
+    x: isMobile ? 0 : "100%",
+    y: isMobile ? "100%" : 0,
+  }
+  const drawerAnimate = { x: 0, y: 0 }
+  const drawerExit = {
+    x: isMobile ? 0 : "100%",
+    y: isMobile ? "100%" : 0,
+  }
 
   return (
     <>
@@ -3239,40 +3311,32 @@ export function LeadDrawer() {
               initial={drawerInitial}
               animate={drawerAnimate}
               exit={drawerExit}
-              transition={{ duration: 0.25, ease: "easeOut" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               className={cn(
-                "fixed z-50 flex w-full flex-col border-[#2A2A3C] bg-[#111118] shadow-2xl",
-                // Phone: bottom sheet
-                "inset-x-0 bottom-0 h-[90vh] rounded-t-2xl border-t",
-                // Tablet+: right-anchored, full height below topbar
-                "md:inset-x-auto md:bottom-0 md:right-0 md:top-14 md:h-auto md:rounded-none md:border-l md:border-t-0",
-                // Desktop: capped at 480px
-                "lg:w-[480px]"
+                "fixed z-40 flex flex-col bg-[#111118]",
+                isMobile
+                  ? "bottom-0 left-0 right-0 rounded-t-2xl border-x border-t border-[#2A2A3C]"
+                  : "bottom-0 right-0 top-[56px] w-[480px] border-l border-[#2A2A3C]"
               )}
+              style={{ height: isMobile ? "92vh" : undefined }}
             >
               {/* Mobile-only drag handle */}
-              <div className="flex justify-center pt-2 md:hidden">
-                <span className="block h-1 w-10 rounded-full bg-[#3A3A52]" />
-              </div>
+              {isMobile && (
+                <div className="flex shrink-0 justify-center pb-1 pt-3">
+                  <div className="h-1 w-10 rounded-full bg-[#3A3A52]" />
+                </div>
+              )}
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-[#2A2A3C] px-4 py-3">
-                <div className="min-w-0 flex-1">
+              <div className="flex shrink-0 items-center justify-between border-b border-[#2A2A3C] px-4 py-3">
+                <div className="mr-3 min-w-0 flex-1">
                   {lead ? (
                     <>
-                      <h2 className="truncate font-[family-name:var(--font-heading)] text-base font-semibold text-[#F0F0FA]">
+                      <h2 className="truncate text-base font-bold text-[#F0F0FA]">
                         {lead.full_name}
                       </h2>
-                      <div className="mt-0.5 flex items-center gap-2">
-                        <span className="truncate text-xs text-[#9090A8]">
-                          {lead.company_name || "No company"}
-                        </span>
-                        {lead.stage && (
-                          <>
-                            <ChevronRight className="size-3 text-[#9090A8]" />
-                            <StageBadge name={lead.stage.name} color={lead.stage.color} />
-                          </>
-                        )}
-                      </div>
+                      <p className="truncate text-xs text-[#9090A8]">
+                        {lead.company_name || "No company"}
+                      </p>
                     </>
                   ) : (
                     <>
@@ -3281,26 +3345,34 @@ export function LeadDrawer() {
                     </>
                   )}
                 </div>
+                {lead?.stage && (
+                  <div
+                    className="mr-2 shrink-0 rounded-full px-2 py-1 text-[10px] font-medium text-white"
+                    style={{ backgroundColor: lead.stage.color }}
+                  >
+                    {lead.stage.name}
+                  </div>
+                )}
                 <button
                   onClick={close}
-                  className="ml-2 shrink-0 rounded-lg p-1.5 text-[#9090A8] transition hover:bg-[#1A1A24] hover:text-[#F0F0FA]"
+                  className="shrink-0 rounded-lg p-2 text-[#9090A8] transition hover:bg-[#1A1A24] hover:text-[#F0F0FA]"
                 >
-                  <X className="size-5" />
+                  <X size={18} />
                 </button>
               </div>
 
               {/* Tab bar — animated underline via layoutId. On phones,
                   scrolls horizontally if the tabs overflow. */}
-              <div className="thin-scrollbar flex overflow-x-auto border-b border-[#2A2A3C]">
+              <div className="thin-scrollbar flex shrink-0 overflow-x-auto border-b border-[#2A2A3C]">
                 {tabs.map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={cn(
-                      "relative shrink-0 flex-1 px-2 py-2.5 text-xs font-medium transition md:shrink",
+                      "relative shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition",
                       activeTab === tab
-                        ? "text-[#3B82F6]"
-                        : "text-[#9090A8] hover:text-[#F0F0FA]"
+                        ? "border-[#3B82F6] text-[#3B82F6]"
+                        : "border-transparent text-[#9090A8] hover:text-[#F0F0FA]"
                     )}
                     >
                     <span className="inline-flex items-center gap-1.5">
@@ -3332,7 +3404,7 @@ export function LeadDrawer() {
               </div>
 
               {/* Tab content — AnimatePresence swap on tab change */}
-              <div className="flex flex-1 flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto overscroll-contain">
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div
                     key={activeTab}
@@ -3340,7 +3412,7 @@ export function LeadDrawer() {
                     initial="initial"
                     animate="animate"
                     exit="exit"
-                    className="flex flex-1 flex-col overflow-hidden"
+                    className="flex min-h-full flex-col"
                   >
                     {activeTab === "Overview" &&
                       (lead ? (

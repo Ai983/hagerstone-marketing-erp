@@ -6,6 +6,7 @@ import { Bell, Menu, Plus, Search, Upload } from "lucide-react"
 
 import { LeadSearchModal } from "@/components/dashboard/LeadSearchModal"
 import { NotificationCenter } from "@/components/dashboard/NotificationCenter"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { useNotifications } from "@/lib/hooks/useNotifications"
 import { useUIStore } from "@/lib/stores/uiStore"
 
@@ -53,6 +54,7 @@ function getPageTitle(pathname: string) {
 export function TopBar({ fullName, role }: TopBarProps) {
   const pathname = usePathname()
   const title = useMemo(() => getPageTitle(pathname), [pathname])
+  const isMobile = useMediaQuery("(max-width: 768px)")
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isMac, setIsMac] = useState(false)
@@ -60,7 +62,7 @@ export function TopBar({ fullName, role }: TopBarProps) {
   const { unreadCount } = useNotifications()
   const openNewLeadModal = useUIStore((s) => s.openNewLeadModal)
   const openBulkImportModal = useUIStore((s) => s.openBulkImportModal)
-  const toggleMobileNav = useUIStore((s) => s.toggleMobileNav)
+  const setMobileSidebarOpen = useUIStore((s) => s.setMobileSidebarOpen)
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -94,30 +96,18 @@ export function TopBar({ fullName, role }: TopBarProps) {
   return (
     <header className="h-14 border-b border-[#2A2A3C] bg-[#111118]">
       <div className="flex h-full items-center gap-2 px-3 sm:gap-4 sm:px-6">
-        {/* Mobile: hamburger + logo. Desktop: page title. */}
         <button
           type="button"
-          onClick={toggleMobileNav}
+          onClick={() => setMobileSidebarOpen(true)}
           aria-label="Open menu"
-          className="flex size-10 shrink-0 items-center justify-center rounded-lg text-[#F0F0FA] transition hover:bg-[#1A1A24] lg:hidden"
+          className="mr-2 flex size-11 shrink-0 items-center justify-center rounded-lg text-[#9090A8] transition hover:bg-[#1A1A24] hover:text-[#F0F0FA] md:hidden"
         >
-          <Menu className="size-5" />
+          <Menu size={22} />
         </button>
 
-        {/* Mobile-only logo (sm and md). Hidden on lg where the sidebar carries it. */}
-        <div className="flex shrink-0 items-center lg:hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo.png"
-            alt="Hagerstone"
-            style={{
-              width: "32px",
-              height: "32px",
-              objectFit: "cover",
-              objectPosition: "left center",
-            }}
-          />
-        </div>
+        <span className="text-sm font-semibold text-[#F0F0FA] md:hidden">
+          {isMobile ? title : ""}
+        </span>
 
         {/* Page title — hidden on phone, visible on tablet + desktop */}
         <div className="hidden shrink-0 md:block">
@@ -127,7 +117,7 @@ export function TopBar({ fullName, role }: TopBarProps) {
         </div>
 
         {/* Search — full button on tablet+, icon-only on phone */}
-        <div className="ml-auto flex flex-1 justify-end md:ml-0 md:justify-center">
+        <div className="ml-auto hidden flex-1 justify-end md:ml-0 md:flex md:justify-center">
           <button
             type="button"
             onClick={() => setIsSearchOpen(true)}
@@ -139,15 +129,6 @@ export function TopBar({ fullName, role }: TopBarProps) {
             <kbd className="hidden shrink-0 rounded border border-[#2A2A3C] bg-[#111118] px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#9090A8] lg:inline-block">
               {isMac ? "⌘K" : "Ctrl+K"}
             </kbd>
-          </button>
-          {/* Phone search icon */}
-          <button
-            type="button"
-            onClick={() => setIsSearchOpen(true)}
-            aria-label="Search leads"
-            className="flex size-10 items-center justify-center rounded-lg text-[#9090A8] transition hover:bg-[#1A1A24] hover:text-[#F0F0FA] md:hidden"
-          >
-            <Search className="size-5" />
           </button>
         </div>
 
@@ -169,18 +150,17 @@ export function TopBar({ fullName, role }: TopBarProps) {
             onClick={() => openNewLeadModal()}
             aria-label="New lead"
             title="New lead"
-            className="inline-flex h-10 items-center justify-center rounded-lg bg-[#3B82F6] px-2.5 text-sm font-medium text-white transition hover:bg-[#2563EB] md:h-9 md:px-3"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-[#3B82F6] px-2.5 text-sm font-medium text-white transition hover:bg-[#2563EB] md:min-h-9 md:px-3"
           >
-            <Plus className="size-4 md:hidden" />
-            <span className="hidden md:inline lg:hidden">+ Lead</span>
-            <span className="hidden lg:inline">+ New Lead</span>
+            <Plus size={18} />
+            <span className="ml-1 hidden md:inline">New Lead</span>
           </button>
 
           <div className="relative" ref={notificationRef}>
             <button
               type="button"
               onClick={() => setIsNotificationsOpen((open) => !open)}
-              className="relative flex size-10 items-center justify-center rounded-lg border border-[#2A2A3C] bg-[#111118] text-[#9090A8] transition hover:bg-[#1A1A24] hover:text-[#F0F0FA] md:size-9"
+              className="relative flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-[#2A2A3C] bg-[#111118] p-2.5 text-[#9090A8] transition hover:bg-[#1A1A24] hover:text-[#F0F0FA] md:min-h-9 md:min-w-9"
               aria-label="Toggle notifications"
             >
               <Bell className="size-4" />
@@ -197,7 +177,7 @@ export function TopBar({ fullName, role }: TopBarProps) {
           </div>
 
           <div className="group relative">
-            <div className="flex size-9 items-center justify-center rounded-full bg-[#1E3A5F] text-sm font-semibold text-[#3B82F6]">
+            <div className="flex size-11 items-center justify-center rounded-full bg-[#1E3A5F] text-sm font-semibold text-[#3B82F6] md:size-9">
               {getInitials(fullName)}
             </div>
             <div className="pointer-events-none absolute right-0 top-11 hidden w-max rounded-lg border border-[#2A2A3C] bg-[#111118] px-3 py-2 text-left opacity-0 transition group-hover:opacity-100 md:block">

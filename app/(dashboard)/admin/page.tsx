@@ -7,6 +7,9 @@ import {
   Users,
   Workflow,
   Plug,
+  Mail,
+  MessageSquare,
+  ClipboardList,
   Database,
   ChevronRight,
   Trash2,
@@ -22,26 +25,51 @@ const sections = [
   {
     href: "/admin/users",
     icon: Users,
-    title: "Users",
-    description: "Manage team members, roles, and invitations.",
+    title: "User Management",
+    description: "Manage roles and access",
+    color: "#3B82F6",
   },
   {
     href: "/admin/pipeline-config",
     icon: Workflow,
     title: "Pipeline Config",
-    description: "Reorder stages, edit names and colors.",
+    description: "Stages, colors, order",
+    color: "#8B5CF6",
   },
   {
     href: "/admin/integrations",
     icon: Plug,
     title: "Integrations",
-    description: "Webhook, WhatsApp, Claude AI connections.",
+    description: "Webhook, WhatsApp, AI",
+    color: "#10B981",
+  },
+  {
+    href: "/admin/chatbot",
+    icon: MessageSquare,
+    title: "Chatbot Builder",
+    description: "WhatsApp flows",
+    color: "#F59E0B",
+  },
+  {
+    href: "/admin/email-templates",
+    icon: Mail,
+    title: "Email Templates",
+    description: "Manage email templates",
+    color: "#EC4899",
+  },
+  {
+    href: "/admin/tasks",
+    icon: ClipboardList,
+    title: "All Tasks",
+    description: "View all team tasks",
+    color: "#EF4444",
   },
   {
     href: "/admin/audit-log",
     icon: Shield,
     title: "Audit Log",
-    description: "Review system actions, changes, and exports.",
+    description: "Review system actions",
+    color: "#8B5CF6",
   },
 ] as const
 
@@ -136,47 +164,42 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] pb-20 md:p-6 md:pb-6">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-6">
-          <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
-            Admin
+        <div className="px-4 py-4 md:mb-6 md:px-0 md:py-0">
+          <h1 className="text-xl font-bold text-[#F0F0FA] md:font-[family-name:var(--font-heading)] md:text-2xl md:font-semibold">
+            Admin Panel
           </h1>
-          <p className="mt-0.5 text-sm text-[#9090A8]">
-            System configuration, team management, and integrations.
+          <p className="mt-1 text-xs text-[#9090A8] md:text-sm">
+            Manage users, pipeline and settings
           </p>
         </div>
 
         {/* Section grid */}
-        <div className="mb-8 grid grid-cols-1 gap-3 md:grid-cols-4">
-          {sections.map(({ href, icon: Icon, title, description }) => (
+        <div className="mb-8 grid grid-cols-1 gap-4 px-4 md:grid-cols-2 md:px-0">
+          {sections.map(({ href, icon: Icon, title, description, color }) => (
             <Link
               key={href}
               href={href}
-              className="group rounded-xl border border-[#2A2A3C] bg-[#111118] p-5 transition hover:border-[#3B82F6] hover:bg-[#1A1A24]"
+              className="group flex w-full items-center gap-4 rounded-xl border border-[#2A2A3C] bg-[#111118] p-4 text-left transition-all hover:border-[#3A3A52] active:scale-[0.99]"
             >
-              <div className="flex items-start justify-between">
-                <div
-                  className={
-                    title === "Audit Log"
-                      ? "flex size-10 items-center justify-center rounded-lg bg-[#2E1A47] text-[#8B5CF6]"
-                      : "flex size-10 items-center justify-center rounded-lg bg-[#1E3A5F] text-[#3B82F6]"
-                  }
-                >
-                  <Icon className="size-5" />
-                </div>
-                <ChevronRight className="size-4 text-[#9090A8] transition group-hover:translate-x-0.5 group-hover:text-[#F0F0FA]" />
+              <div
+                className="flex size-11 flex-shrink-0 items-center justify-center rounded-xl"
+                style={{ backgroundColor: `${color}20` }}
+              >
+                <Icon className="size-5" style={{ color }} />
               </div>
-              <h3 className="mt-4 font-[family-name:var(--font-heading)] text-base font-semibold text-[#F0F0FA]">
-                {title}
-              </h3>
-              <p className="mt-1 text-xs text-[#9090A8]">{description}</p>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-[#F0F0FA]">{title}</h3>
+                <p className="mt-0.5 truncate text-xs text-[#9090A8]">{description}</p>
+              </div>
+              <ChevronRight className="ml-auto size-4 flex-shrink-0 text-[#5A5A72]" />
             </Link>
           ))}
         </div>
 
         {/* Sample Data */}
-        <section className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-5">
+        <section className="mx-4 rounded-xl border border-[#2A2A3C] bg-[#111118] p-4 md:mx-0 md:p-5">
           <div className="mb-4 flex items-center gap-2">
             <Database className="size-4 text-[#C084FC]" />
             <h2 className="font-[family-name:var(--font-heading)] text-sm font-semibold text-[#F0F0FA]">

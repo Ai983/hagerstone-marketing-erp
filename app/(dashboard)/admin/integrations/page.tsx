@@ -2,11 +2,13 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
   ArrowLeft,
   Copy,
+  Mail,
   Loader2,
   Plug,
   MessageSquare,
@@ -85,6 +87,7 @@ function IntegrationCard({
 }
 
 export default function IntegrationsPage() {
+  const router = useRouter()
   const [copied, setCopied] = useState(false)
   const [testingWebhook, setTestingWebhook] = useState(false)
   const [testingWa, setTestingWa] = useState(false)
@@ -167,18 +170,25 @@ export default function IntegrationsPage() {
   }
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] pb-20 md:p-6 md:pb-6">
       <div className="mx-auto max-w-3xl">
         {/* Header */}
-        <div className="mb-5 flex items-center gap-3">
+        <button
+          onClick={() => router.back()}
+          className="mx-4 mb-4 mt-4 rounded-lg bg-[#1A1A24] p-2 text-[#9090A8] md:hidden"
+          aria-label="Go back"
+        >
+          <ArrowLeft className="size-4" />
+        </button>
+        <div className="px-4 pb-4 md:mb-5 md:flex md:items-center md:gap-3 md:px-0 md:pb-0">
           <Link
             href="/admin"
-            className="flex size-8 items-center justify-center rounded-lg border border-[#2A2A3C] text-[#9090A8] transition hover:text-[#F0F0FA]"
+            className="hidden size-8 items-center justify-center rounded-lg border border-[#2A2A3C] text-[#9090A8] transition hover:text-[#F0F0FA] md:flex"
           >
             <ArrowLeft className="size-4" />
           </Link>
           <div>
-            <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+              <h1 className="text-xl font-bold text-[#F0F0FA] md:font-[family-name:var(--font-heading)] md:text-2xl md:font-semibold">
               Integrations
             </h1>
             <p className="text-sm text-[#9090A8]">
@@ -187,7 +197,7 @@ export default function IntegrationsPage() {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 px-4 md:px-0">
           {/* Webhook */}
           <IntegrationCard
             icon={Webhook}
@@ -228,6 +238,18 @@ export default function IntegrationsPage() {
                 </p>
               )}
             </div>
+          </IntegrationCard>
+
+          <IntegrationCard
+            icon={Mail}
+            accent="#3B82F6"
+            title="Resend Email"
+            description="systems@hagerstone.com"
+            status={<StatusDot active={true} label="Active" />}
+          >
+            <button className="w-full rounded-xl bg-[#1A1A24] py-2.5 text-xs font-medium text-[#9090A8] md:w-auto md:px-3">
+              Send Test Email
+            </button>
           </IntegrationCard>
 
           {/* Maytapi */}

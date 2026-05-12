@@ -2,8 +2,10 @@
 
 import { useState } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { AnimatePresence, motion } from "framer-motion"
 import { Toaster } from "sonner"
 
+import MobileBottomNav from "@/components/dashboard/MobileBottomNav"
 import { Sidebar } from "@/components/dashboard/Sidebar"
 import { TopBar } from "@/components/dashboard/TopBar"
 import { DemoModeBanner } from "@/components/dashboard/DemoModeBanner"
@@ -27,7 +29,7 @@ function getDisplayName(fullName?: string | null, email?: string | null) {
 }
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
-  const { isSidebarCollapsed } = useUIStore()
+  const { isMobileSidebarOpen, setMobileSidebarOpen } = useUIStore()
 
   // Single shared auth call — every other hook/page on this route
   // reads from the same cache, avoiding the auth-token lock race.
@@ -45,17 +47,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const { data: counts } = useSidebarCounts(userId)
 
-  // Below lg, sidebar is an overlay so the main content uses 0 left
-  // offset. At lg+, content is shifted by the static sidebar width.
-  // CSS variable + Tailwind responsive class keeps this in sync without
-  // JS-side viewport detection (no SSR mismatch).
-  const sidebarWidth = isSidebarCollapsed ? 56 : 240
-
   return (
-    <div
-      className="min-h-screen bg-[#0A0A0F] text-[#F0F0FA]"
-      style={{ ["--sidebar-w" as string]: `${sidebarWidth}px` }}
-    >
+    <div className="flex h-screen overflow-hidden bg-[#0A0A0F] text-[#F0F0FA]">
       <Sidebar
         fullName={fullName}
         role={role}
@@ -65,15 +58,31 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           adminTasks: counts?.adminOverdueTasks,
         }}
       />
-      <div className="min-h-screen bg-transparent lg:ml-[var(--sidebar-w)] lg:transition-[margin] lg:duration-200">
-        <div className="fixed left-0 right-0 top-0 z-20 lg:left-[var(--sidebar-w)] lg:transition-[left] lg:duration-200">
-          <TopBar fullName={fullName} role={role} />
-          <DemoModeBanner />
-        </div>
-        <main className="bg-transparent pt-14">
-          <div className="h-[calc(100vh-56px)] overflow-y-auto">{children}</div>
+
+      <AnimatePresence>
+        {isMobileSidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 bg-black/60 md:hidden"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent">
+        <TopBar fullName={fullName} role={role} />
+        <DemoModeBanner />
+
+        <main className="flex-1 overflow-auto pb-16 md:pb-0">
+          <div className="min-h-full">{children}</div>
         </main>
+
+        <MobileBottomNav />
       </div>
+
       <LeadDrawer />
       <NewLeadModal />
       <BulkImportModal />

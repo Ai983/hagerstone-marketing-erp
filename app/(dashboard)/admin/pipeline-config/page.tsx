@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
@@ -30,6 +31,7 @@ import {
 } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import type { PipelineStage } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -141,6 +143,8 @@ function SortableStageRow({ stage, onChange, onDelete }: SortableStageRowProps) 
 // ── Page ──────────────────────────────────────────────────────────
 
 export default function PipelineConfigPage() {
+  const router = useRouter()
+  const isMobile = useMediaQuery("(max-width: 768px)")
   const queryClient = useQueryClient()
   const [stages, setStages] = useState<StageRow[]>([])
   const [deletedIds, setDeletedIds] = useState<string[]>([])
@@ -227,19 +231,26 @@ export default function PipelineConfigPage() {
   }
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] pb-20 md:p-6 md:pb-6">
       <div className="mx-auto max-w-3xl">
         {/* Header */}
-        <div className="mb-5 flex items-center justify-between gap-3">
+        <button
+          onClick={() => router.back()}
+          className="mx-4 mb-4 mt-4 rounded-lg bg-[#1A1A24] p-2 text-[#9090A8] md:hidden"
+          aria-label="Go back"
+        >
+          <ArrowLeft className="size-4" />
+        </button>
+        <div className="px-4 pb-4 md:mb-5 md:flex md:items-center md:justify-between md:gap-3 md:px-0 md:pb-0">
           <div className="flex items-center gap-3">
             <Link
               href="/admin"
-              className="flex size-8 items-center justify-center rounded-lg border border-[#2A2A3C] text-[#9090A8] transition hover:text-[#F0F0FA]"
+              className="hidden size-8 items-center justify-center rounded-lg border border-[#2A2A3C] text-[#9090A8] transition hover:text-[#F0F0FA] md:flex"
             >
               <ArrowLeft className="size-4" />
             </Link>
             <div>
-              <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+              <h1 className="text-xl font-bold text-[#F0F0FA] md:font-[family-name:var(--font-heading)] md:text-2xl md:font-semibold">
                 Pipeline Config
               </h1>
               <p className="text-sm text-[#9090A8]">
@@ -250,7 +261,7 @@ export default function PipelineConfigPage() {
           <button
             onClick={handleSave}
             disabled={!dirty || saving}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#3B82F6] px-4 py-2 text-xs font-medium text-white transition hover:bg-[#2563EB] disabled:opacity-50"
+            className="hidden items-center gap-1.5 rounded-lg bg-[#3B82F6] px-4 py-2 text-xs font-medium text-white transition hover:bg-[#2563EB] disabled:opacity-50 md:inline-flex"
           >
             {saving ? <Loader2 className="size-3 animate-spin" /> : <Save className="size-3" />}
             Save Changes
@@ -258,7 +269,7 @@ export default function PipelineConfigPage() {
         </div>
 
         {/* Stage list */}
-        <div className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-4">
+        <div className="mx-4 rounded-xl border border-[#2A2A3C] bg-[#111118] p-4 md:mx-0">
           {isLoading ? (
             <div className="flex h-48 items-center justify-center">
               <Loader2 className="size-6 animate-spin text-[#9090A8]" />
@@ -266,6 +277,48 @@ export default function PipelineConfigPage() {
           ) : stages.length === 0 ? (
             <div className="py-8 text-center text-sm text-[#9090A8]">No stages configured</div>
           ) : (
+            isMobile ? (
+              <div className="space-y-3">
+                {stages.map((stage, index) => (
+                  <div key={stage.id} className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-4">
+                    <div className="mb-3 flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={stage.color}
+                        onChange={(e) => handleChange(stage.id, { color: e.target.value })}
+                        className="size-10 flex-shrink-0 cursor-pointer rounded-xl border-0 bg-transparent"
+                      />
+                      <input
+                        type="text"
+                        value={stage.name}
+                        onChange={(e) => handleChange(stage.id, { name: e.target.value })}
+                        className="min-w-0 flex-1 rounded-xl border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2.5 text-base text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+                      />
+                      <span className="flex-shrink-0 text-xs text-[#5A5A72]">#{index + 1}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-[#9090A8]">{stage.active_lead_count} active leads</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(stage.id)}
+                        disabled={stage.active_lead_count > 0}
+                        className="rounded-lg bg-[#EF4444]/10 px-3 py-1.5 text-xs font-medium text-[#EF4444] disabled:opacity-30"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={!dirty || saving}
+                  className="mt-2 w-full rounded-xl bg-[#3B82F6] py-3.5 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            ) : (
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -287,6 +340,7 @@ export default function PipelineConfigPage() {
                 </div>
               </SortableContext>
             </DndContext>
+            )
           )}
         </div>
       </div>

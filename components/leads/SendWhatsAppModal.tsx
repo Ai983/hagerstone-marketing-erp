@@ -4,6 +4,7 @@ import { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
 import { X, MessageSquare, Loader2, AlertTriangle } from "lucide-react"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 
 interface SendWhatsAppModalProps {
   open: boolean
@@ -33,6 +34,7 @@ export function SendWhatsAppModal({
   const [isSending, setIsSending] = useState(false)
   const [useButtons, setUseButtons] = useState(false)
   const [selectedButtons, setSelectedButtons] = useState<string[]>([])
+  const isMobile = useMediaQuery("(max-width: 768px)")
 
   const defaultButtons = [
     { id: "btn_interested", title: "Interested ✅", label: "Interested" },
@@ -107,14 +109,17 @@ export function SendWhatsAppModal({
           />
           <motion.div
             key="whatsapp-panel"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            initial={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95 }}
+            animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1 }}
+            exit={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="fixed left-1/2 top-1/2 z-[61] w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[#2A2A3C] bg-[#111118] shadow-2xl"
+            className="fixed inset-x-0 bottom-0 z-[61] max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border-x border-t border-[#2A2A3C] bg-[#111118] shadow-2xl md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border"
           >
+            <div className="flex justify-center pb-1 pt-3 md:hidden">
+              <div className="h-1 w-10 rounded-full bg-[#3A3A52]" />
+            </div>
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-[#2A2A3C] px-5 py-3.5">
+            <div className="flex items-center justify-between border-b border-[#2A2A3C] px-5 pb-3 pt-4">
               <div className="flex items-center gap-2">
                 <MessageSquare className="size-4 text-[#34D399]" />
                 <h3 className="text-sm font-semibold text-[#F0F0FA]">
@@ -164,7 +169,7 @@ export function SendWhatsAppModal({
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+91 98765 43210"
-                    className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6]"
+                    className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6] md:text-sm"
                   />
                 </div>
 
@@ -178,7 +183,7 @@ export function SendWhatsAppModal({
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Type your message..."
                     rows={5}
-                    className="w-full resize-none rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6]"
+                    className="w-full resize-none rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6] md:text-sm"
                   />
                   <p className="mt-1 text-right text-[11px] text-[#9090A8]">
                     {message.length} characters
@@ -244,17 +249,17 @@ export function SendWhatsAppModal({
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-2 border-t border-[#2A2A3C] px-5 py-3.5">
+            <div className="sticky bottom-0 flex gap-3 border-t border-[#2A2A3C] bg-[#111118] px-5 py-4">
               <button
                 onClick={handleClose}
-                className="rounded-lg px-4 py-2 text-xs font-medium text-[#9090A8] transition hover:text-[#F0F0FA]"
+                className="flex-1 rounded-xl border border-[#2A2A3C] py-3 text-sm font-medium text-[#9090A8] transition hover:text-[#F0F0FA]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSend}
                 disabled={isSending || !canSend}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-4 py-2 text-xs font-medium text-white transition hover:bg-[#1da851] disabled:opacity-50"
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] py-3 text-sm font-medium text-white transition hover:bg-[#1da851] disabled:opacity-50"
               >
                 {isSending && <Loader2 className="size-3 animate-spin" />}
                 <MessageSquare className="size-3" />

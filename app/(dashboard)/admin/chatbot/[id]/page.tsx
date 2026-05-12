@@ -41,8 +41,22 @@ import {
   Trash2,
   X,
   Zap,
+  AlertTriangle,
+  BarChart3,
+  CheckCircle2,
+  Clock,
+  Copy,
+  Play,
+  XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
+import { formatDistanceStrict, formatDistanceToNowStrict } from "date-fns"
+import { useUIStore } from "@/lib/stores/uiStore"
+import {
+  validateChatbotFlow,
+  type ChatbotFlowEdge,
+  type ChatbotFlowNode,
+} from "@/lib/utils/chatbot-flow"
 
 // ── Node type definitions ──────────────────────────────────────────────────
 
@@ -98,6 +112,23 @@ interface ChatbotFlow {
   edges_data?: Edge[]
 }
 
+interface FlowStats {
+  sessions: number
+  completed: number
+  in_progress: number
+  failed: number
+}
+
+interface ChatbotSessionRow {
+  id: string
+  status: string
+  started_at: string
+  completed_at: string | null
+  last_activity_at: string | null
+  current_node_id: string | null
+  lead: { id: string; full_name: string | null } | { id: string; full_name: string | null }[] | null
+}
+
 const NODE_DEFS: Record<NodeType, { label: string; color: string; icon: React.ElementType; bg: string }> = {
   trigger:         { label: "Trigger",          color: "#F59E0B", bg: "#F59E0B20", icon: Zap },
   send_text:       { label: "Send Text",         color: "#3B82F6", bg: "#3B82F620", icon: MessageSquare },
@@ -135,9 +166,10 @@ const STAGE_OPTIONS = [
 
 // ── Custom node component ──────────────────────────────────────────────────
 
-function ChatbotNode({ data, selected }: { data: { type: NodeType; config: NodeConfig; label: string }; selected: boolean }) {
+function ChatbotNode({ data, selected }: { data: { type: NodeType; config: NodeConfig; label: string; simActive?: boolean }; selected: boolean }) {
   const def = NODE_DEFS[data.type]
   const Icon = def.icon
+  const isActive = selected || data.simActive
 
   function getPreview() {
     switch (data.type) {
@@ -165,18 +197,18 @@ function ChatbotNode({ data, selected }: { data: { type: NodeType; config: NodeC
       className="relative min-w-[200px] max-w-[240px] rounded-xl border-2 bg-[#111118] shadow-lg transition-all"
       style={{
         borderColor: selected ? def.color : "#2A2A3C",
-        boxShadow: selected
-          ? `0 0 0 3px ${def.color}50, 0 0 20px ${def.color}30`
+        boxShadow: isActive
+          ? `0 0 0 3px ${data.simActive ? "#3B82F6" : def.color}50, 0 0 24px ${data.simActive ? "#3B82F6" : def.color}40`
           : "0 4px 12px rgba(0,0,0,0.4)",
-        transform: selected ? "scale(1.03)" : "scale(1)",
+        transform: isActive ? "scale(1.03)" : "scale(1)",
         transition: "all 0.15s ease",
       }}
     >
       {/* Selected indicator bar at top */}
-      {selected && (
+      {isActive && (
         <div
           className="absolute -top-0.5 left-4 right-4 h-0.5 rounded-full"
-          style={{ background: def.color }}
+          style={{ background: data.simActive ? "#3B82F6" : def.color }}
         />
       )}
 
@@ -588,11 +620,13 @@ function ConfigPanel({
   onUpdate,
   onClose,
   onDelete,
+  onDuplicate,
 }: {
   node: Node
   onUpdate: (id: string, config: NodeConfig) => void
   onClose: () => void
   onDelete: (id: string) => void
+  onDuplicate: (node: Node) => void
 }) {
   const data = node.data as { type: NodeType; config: NodeConfig; label: string }
   const def = NODE_DEFS[data.type]
@@ -957,6 +991,15 @@ function ConfigPanel({
 
       {/* Footer - save hint */}
       <div className="border-t border-[#2A2A3C] bg-[#0A0A0F] px-4 py-3">
+        {data.type !== "trigger" && (
+          <button
+            onClick={() => onDuplicate(node)}
+            className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-2 text-xs font-medium text-[#F0F0FA] transition hover:border-[#3B82F6]"
+          >
+            <Copy size={13} />
+            Duplicate Node
+          </button>
+        )}
         <p className="text-center text-[10px] text-[#5A5A72]">
           Changes auto-update. Click <span className="text-[#3B82F6]">Save</span> in toolbar to persist
         </p>
@@ -983,6 +1026,7 @@ export default function ChatbotFlowBuilderPage() {
   const params = useParams()
   const router = useRouter()
   const flowId = params.id as string
+  const setLeadDrawerId = useUIStore((state) => state.setLeadDrawerId)
 
   const [flow, setFlow] = useState<ChatbotFlow | null>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
@@ -991,6 +1035,17 @@ export default function ChatbotFlowBuilderPage() {
   const [saving, setSaving] = useState(false)
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
   const [showAddPanel, setShowAddPanel] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [showValidationModal, setShowValidationModal] = useState(false)
+  const [showSimulator, setShowSimulator] = useState(false)
+  const [simInput, setSimInput] = useState("")
+  const [simMessages, setSimMessages] = useState<{ role: "bot" | "user"; text: string }[]>([])
+  const [simState, setSimState] = useState<Record<string, unknown>>({})
+  const [simCurrentNodeId, setSimCurrentNodeId] = useState<string | null>(null)
+  const [simActions, setSimActions] = useState<string[]>([])
+  const [simRunning, setSimRunning] = useState(false)
+  const [stats, setStats] = useState<FlowStats>({ sessions: 0, completed: 0, in_progress: 0, failed: 0 })
+  const [sessions, setSessions] = useState<ChatbotSessionRow[]>([])
 
   setEdgesOutside = setEdges
 
@@ -1000,6 +1055,8 @@ export default function ChatbotFlowBuilderPage() {
       const res = await fetch(`/api/chatbot/flows/${flowId}`)
       const data = await res.json()
       setFlow(data.flow)
+      setStats(data.stats ?? { sessions: 0, completed: 0, in_progress: 0, failed: 0 })
+      setSessions(data.sessions ?? [])
 
       const dbNodes: {
         id: string
@@ -1068,7 +1125,9 @@ export default function ChatbotFlowBuilderPage() {
       setNodes(rfNodes)
 
       // Build edges — trigger → first node, then sequential
-      const savedEdges = Array.isArray(data.flow?.edges_data)
+      const savedEdges = Array.isArray(data.edges)
+        ? (data.edges as Edge[])
+        : Array.isArray(data.flow?.edges_data)
         ? (data.flow.edges_data as Edge[])
         : []
       const rfEdges: Edge[] = savedEdges.length > 0
@@ -1130,6 +1189,18 @@ export default function ChatbotFlowBuilderPage() {
     }
     load()
   }, [flowId, setNodes, setEdges])
+
+  useEffect(() => {
+    setNodes((currentNodes) =>
+      currentNodes.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          simActive: node.id === simCurrentNodeId,
+        },
+      }))
+    )
+  }, [simCurrentNodeId, setNodes])
 
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -1207,6 +1278,93 @@ export default function ChatbotFlowBuilderPage() {
     setNodes(nds => nds.filter(n => n.id !== nodeId))
     setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId))
     setSelectedNode(null)
+  }
+
+  function duplicateNode(node: Node) {
+    const id = crypto.randomUUID()
+    const data = node.data as { type: NodeType; config: NodeConfig; label: string }
+    const duplicate: Node = {
+      ...node,
+      id,
+      selected: false,
+      position: { x: node.position.x + 50, y: node.position.y + 50 },
+      data: {
+        ...node.data,
+        config: JSON.parse(JSON.stringify(data.config ?? {})),
+        simActive: false,
+      },
+    }
+    setNodes(nds => [...nds, duplicate])
+    setSelectedNode(duplicate)
+  }
+
+  function graphForValidation() {
+    const graphNodes = nodes
+      .filter(n => n.id !== "trigger")
+      .map((node): ChatbotFlowNode => {
+        const data = node.data as { type: NodeType; config: NodeConfig; label: string }
+        return {
+          id: node.id,
+          type: data.type,
+          position_x: node.position.x,
+          position_y: node.position.y,
+          config: { ...data.config, label: data.label },
+          branches: data.type === "condition" ? data.config.branches : [],
+          next_node_id: edges.find(edge => edge.source === node.id && !edge.sourceHandle)?.target ?? null,
+        }
+      })
+    const graphEdges = edges.map((edge): ChatbotFlowEdge => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle ?? null,
+      targetHandle: edge.targetHandle ?? null,
+      type: String(edge.type ?? "deletable"),
+    }))
+    return { graphNodes, graphEdges }
+  }
+
+  function validateCurrentFlow() {
+    const { graphNodes, graphEdges } = graphForValidation()
+    return validateChatbotFlow(graphNodes, graphEdges).map(issue => issue.message)
+  }
+
+  async function runSimulator(input = "") {
+    setSimRunning(true)
+    try {
+      if (input.trim()) {
+        setSimMessages(messages => [...messages, { role: "user", text: input.trim() }])
+      }
+      const res = await fetch(`/api/chatbot/flows/${flowId}/simulate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: input, session_state: simState }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Simulation failed")
+
+      const transcript = Array.isArray(data.transcript) ? data.transcript.filter(Boolean) : []
+      setSimMessages(messages => [
+        ...messages,
+        ...transcript.map((text: string) => ({ role: "bot" as const, text })),
+      ])
+      setSimState(data.session_state ?? {})
+      setSimCurrentNodeId(data.next_node_id ?? null)
+      setSimActions(data.actions_taken ?? [])
+      setSimInput("")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Simulation failed")
+    } finally {
+      setSimRunning(false)
+    }
+  }
+
+  function resetSimulator() {
+    setSimMessages([])
+    setSimState({})
+    setSimActions([])
+    setSimCurrentNodeId(null)
+    setSimInput("")
   }
 
   async function saveFlow() {
@@ -1361,17 +1519,31 @@ export default function ChatbotFlowBuilderPage() {
     }
   }
 
-  async function toggleStatus() {
+  async function toggleStatus(activateAnyway = false) {
     if (!flow) return
     const newStatus = flow.status === "active" ? "inactive" : "active"
+    if (newStatus === "active" && !activateAnyway) {
+      const errors = validateCurrentFlow()
+      if (errors.length > 0) {
+        setValidationErrors(errors)
+        setShowValidationModal(true)
+        return
+      }
+    }
     const res = await fetch(`/api/chatbot/flows/${flowId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify({ status: newStatus, activate_anyway: activateAnyway }),
     })
     if (res.ok) {
       setFlow({ ...flow, status: newStatus })
       toast.success(`Chatbot ${newStatus === "active" ? "activated ✅" : "deactivated"}`)
+      setShowValidationModal(false)
+    } else {
+      const data = await res.json().catch(() => ({}))
+      const issues = Array.isArray(data.issues) ? data.issues.map((issue: { message: string }) => issue.message) : []
+      setValidationErrors(issues.length > 0 ? issues : [data.error || "Flow has validation errors"])
+      setShowValidationModal(true)
     }
   }
 
@@ -1418,11 +1590,22 @@ export default function ChatbotFlowBuilderPage() {
             <Plus size={14} /> Add Step
           </button>
           <button
-            onClick={toggleStatus}
+            onClick={() => toggleStatus()}
             className="rounded-lg border border-[#2A2A3C] px-3 py-1.5 text-xs transition"
             style={{ color: flow?.status === "active" ? "#EF4444" : "#10B981" }}
           >
             {flow?.status === "active" ? "Deactivate" : "Activate"}
+          </button>
+          <button
+            onClick={() => {
+              setSelectedNode(null)
+              setShowAddPanel(false)
+              setShowSimulator(true)
+              if (simMessages.length === 0) runSimulator()
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-1.5 text-xs text-[#9090A8] transition hover:border-[#3B82F6] hover:text-[#F0F0FA]"
+          >
+            <Play size={14} /> Test Flow
           </button>
           <button
             onClick={saveFlow}
@@ -1433,6 +1616,21 @@ export default function ChatbotFlowBuilderPage() {
             Save
           </button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 border-b border-[#2A2A3C] bg-[#0A0A0F] px-4 py-3 md:grid-cols-4">
+        {[
+          { label: "Sessions", value: stats.sessions, icon: BarChart3, color: "#3B82F6" },
+          { label: "Completed", value: stats.completed, icon: CheckCircle2, color: "#10B981" },
+          { label: "In Progress", value: stats.in_progress, icon: Clock, color: "#F59E0B" },
+          { label: "Failed", value: stats.failed, icon: XCircle, color: "#EF4444" },
+        ].map(({ label, value, icon: Icon, color }) => (
+          <div key={label} className="flex items-center gap-2 rounded-lg border border-[#2A2A3C] bg-[#111118] px-3 py-2">
+            <Icon size={15} style={{ color }} />
+            <span className="text-xs text-[#9090A8]">{label}:</span>
+            <span className="text-sm font-semibold text-[#F0F0FA]">{value}</span>
+          </div>
+        ))}
       </div>
 
       {/* Canvas + side panel */}
@@ -1517,10 +1715,151 @@ export default function ChatbotFlowBuilderPage() {
               onUpdate={updateNodeConfig}
               onClose={() => setSelectedNode(null)}
               onDelete={deleteNode}
+              onDuplicate={duplicateNode}
             />
           </div>
         )}
+
+        {showSimulator && !selectedNode && !showAddPanel && (
+          <div className="flex w-[360px] min-w-[360px] flex-col border-l border-[#2A2A3C] bg-[#111118]">
+            <div className="flex items-center justify-between border-b border-[#2A2A3C] p-4">
+              <div>
+                <p className="text-sm font-semibold text-[#F0F0FA]">Test Flow</p>
+                <p className="text-[10px] text-[#5A5A72]">
+                  Current node: {simCurrentNodeId ? nodes.find(n => n.id === simCurrentNodeId)?.data?.label as string ?? simCurrentNodeId : "Start"}
+                </p>
+              </div>
+              <button onClick={() => setShowSimulator(false)} className="rounded-lg p-1.5 text-[#5A5A72] hover:bg-[#2A2A3C] hover:text-[#F0F0FA]">
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="thin-scrollbar flex-1 space-y-3 overflow-y-auto bg-[#0A0A0F] p-4">
+              {simMessages.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-[#2A2A3C] py-8 text-center text-xs text-[#5A5A72]">
+                  Start the simulator to preview messages.
+                </p>
+              ) : (
+                simMessages.map((message, index) => (
+                  <div
+                    key={`${message.role}-${index}`}
+                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[82%] rounded-lg px-3 py-2 text-xs leading-relaxed ${
+                        message.role === "user"
+                          ? "bg-[#3B82F6] text-white"
+                          : "bg-[#1F1F2E] text-[#F0F0FA]"
+                      }`}
+                    >
+                      {message.text}
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {simActions.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 border-t border-[#2A2A3C] pt-3">
+                  {simActions.map((action, index) => (
+                    <span key={`${action}-${index}`} className="rounded-full bg-[#F59E0B20] px-2 py-1 text-[10px] font-medium text-[#F59E0B]">
+                      {action}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 border-t border-[#2A2A3C] p-3">
+              <textarea
+                value={simInput}
+                onChange={(event) => setSimInput(event.target.value)}
+                placeholder="Type a mock lead reply..."
+                rows={3}
+                className="w-full resize-none rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] p-3 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+              />
+              <div className="flex justify-between gap-2">
+                <button
+                  onClick={resetSimulator}
+                  className="rounded-lg border border-[#2A2A3C] px-3 py-1.5 text-xs text-[#9090A8] hover:text-[#F0F0FA]"
+                >
+                  Reset
+                </button>
+                <button
+                  onClick={() => runSimulator(simInput)}
+                  disabled={simRunning}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#3B82F6] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                >
+                  {simRunning ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {sessions.length > 0 && (
+        <div className="max-h-48 overflow-y-auto border-t border-[#2A2A3C] bg-[#111118]">
+          <div className="grid grid-cols-[1.4fr_1fr_.8fr_1fr_.8fr] gap-3 border-b border-[#2A2A3C] px-4 py-2 text-[10px] font-semibold uppercase text-[#5A5A72]">
+            <span>Lead Name</span>
+            <span>Started</span>
+            <span>Status</span>
+            <span>Last Node</span>
+            <span>Duration</span>
+          </div>
+          {sessions.map((session) => {
+            const lead = Array.isArray(session.lead) ? session.lead[0] : session.lead
+            const started = new Date(session.started_at)
+            const ended = new Date(session.completed_at ?? session.last_activity_at ?? session.started_at)
+            return (
+              <button
+                key={session.id}
+                onClick={() => lead?.id && setLeadDrawerId(lead.id)}
+                className="grid w-full grid-cols-[1.4fr_1fr_.8fr_1fr_.8fr] gap-3 px-4 py-2 text-left text-xs text-[#9090A8] transition hover:bg-[#1A1A24]"
+              >
+                <span className="truncate text-[#F0F0FA]">{lead?.full_name ?? "Unknown lead"}</span>
+                <span>{formatDistanceToNowStrict(started, { addSuffix: true })}</span>
+                <span className="capitalize">{session.status.replace("_", " ")}</span>
+                <span className="truncate">{session.current_node_id ?? "-"}</span>
+                <span>{formatDistanceStrict(started, ended)}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {showValidationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-[#2A2A3C] bg-[#111118] p-5 shadow-2xl">
+            <div className="mb-4 flex items-center gap-2">
+              <AlertTriangle className="size-5 text-[#F59E0B]" />
+              <h2 className="text-lg font-semibold text-[#F0F0FA]">Flow has issues</h2>
+            </div>
+            <div className="space-y-2">
+              {validationErrors.map((error, index) => (
+                <div key={`${error}-${index}`} className="flex gap-2 text-sm text-[#F87171]">
+                  <span className="mt-1 size-1.5 shrink-0 rounded-full bg-[#EF4444]" />
+                  <span>{error}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setShowValidationModal(false)}
+                className="rounded-lg border border-[#2A2A3C] px-4 py-2 text-sm text-[#F0F0FA] hover:bg-[#1A1A24]"
+              >
+                Fix Issues
+              </button>
+              <button
+                onClick={() => toggleStatus(true)}
+                className="rounded-lg bg-[#F59E0B] px-4 py-2 text-sm font-semibold text-[#111118]"
+              >
+                Activate Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`
         .react-flow__controls-button {
           background: #111118 !important;

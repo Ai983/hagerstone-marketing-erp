@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import {
   Bot, Plus, Loader2, Power, PowerOff,
-  Trash2, Edit, MessageSquare, Zap, ChevronRight
+  Trash2, Edit, MessageSquare, Zap, ChevronRight, CheckCircle2, AlertTriangle, XCircle
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatDistanceToNow } from "date-fns"
@@ -20,6 +20,8 @@ interface ChatbotFlow {
   priority: number
   created_at: string
   nodes: { count: number }[]
+  health?: "healthy" | "warning" | "error"
+  health_issues?: { message: string }[]
 }
 
 const triggerLabels: Record<string, string> = {
@@ -27,6 +29,12 @@ const triggerLabels: Record<string, string> = {
   first_message: "First Message",
   any_message: "Any Message",
   button_reply: "Button Reply",
+}
+
+const healthConfig = {
+  healthy: { label: "Healthy", icon: CheckCircle2, color: "#10B981", bg: "#10B98120" },
+  warning: { label: "Warning", icon: AlertTriangle, color: "#F59E0B", bg: "#F59E0B20" },
+  error: { label: "Error", icon: XCircle, color: "#EF4444", bg: "#EF444420" },
 }
 
 export default function ChatbotListPage() {
@@ -67,6 +75,9 @@ export default function ChatbotListPage() {
     if (res.ok) {
       setFlows(flows.map(f => f.id === flow.id ? { ...f, status: newStatus } : f))
       toast.success(`Chatbot ${newStatus === "active" ? "activated" : "deactivated"}`)
+    } else {
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error || "Failed to update chatbot")
     }
   }
 
@@ -250,6 +261,8 @@ export default function ChatbotListPage() {
         <div className="space-y-3">
           {flows.map((flow) => {
             const nodeCount = flow.nodes?.[0]?.count ?? 0
+            const health = healthConfig[flow.health ?? "warning"]
+            const HealthIcon = health.icon
             return (
               <div
                 key={flow.id}
@@ -276,6 +289,14 @@ export default function ChatbotListPage() {
                           }}
                         >
                           {flow.status}
+                        </span>
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                          style={{ background: health.bg, color: health.color }}
+                          title={flow.health_issues?.map(issue => issue.message).join("\n")}
+                        >
+                          <HealthIcon size={10} />
+                          {health.label}
                         </span>
                       </div>
                       {flow.description && (

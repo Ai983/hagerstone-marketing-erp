@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { format } from "date-fns"
 import { toast } from "sonner"
 import { X, CalendarPlus, Loader2 } from "lucide-react"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import type { Profile } from "@/lib/types"
 
 const followUpTypes = [
@@ -48,6 +49,7 @@ export function ScheduleFollowUpModal({
   const [notes, setNotes] = useState("")
   const [assignedTo, setAssignedTo] = useState(currentUserId ?? "")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const isMobile = useMediaQuery("(max-width: 768px)")
 
   const canAssignOthers =
     currentUserRole === "manager" ||
@@ -99,14 +101,17 @@ export function ScheduleFollowUpModal({
           />
           <motion.div
             key="followup-panel"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            initial={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95 }}
+            animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1 }}
+            exit={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="fixed left-1/2 top-1/2 z-[61] w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[#2A2A3C] bg-[#111118] shadow-2xl"
+            className="fixed inset-x-0 bottom-0 z-[61] max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border-x border-t border-[#2A2A3C] bg-[#111118] shadow-2xl md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border"
           >
+            <div className="flex justify-center pb-1 pt-3 md:hidden">
+              <div className="h-1 w-10 rounded-full bg-[#3A3A52]" />
+            </div>
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-[#2A2A3C] px-5 py-3.5">
+            <div className="flex items-center justify-between border-b border-[#2A2A3C] px-5 pb-3 pt-4">
               <div className="flex items-center gap-2">
                 <CalendarPlus className="size-4 text-[#3B82F6]" />
                 <h3 className="text-sm font-semibold text-[#F0F0FA]">
@@ -129,7 +134,7 @@ export function ScheduleFollowUpModal({
                   <select
                     value={type}
                     onChange={(e) => setType(e.target.value)}
-                    className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+                    className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] outline-none focus:border-[#3B82F6] md:text-sm"
                   >
                     {followUpTypes.map((ft) => (
                       <option key={ft.value} value={ft.value}>
@@ -148,7 +153,7 @@ export function ScheduleFollowUpModal({
                     type="datetime-local"
                     value={dueAt}
                     onChange={(e) => setDueAt(e.target.value)}
-                    className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+                    className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] outline-none focus:border-[#3B82F6] md:text-sm"
                   />
                   {dueAt && !isValidDate && (
                     <p className="mt-1 text-[11px] text-[#F87171]">Must be a future date</p>
@@ -165,7 +170,7 @@ export function ScheduleFollowUpModal({
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Any context for the follow-up..."
                     rows={3}
-                    className="w-full resize-none rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6]"
+                    className="w-full resize-none rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6] md:text-sm"
                   />
                 </div>
 
@@ -178,7 +183,7 @@ export function ScheduleFollowUpModal({
                     value={assignedTo}
                     onChange={(e) => setAssignedTo(e.target.value)}
                     disabled={!canAssignOthers}
-                    className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6] disabled:opacity-60"
+                    className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] outline-none focus:border-[#3B82F6] disabled:opacity-60 md:text-sm"
                   >
                     <option value="">Select...</option>
                     {teamMembers.map((m) => (
@@ -198,17 +203,17 @@ export function ScheduleFollowUpModal({
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-2 border-t border-[#2A2A3C] px-5 py-3.5">
+            <div className="sticky bottom-0 flex gap-3 border-t border-[#2A2A3C] bg-[#111118] px-5 py-4">
               <button
                 onClick={resetAndClose}
-                className="rounded-lg px-4 py-2 text-xs font-medium text-[#9090A8] transition hover:text-[#F0F0FA]"
+                className="flex-1 rounded-xl border border-[#2A2A3C] py-3 text-sm font-medium text-[#9090A8] transition hover:text-[#F0F0FA]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || !canSubmit}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#3B82F6] px-4 py-2 text-xs font-medium text-white transition hover:bg-[#2563EB] disabled:opacity-50"
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#3B82F6] py-3 text-sm font-medium text-white transition hover:bg-[#2563EB] disabled:opacity-50"
               >
                 {isSubmitting && <Loader2 className="size-3 animate-spin" />}
                 Schedule

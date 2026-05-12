@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { AlertTriangle } from "lucide-react"
 
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import type { KanbanLead } from "@/lib/hooks/useKanban"
 import type { PipelineStage, UserRole } from "@/lib/types"
 
@@ -56,6 +57,7 @@ export function StageChangeModal({
   const [closureValue, setClosureValue] = useState("")
   const [lossReason, setLossReason] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const isMobile = useMediaQuery("(max-width: 768px)")
 
   useEffect(() => {
     if (open) {
@@ -128,24 +130,31 @@ export function StageChangeModal({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 md:items-center md:p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
           <motion.div
-            className="w-full max-w-lg rounded-2xl border border-[#2A2A3C] bg-[#111118] p-6"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border-x border-t border-[#2A2A3C] bg-[#111118] md:max-w-lg md:rounded-2xl md:border"
+            initial={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95 }}
+            animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1 }}
+            exit={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
-            <h2 className="text-xl font-semibold text-[#F0F0FA]">{title}</h2>
-            {lead ? (
-              <p className="mt-2 text-sm text-[#9090A8]">
-                Confirm the stage change for {lead.full_name}.
-              </p>
-            ) : null}
+            <div className="flex justify-center pb-1 pt-3 md:hidden">
+              <div className="h-1 w-10 rounded-full bg-[#3A3A52]" />
+            </div>
+
+            <div className="px-5 py-4">
+              <h2 className="text-base font-bold text-[#F0F0FA] md:text-xl md:font-semibold">
+                {title}
+              </h2>
+              {lead ? (
+                <p className="mt-2 text-sm text-[#9090A8]">
+                  Confirm the stage change for {lead.full_name}.
+                </p>
+              ) : null}
 
             {fromStage && toStage ? (
               <div className="mt-4 flex items-center gap-2">
@@ -178,7 +187,7 @@ export function StageChangeModal({
                   value={note}
                   onChange={(event) => setNote(event.target.value)}
                   rows={4}
-                  className="w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
+                  className="w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 md:text-sm"
                 />
               </div>
             ) : null}
@@ -193,7 +202,7 @@ export function StageChangeModal({
                   min="1"
                   value={closureValue}
                   onChange={(event) => setClosureValue(event.target.value)}
-                  className="h-10 w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
+                  className="w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 md:text-sm"
                 />
               </div>
             ) : null}
@@ -206,7 +215,7 @@ export function StageChangeModal({
                 <select
                   value={lossReason}
                   onChange={(event) => setLossReason(event.target.value)}
-                  className="h-10 w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
+                  className="w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 md:text-sm"
                 >
                   <option value="">Select a reason</option>
                   {lossReasonOptions.map((option) => (
@@ -219,12 +228,13 @@ export function StageChangeModal({
             ) : null}
 
             {error ? <p className="mt-4 text-sm text-[#F87171]">{error}</p> : null}
+            </div>
 
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="sticky bottom-0 flex gap-3 border-t border-[#2A2A3C] bg-[#111118] px-5 py-4">
               <button
                 type="button"
                 onClick={onCancel}
-                className="inline-flex h-10 items-center justify-center rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-4 text-sm text-[#F0F0FA] transition hover:bg-[#1A1A24]"
+                className="flex-1 rounded-xl border border-[#2A2A3C] py-3 text-sm font-medium text-[#9090A8] transition hover:bg-[#1A1A24] hover:text-[#F0F0FA]"
                 disabled={isSubmitting}
               >
                 Cancel
@@ -233,7 +243,7 @@ export function StageChangeModal({
                 type="button"
                 onClick={handleConfirm}
                 disabled={isSubmitting || blockedTerminalReopen}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#3B82F6] px-4 text-sm font-medium text-white transition hover:bg-[#2563EB] disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex-1 rounded-xl bg-[#3B82F6] py-3 text-sm font-medium text-white transition hover:bg-[#2563EB] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isSubmitting ? "Moving..." : "Confirm Move"}
               </button>

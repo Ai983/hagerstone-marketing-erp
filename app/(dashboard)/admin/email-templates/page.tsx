@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Camera, Copy, Edit, Film, Loader2, Mail, Plus, Trash2, X } from "lucide-react"
+import { Camera, CaseSensitive, Code2, Copy, Edit, Film, Loader2, Mail, Plus, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
+import { RichTextEditor } from "@/components/email/RichTextEditor"
 import { VideoInsertPanel } from "@/components/email/VideoInsertPanel"
 import { cn } from "@/lib/utils"
+import { plainTextToEmailHtml, type EmailEditorMode } from "@/lib/utils/email-content"
 
 type Category =
   | "general"
@@ -55,6 +57,39 @@ function categoryClass(category: Category) {
   if (category === "negotiation") return "bg-[#2E1A47] text-[#C084FC]"
   if (category === "welcome") return "bg-[#163322] text-[#86EFAC]"
   return "bg-[#1A1A24] text-[#C7C7D8]"
+}
+
+function EmailModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: EmailEditorMode
+  onChange: (mode: EmailEditorMode) => void
+}) {
+  const options: { value: EmailEditorMode; label: string; icon: typeof Edit }[] = [
+    { value: "rich", label: "Rich", icon: Edit },
+    { value: "html", label: "HTML", icon: Code2 },
+    { value: "plain", label: "Plain", icon: CaseSensitive },
+  ]
+
+  return (
+    <div className="inline-flex rounded-lg border border-[#2A2A3C] bg-[#1A1A24] p-1">
+      {options.map(({ value, label, icon: Icon }) => (
+        <button
+          key={value}
+          type="button"
+          onClick={() => onChange(value)}
+          className={cn(
+            "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-[#9090A8] transition hover:text-[#F0F0FA]",
+            mode === value && "bg-[#3B82F6] text-white hover:text-white"
+          )}
+        >
+          <Icon className="size-3.5" />
+          {label}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 export default function EmailTemplatesPage() {
@@ -273,6 +308,7 @@ function TemplateForm({
   const [category, setCategory] = useState<Category>(template?.category ?? "general")
   const [subject, setSubject] = useState(template?.subject ?? "")
   const [bodyHtml, setBodyHtml] = useState(template?.body_html ?? "")
+  const [editorMode, setEditorMode] = useState<EmailEditorMode>("rich")
   const [saving, setSaving] = useState(false)
   const [isVideoPanelOpen, setIsVideoPanelOpen] = useState(false)
 
@@ -300,6 +336,7 @@ function TemplateForm({
       toast.error("Name, subject and body are required")
       return
     }
+    const bodyToSave = editorMode === "plain" ? plainTextToEmailHtml(bodyHtml) : bodyHtml
     setSaving(true)
     try {
       const res = await fetch(
@@ -311,7 +348,7 @@ function TemplateForm({
             name: name.trim(),
             category,
             subject: subject.trim(),
-            body_html: bodyHtml.trim(),
+            body_html: bodyToSave.trim(),
           }),
         }
       )
@@ -368,10 +405,13 @@ function TemplateForm({
                 </select>
               </label>
               <TextInput label="Subject" value={subject} onChange={setSubject} />
-              <label>
-                <span className="mb-1 block text-[11px] font-medium uppercase text-[#9090A8]">
-                  Body HTML
-                </span>
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <span className="block text-[11px] font-medium uppercase text-[#9090A8]">
+                    Body
+                  </span>
+                  <EmailModeToggle mode={editorMode} onChange={setEditorMode} />
+                </div>
                 <div className="mb-2 flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -401,13 +441,22 @@ function TemplateForm({
                     />
                   </div>
                 )}
-                <textarea
-                  value={bodyHtml}
-                  onChange={(e) => setBodyHtml(e.target.value)}
-                  rows={14}
-                  className="w-full resize-y rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
-                />
-              </label>
+                {editorMode === "rich" ? (
+                  <RichTextEditor
+                    content={bodyHtml}
+                    onChange={setBodyHtml}
+                    placeholder="Write template body..."
+                  />
+                ) : (
+                  <textarea
+                    value={bodyHtml}
+                    onChange={(e) => setBodyHtml(e.target.value)}
+                    rows={editorMode === "plain" ? 12 : 14}
+                    placeholder={editorMode === "plain" ? "Hi {{lead_name}}," : "<p>Hi {{lead_name}},</p>"}
+                    className="w-full resize-y rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+                  />
+                )}
+              </div>
             </div>
 
             <div className="mt-5 flex justify-end gap-2">

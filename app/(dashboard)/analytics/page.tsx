@@ -23,6 +23,7 @@ import {
 
 import { createClient } from "@/lib/supabase/client"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { FunnelChart } from "@/components/analytics/FunnelChart"
 import { LeadSourceChart } from "@/components/analytics/LeadSourceChart"
 import { RepProductivityTable } from "@/components/analytics/RepProductivityTable"
@@ -269,6 +270,7 @@ function MiniEmailMetric({
 }
 
 export default function AnalyticsPage() {
+  const isMobile = useMediaQuery("(max-width: 768px)")
   const [rangeKey, setRangeKey] = useState<RangeKey>("this_month")
   const [customStart, setCustomStart] = useState("")
   const [customEnd, setCustomEnd] = useState("")
@@ -301,11 +303,11 @@ export default function AnalyticsPage() {
   const kpis = kpiQuery.data
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] pb-20 md:p-6 md:pb-6">
       {/* Header + Date Range */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="px-4 py-4 md:mb-6 md:flex md:flex-wrap md:items-center md:justify-between md:gap-4 md:px-0 md:py-0">
         <div>
-          <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+          <h1 className="text-xl font-bold text-[#F0F0FA] md:font-[family-name:var(--font-heading)] md:text-2xl md:font-semibold">
             Analytics
           </h1>
           <p className="mt-0.5 text-sm text-[#9090A8]">
@@ -313,6 +315,19 @@ export default function AnalyticsPage() {
           </p>
         </div>
 
+        {isMobile ? (
+          <select
+            value={rangeKey}
+            onChange={(e) => setRangeKey(e.target.value as RangeKey)}
+            className="mt-3 w-full rounded-xl border border-[#2A2A3C] bg-[#1F1F2E] px-4 py-3 text-base text-[#F0F0FA] outline-none"
+          >
+            {(["this_week", "this_month", "last_3_months", "this_year"] as RangeKey[]).map((key) => (
+              <option key={key} value={key}>
+                {rangeLabels[key]}
+              </option>
+            ))}
+          </select>
+        ) : (
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-lg border border-[#2A2A3C] bg-[#111118] p-1">
             {(["this_week", "this_month", "last_3_months", "this_year", "custom"] as RangeKey[]).map(
@@ -351,16 +366,17 @@ export default function AnalyticsPage() {
             </div>
           )}
         </div>
+        )}
       </div>
 
-      <div className="mb-6">
+      <div className="mb-6 px-4 md:px-0">
         <SectionCard title="Email Performance" subtitle="This month">
           {emailStatsQuery.isLoading || !emailStatsQuery.data ? (
             <div className="flex h-20 items-center justify-center">
               <Loader2 className="size-5 animate-spin text-[#9090A8]" />
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <MiniEmailMetric
                 label="Total Sent"
                 value={emailStatsQuery.data.totalSent.toString()}
@@ -387,7 +403,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* 1. KPI Row */}
-      <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 px-4 md:grid-cols-4 md:px-0">
         {kpiQuery.isLoading || !kpis ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div
@@ -428,7 +444,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* 2. Funnel + 3. Source Volume */}
-      <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className="mb-6 grid grid-cols-1 gap-4 px-4 md:px-0 xl:grid-cols-2">
         <SectionCard
           title="Pipeline Funnel"
           subtitle="Lead count per stage with conversion rates"
@@ -446,7 +462,7 @@ export default function AnalyticsPage() {
 
       {/* 4. Rep Productivity (manager/admin/founder only) */}
       {canSeeRepTable && (
-        <div className="mb-6">
+        <div className="mb-6 px-4 md:px-0">
           <SectionCard
             title="Rep Productivity"
             subtitle="Individual performance across the team"
@@ -457,7 +473,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* 5. Stage Age Heatmap */}
-      <div className="mb-6">
+      <div className="mb-6 px-4 md:px-0">
         <SectionCard
           title="Stage Age Heatmap"
           subtitle="How long leads have been sitting in each stage"
@@ -467,7 +483,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* 6. Won vs Lost This Month */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3 px-4 md:grid-cols-2 md:gap-4 md:px-0">
         <SectionCard title="Won" subtitle="Deals closed in this period">
           {kpiQuery.isLoading || !kpis ? (
             <div className="flex h-32 items-center justify-center">

@@ -21,10 +21,12 @@ import {
   Send,
   Trash2,
   Users,
+  X,
   XCircle,
 } from "lucide-react"
 
 import { useUIStore } from "@/lib/stores/uiStore"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import {
   MessageSequenceBuilder,
@@ -122,6 +124,33 @@ const enrollmentStatusStyles: Record<string, string> = {
   opted_out: "bg-[#3F161A] text-[#F87171]",
 }
 
+function CampaignStatCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: number
+  tone: "default" | "green" | "blue" | "purple"
+}) {
+  return (
+    <div className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-3">
+      <p className="text-xs text-[#9090A8]">{label}</p>
+      <p
+        className={cn(
+          "mt-1 text-2xl font-bold",
+          tone === "default" && "text-[#F0F0FA]",
+          tone === "green" && "text-[#10B981]",
+          tone === "blue" && "text-[#3B82F6]",
+          tone === "purple" && "text-[#8B5CF6]"
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  )
+}
+
 async function fetchDetail(id: string): Promise<DetailResponse> {
   const res = await fetch(`/api/campaigns/${id}`)
   if (!res.ok) {
@@ -216,32 +245,45 @@ export default function CampaignDetailPage() {
   }
 
   const { campaign, enrollments } = data
+  const enrolledCount = enrollments.length
+  const sentCount = enrollments.filter((e) => Boolean(e.last_message_sent_at)).length
+  const completedCount = enrollments.filter(
+    (e) => e.status === "completed" || Boolean(e.completed_at)
+  ).length
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] pb-20 md:p-6 md:pb-0">
       <div className="mx-auto max-w-5xl">
         <Link
           href="/campaigns"
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-[#9090A8] transition hover:text-[#F0F0FA]"
+          className="mb-4 hidden items-center gap-1.5 text-sm text-[#9090A8] transition hover:text-[#F0F0FA] md:inline-flex"
         >
           <ArrowLeft className="size-4" />
           Back to campaigns
         </Link>
 
         {/* Header */}
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-[#1E3A5F] text-[#3B82F6]">
+        <div className="px-4 py-4 md:mb-5 md:px-0 md:py-0">
+          <div className="mb-3 flex items-center gap-3 md:mb-0 md:items-start md:justify-between">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="rounded-lg bg-[#1A1A24] p-2 text-[#9090A8] md:hidden"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="size-4" />
+            </button>
+            <div className="hidden size-10 items-center justify-center rounded-lg bg-[#1E3A5F] text-[#3B82F6] md:flex">
               <Megaphone className="size-5" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+                <h1 className="truncate text-lg font-bold text-[#F0F0FA] md:font-[family-name:var(--font-heading)] md:text-2xl md:font-semibold">
                   {campaign.name}
                 </h1>
                 <span
                   className={cn(
-                    "rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize",
+                    "ml-auto flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium capitalize md:ml-0 md:px-2 md:py-0.5 md:text-[11px] md:font-semibold",
                     statusStyles[campaign.status] ?? statusStyles.draft
                   )}
                 >
@@ -249,22 +291,31 @@ export default function CampaignDetailPage() {
                 </span>
               </div>
               {campaign.description && (
-                <p className="mt-0.5 text-sm text-[#9090A8]">{campaign.description}</p>
+                <p className="mt-0.5 hidden text-sm text-[#9090A8] md:block">
+                  {campaign.description}
+                </p>
               )}
             </div>
+            <button
+              type="button"
+              onClick={() => router.push("/campaigns/monitor")}
+              className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#111118] px-3 py-2 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1A1A24] md:inline-flex"
+            >
+              <Activity className="size-3.5" />
+              Send Log
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => router.push("/campaigns/monitor")}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#111118] px-3 py-2 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1A1A24]"
-          >
-            <Activity className="size-3.5" />
-            Send Log
-          </button>
+
+          <div className="grid grid-cols-2 gap-3 md:mt-4 md:grid-cols-4">
+            <CampaignStatCard label="Enrolled" value={enrolledCount} tone="default" />
+            <CampaignStatCard label="Messages Sent" value={sentCount} tone="green" />
+            <CampaignStatCard label="Replies" value={0} tone="blue" />
+            <CampaignStatCard label="Completed" value={completedCount} tone="purple" />
+          </div>
         </div>
 
         {/* Tabs — animated underline via layoutId */}
-        <div className="mb-4 flex border-b border-[#2A2A3C]">
+        <div className="mb-4 flex overflow-x-auto border-b border-[#2A2A3C] px-4 md:px-0">
           {tabs.map((t) => (
             <button
               key={t}
@@ -310,6 +361,7 @@ export default function CampaignDetailPage() {
               <EnrolledLeadsTab
                 campaignId={campaign.id}
                 enrollments={enrollments}
+                totalMessages={data.messages.length}
                 canEdit={canEdit}
                 onOpenEnroll={() => setEnrollOpen(true)}
                 onOpenLead={(leadId) => setLeadDrawerId(leadId)}
@@ -347,18 +399,21 @@ export default function CampaignDetailPage() {
 function EnrolledLeadsTab({
   campaignId,
   enrollments,
+  totalMessages,
   canEdit,
   onOpenEnroll,
   onOpenLead,
 }: {
   campaignId: string
   enrollments: EnrollmentRow[]
+  totalMessages: number
   canEdit: boolean
   onOpenEnroll: () => void
   onOpenLead: (leadId: string) => void
   onRefresh: () => void
 }) {
   const queryClient = useQueryClient()
+  const isMobile = useMediaQuery("(max-width: 768px)")
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [sendingNextId, setSendingNextId] = useState<string | null>(null)
 
@@ -463,6 +518,137 @@ function EnrolledLeadsTab({
           </p>
         </div>
       ) : (
+        isMobile ? (
+        <div className="space-y-3 px-4 py-3">
+          {enrollments.map((enrollment) => {
+            const lead = enrollment.lead
+            const progressTotal = Math.max(totalMessages, 1)
+            const progress = Math.min(
+              100,
+              (enrollment.current_message_position / progressTotal) * 100
+            )
+
+            return (
+              <div
+                key={enrollment.id}
+                className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-4"
+              >
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => lead && onOpenLead(lead.id)}
+                    className="min-w-0 text-left"
+                  >
+                    <p className="truncate text-sm font-semibold text-[#F0F0FA]">
+                      {lead?.full_name ?? "Unknown lead"}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-[#9090A8]">
+                      {lead?.company_name ?? "No company"}
+                    </p>
+                  </button>
+                  <span
+                    className={cn(
+                      "flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium capitalize",
+                      enrollmentStatusStyles[enrollment.status] ?? enrollmentStatusStyles.active
+                    )}
+                  >
+                    {enrollment.status.replace("_", " ")}
+                  </span>
+                </div>
+
+                <div className="mb-3">
+                  <div className="mb-1.5 flex justify-between text-xs text-[#9090A8]">
+                    <span>Progress</span>
+                    <span>
+                      Step {enrollment.current_message_position} of {progressTotal}
+                    </span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-[#2A2A3C]">
+                    <div
+                      className="h-full rounded-full bg-[#3B82F6] transition-all"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-[#1A1A24] p-3">
+                    <p className="mb-1 text-[10px] uppercase tracking-wider text-[#5A5A72]">
+                      Next Due
+                    </p>
+                    <p className="text-xs font-medium text-[#F59E0B]">
+                      {enrollment.next_message_due_at
+                        ? format(new Date(enrollment.next_message_due_at), "dd MMM, hh:mm a")
+                        : "Not scheduled"}
+                    </p>
+                    {enrollment.next_message_due_at ? (
+                      <p className="mt-0.5 text-[10px] text-[#9090A8]">
+                        {formatDistanceToNow(new Date(enrollment.next_message_due_at), {
+                          addSuffix: true,
+                        })}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="rounded-xl bg-[#1A1A24] p-3">
+                    <p className="mb-1 text-[10px] uppercase tracking-wider text-[#5A5A72]">
+                      Last Sent
+                    </p>
+                    <p className="text-xs font-medium text-[#10B981]">
+                      {enrollment.last_message_sent_at
+                        ? format(new Date(enrollment.last_message_sent_at), "dd MMM, hh:mm a")
+                        : "Not sent yet"}
+                    </p>
+                    {enrollment.last_message_sent_at ? (
+                      <p className="mt-0.5 text-[10px] text-[#9090A8]">
+                        {formatDistanceToNow(new Date(enrollment.last_message_sent_at), {
+                          addSuffix: true,
+                        })}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                {canEdit ? (
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSendNext(enrollment)}
+                      disabled={
+                        !lead ||
+                        enrollment.status !== "active" ||
+                        sendingNextId === enrollment.id ||
+                        pendingId === lead?.id
+                      }
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#3B82F6]/10 py-2.5 text-xs font-medium text-[#3B82F6] disabled:opacity-50"
+                    >
+                      {sendingNextId === enrollment.id ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <Send className="size-3.5" />
+                      )}
+                      Send Next
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => lead && handleUnenroll(lead.id)}
+                      disabled={pendingId === lead?.id || sendingNextId === enrollment.id}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#EF4444]/10 py-2.5 text-xs font-medium text-[#EF4444] disabled:opacity-50"
+                    >
+                      {pendingId === lead?.id ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <X className="size-3.5" />
+                      )}
+                      Unenroll
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+        ) : (
         <div className="overflow-x-auto rounded-xl border border-[#2A2A3C] bg-[#111118]">
           <table className="w-full text-sm">
             <thead>
@@ -626,6 +812,7 @@ function EnrolledLeadsTab({
             </tbody>
           </table>
         </div>
+        )
       )}
     </div>
   )

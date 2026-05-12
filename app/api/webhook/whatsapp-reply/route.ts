@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { matchAndRunChatbot } from "@/lib/utils/chatbot-engine"
 
+const SESSION_TIMEOUT_HOURS = 24
+
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -75,6 +77,26 @@ export async function POST(req: NextRequest) {
     if (!lead) {
       console.log("No lead found for phone:", fromPhone)
       return NextResponse.json({ ok: true })
+    }
+
+    const sessionCutoff = new Date(
+      Date.now() - SESSION_TIMEOUT_HOURS * 60 * 60 * 1000
+    ).toISOString()
+    const { data: staleSession } = await supabase
+      .from("chatbot_sessions")
+      .select("id, last_activity_at")
+      .eq("lead_id", lead.id)
+      .in("status", ["active", "waiting_answer"])
+      .lt("last_activity_at", sessionCutoff)
+      .order("last_activity_at", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    if (staleSession) {
+      await supabase
+        .from("chatbot_sessions")
+        .update({ status: "failed", completed_at: new Date().toISOString() })
+        .eq("id", staleSession.id)
     }
 
     let campaignId: string | null = null

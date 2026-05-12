@@ -417,25 +417,25 @@ export default function AiLeadsPage() {
   }
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] pb-20 md:p-6 md:pb-6">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="px-4 py-4 md:mb-6 md:flex md:flex-wrap md:items-start md:justify-between md:gap-4 md:px-0 md:py-0">
           <div className="flex items-start gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-[#3F2A12] text-[#F59E0B]">
+            <div className="hidden size-10 items-center justify-center rounded-lg bg-[#3F2A12] text-[#F59E0B] md:flex">
               <Sparkles className="size-5" />
             </div>
             <div>
-              <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+              <h1 className="text-xl font-bold text-[#F0F0FA] md:font-[family-name:var(--font-heading)] md:text-2xl md:font-semibold">
                 AI Lead Generation
               </h1>
-              <p className="text-sm text-[#9090A8]">
+              <p className="mt-1 text-xs text-[#9090A8] md:mt-0 md:text-sm">
                 Describe your ideal prospect and Claude will find real
                 companies from across the web
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#F59E0B]/40 bg-[#3F2A12]/40 px-2.5 py-1 text-[11px] font-medium text-[#F59E0B]">
+          <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#F59E0B]/40 bg-[#3F2A12]/40 px-2.5 py-1 text-[11px] font-medium text-[#F59E0B] md:mt-0">
             <Sparkles className="size-3" />
             Powered by Claude + Web Search
           </span>
@@ -445,7 +445,7 @@ export default function AiLeadsPage() {
             session (status='new' in ai_generated_leads). Loads them
             into the current view so the user can continue triaging. */}
         {leads.length === 0 && lastSessionLeads.length > 0 && (
-          <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[#2A2A3C] bg-[#111118] px-4 py-3">
+          <div className="mx-4 mb-4 flex items-center justify-between gap-3 rounded-lg border border-[#2A2A3C] bg-[#111118] px-4 py-3 md:mx-0">
             <p className="text-sm font-medium text-[#F0F0FA]">
               Continue from last session ({lastSessionLeads.length} leads
               pending)
@@ -464,7 +464,7 @@ export default function AiLeadsPage() {
         )}
 
         {/* Search card */}
-        <section className="mb-6 rounded-xl border border-[#2A2A3C] bg-[#111118] p-5">
+        <section className="mx-4 mb-6 rounded-xl border border-[#2A2A3C] bg-[#111118] p-4 md:mx-0 md:p-5">
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -474,7 +474,7 @@ Examples:
 - IT companies in Noida with 50-200 employees needing office fit-out
 - Manufacturing plants in Greater Noida needing PEB construction
 - Hospitals in Delhi NCR needing interior renovation`}
-            className="thin-scrollbar w-full resize-none rounded-lg border border-[#3A3A52] bg-[#1F1F2E] p-3 text-sm text-[#F0F0FA] outline-none transition placeholder:text-[#5A5A72] focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
+            className="thin-scrollbar w-full resize-none rounded-xl border border-[#3A3A52] bg-[#1F1F2E] p-3 text-base text-[#F0F0FA] outline-none transition placeholder:text-[#5A5A72] focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 md:rounded-lg md:text-sm"
           />
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -485,13 +485,13 @@ Examples:
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 placeholder="City (optional)"
-                className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] pl-8 pr-3 text-xs text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
+                className="w-full rounded-xl border border-[#3A3A52] bg-[#1F1F2E] py-3 pl-8 pr-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 md:w-auto md:rounded-lg md:py-2 md:text-xs"
               />
             </div>
             <select
               value={serviceLine}
               onChange={(e) => setServiceLine(e.target.value)}
-              className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-2.5 text-xs text-[#F0F0FA] outline-none transition focus:border-[#3B82F6]"
+              className="w-full rounded-xl border border-[#3A3A52] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] md:w-auto md:rounded-lg md:py-2 md:text-xs"
             >
               {SERVICE_LINE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -502,7 +502,7 @@ Examples:
             <select
               value={companySize}
               onChange={(e) => setCompanySize(e.target.value)}
-              className="h-9 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-2.5 text-xs text-[#F0F0FA] outline-none transition focus:border-[#3B82F6]"
+              className="w-full rounded-xl border border-[#3A3A52] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] md:w-auto md:rounded-lg md:py-2 md:text-xs"
             >
               {COMPANY_SIZE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -563,13 +563,13 @@ Examples:
 
         {/* Results */}
         {loading ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 px-4 md:grid-cols-2 md:gap-4 md:px-0 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <LeadCardSkeleton key={i} />
             ))}
           </div>
         ) : leads.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 px-4 md:grid-cols-2 md:gap-4 md:px-0 lg:grid-cols-3">
             <AnimatePresence>
               {leads.map((lead) => (
                 <motion.div

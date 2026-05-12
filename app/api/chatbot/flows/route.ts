@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
+import {
+  ensureTriggerEdge,
+  getFlowHealth,
+  reconstructEdgesFromNodes,
+  validateChatbotFlow,
+  type ChatbotFlowEdge,
+  type ChatbotFlowNode,
+} from "@/lib/utils/chatbot-flow"
 
 const ADMIN_ROLES = new Set(["admin"])
 
@@ -25,12 +33,44 @@ export async function GET() {
 
   const { data: flows, error } = await supabase
     .from("chatbot_flows")
-    .select("*, nodes:chatbot_nodes(count)")
+    .select("*")
     .order("priority", { ascending: false })
     .order("created_at", { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ flows })
+
+  const flowIds = (flows ?? []).map((flow) => flow.id)
+  const { data: nodes } = flowIds.length > 0
+    ? await supabase
+      .from("chatbot_nodes")
+      .select("*")
+      .in("flow_id", flowIds)
+      .order("position", { ascending: true })
+    : { data: [] }
+
+  const nodesByFlow = new Map<string, ChatbotFlowNode[]>()
+  ;((nodes ?? []) as (ChatbotFlowNode & { flow_id: string })[]).forEach((node) => {
+    const existing = nodesByFlow.get(node.flow_id) ?? []
+    existing.push(node)
+    nodesByFlow.set(node.flow_id, existing)
+  })
+
+  const flowsWithHealth = (flows ?? []).map((flow) => {
+    const flowNodes = nodesByFlow.get(flow.id) ?? []
+    const savedEdges = Array.isArray(flow.edges_data) ? flow.edges_data as ChatbotFlowEdge[] : []
+    const edges = savedEdges.length > 0
+      ? ensureTriggerEdge(savedEdges, flowNodes)
+      : reconstructEdgesFromNodes(flowNodes)
+    const issues = validateChatbotFlow(flowNodes, edges)
+    return {
+      ...flow,
+      nodes: [{ count: flowNodes.length }],
+      health: getFlowHealth(issues),
+      health_issues: issues,
+    }
+  })
+
+  return NextResponse.json({ flows: flowsWithHealth })
 }
 
 export async function POST(req: NextRequest) {

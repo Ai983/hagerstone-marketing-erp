@@ -89,7 +89,7 @@ function MultiSelectDropdown({
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="flex h-10 w-full items-center justify-between rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] transition hover:border-[#4A4A62] sm:min-w-[160px]"
+        className="flex h-11 w-full items-center justify-between rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-base text-[#F0F0FA] transition hover:border-[#4A4A62] md:h-10 md:text-sm sm:min-w-[160px]"
       >
         <span className="truncate">
           {label}
@@ -197,7 +197,7 @@ export function LeadFilters({
   const update = (patch: Partial<LeadsFilterState>) => onFiltersChange({ ...filters, ...patch })
 
   return (
-    <section className="border-b border-[#2A2A3C] bg-[#111118] px-6 py-3">
+    <section className="border-y border-[#2A2A3C] bg-[#111118] px-4 py-3 md:border-b md:border-t-0 md:px-6">
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3 md:hidden">
           <div className="relative flex-1">
@@ -206,13 +206,13 @@ export function LeadFilters({
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Search leads"
-              className="h-10 w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] pl-10 pr-3 text-sm text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
+              className="h-11 w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] pl-10 pr-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
             />
           </div>
           <button
             type="button"
             onClick={() => setShowMobileFilters((current) => !current)}
-            className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA]"
+            className="inline-flex h-11 items-center gap-2 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA]"
           >
             <Filter className="size-4" />
             Filters
@@ -324,7 +324,7 @@ export function LeadFilters({
                   category: event.target.value as LeadsFilterState["category"],
                 })
               }
-              className="h-10 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none transition hover:border-[#4A4A62]"
+            className="h-11 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-base text-[#F0F0FA] outline-none transition hover:border-[#4A4A62]"
             >
               <option value="all">All Categories</option>
               <option value="hot">Hot</option>

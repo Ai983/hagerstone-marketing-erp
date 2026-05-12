@@ -1,11 +1,108 @@
 import { createClient } from "@supabase/supabase-js"
 import { sendWhatsAppMessage, sendWhatsAppWithButtons, sendWhatsAppMedia } from "@/lib/utils/maytapi"
 
+const SESSION_TIMEOUT_HOURS = 24
+
 function getServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+}
+
+function isOlderThan24Hours(value: string | null | undefined) {
+  if (!value) return false
+  return Date.now() - new Date(value).getTime() > SESSION_TIMEOUT_HOURS * 60 * 60 * 1000
+}
+
+function evaluateCondition(value: string, operator: string, expected: string) {
+  const normalizedValue = value.toLowerCase()
+  const normalizedExpected = expected.toLowerCase()
+
+  switch (operator) {
+    case "contains":
+      return normalizedValue.includes(normalizedExpected)
+    case "equals":
+      return normalizedValue === normalizedExpected
+    case "starts_with":
+      return normalizedValue.startsWith(normalizedExpected)
+    case "not_equals":
+      return normalizedValue !== normalizedExpected
+    case "greater_than":
+      return parseFloat(value) > parseFloat(expected)
+    case "less_than":
+      return parseFloat(value) < parseFloat(expected)
+    default:
+      return false
+  }
+}
+
+function getFieldValue(
+  field: string,
+  userMessage: string,
+  lead: {
+    stage?: { slug?: string } | { slug?: string }[] | null
+    category?: string | null
+    city?: string | null
+    estimated_budget?: number | string | null
+    last_answer?: string | null
+  }
+) {
+  const leadStage = Array.isArray(lead.stage)
+    ? lead.stage[0]?.slug
+    : lead.stage?.slug
+
+  switch (field) {
+    case "message_text":
+      return userMessage
+    case "lead_stage":
+      return leadStage ?? ""
+    case "lead_category":
+      return lead.category ?? ""
+    case "lead_city":
+      return lead.city ?? ""
+    case "lead_budget":
+      return String(lead.estimated_budget ?? "0")
+    case "last_answer":
+      return lead.last_answer ?? ""
+    default:
+      return ""
+  }
+}
+
+function evaluateConditionNode(
+  node: {
+    id: string
+    branches?: {
+      id: string
+      label: string
+      color: string
+      conditions?: { field: string; operator: string; value: string }[]
+      next_node_id: string | null
+    }[]
+  },
+  userMessage: string,
+  lead: Parameters<typeof getFieldValue>[2]
+) {
+  const branches = node.branches || []
+
+  for (const branch of branches) {
+    if (branch.conditions && branch.conditions.length > 0) {
+      const matches = branch.conditions.every((condition) => {
+        const value = getFieldValue(condition.field, userMessage, lead)
+        return evaluateCondition(value, condition.operator, condition.value)
+      })
+      if (matches) return branch.next_node_id
+    }
+  }
+
+  const defaultBranch = branches.find((branch) =>
+    !branch.conditions || branch.conditions.length === 0
+  )
+  if (defaultBranch) return defaultBranch.next_node_id
+
+  console.warn("No matching branch found for condition node", node.id)
+  return null
 }
 
 // Check if incoming message matches any active chatbot flow trigger
@@ -19,7 +116,7 @@ export async function matchAndRunChatbot(
 
   try {
     // Check if lead has an in-progress session first.
-    const { data: activeSession } = await supabase
+    const { data: latestSession } = await supabase
       .from("chatbot_sessions")
       .select("*")
       .eq("lead_id", leadId)
@@ -27,6 +124,17 @@ export async function matchAndRunChatbot(
       .order("last_activity_at", { ascending: false })
       .limit(1)
       .maybeSingle()
+
+    if (latestSession && isOlderThan24Hours(latestSession.last_activity_at ?? latestSession.started_at)) {
+      await supabase
+        .from("chatbot_sessions")
+        .update({ status: "failed", completed_at: new Date().toISOString() })
+        .eq("id", latestSession.id)
+    }
+
+    const activeSession = latestSession && !isOlderThan24Hours(latestSession.last_activity_at ?? latestSession.started_at)
+      ? latestSession
+      : null
 
     if (activeSession) {
       const { data: currentNode } = await supabase
@@ -425,89 +533,19 @@ async function executeNode(
         .limit(1)
         .maybeSingle()
 
-      const leadStage = Array.isArray(leadData?.stage)
-        ? leadData?.stage[0]?.slug
-        : (leadData?.stage as unknown as { slug?: string } | null)?.slug
-
-      // Evaluate each branch in order, find first matching
-      let matchedBranch = null
-
-      for (const branch of node.branches) {
-        // Default branch - always matches if no conditions
-        if (!branch.conditions || branch.conditions.length === 0) {
-          if (!matchedBranch) matchedBranch = branch
-          continue
-        }
-
-        // Check all conditions in this branch (AND logic)
-        const allMatch = branch.conditions.every((cond: {
-          field: string
-          operator: string
-          value: string
-        }) => {
-          let fieldValue = ""
-
-          switch (cond.field) {
-            case "message_text":
-              fieldValue = text.toLowerCase()
-              break
-            case "lead_stage":
-              fieldValue = leadStage ?? ""
-              break
-            case "lead_category":
-              fieldValue = leadData?.category ?? ""
-              break
-            case "lead_city":
-              fieldValue = leadData?.city?.toLowerCase() ?? ""
-              break
-            case "lead_budget":
-              fieldValue = String(leadData?.estimated_budget ?? "0")
-              break
-            case "last_answer":
-              fieldValue = (lastAnswer?.answer ?? "").toLowerCase()
-              break
-          }
-
-          const condValue = cond.value.toLowerCase()
-
-          switch (cond.operator) {
-            case "contains":
-              return fieldValue.includes(condValue)
-            case "equals":
-              return fieldValue === condValue
-            case "starts_with":
-              return fieldValue.startsWith(condValue)
-            case "not_equals":
-              return fieldValue !== condValue
-            case "greater_than":
-              return parseFloat(fieldValue) > parseFloat(cond.value)
-            case "less_than":
-              return parseFloat(fieldValue) < parseFloat(cond.value)
-            default:
-              return false
-          }
-        })
-
-        if (allMatch) {
-          matchedBranch = branch
-          break
-        }
-      }
-
-      // If no branch matched, use default (last branch with no conditions)
-      if (!matchedBranch) {
-        matchedBranch = node.branches.find((b: { conditions: unknown[] }) =>
-          !b.conditions || b.conditions.length === 0
-        )
-      }
+      const matchedNextNodeId = evaluateConditionNode(node, text, {
+        ...(leadData ?? {}),
+        last_answer: lastAnswer?.answer ?? "",
+      })
+      const matchedBranch = node.branches.find((branch) => branch.next_node_id === matchedNextNodeId)
 
       console.log("Condition node - matched branch:", matchedBranch?.label)
 
-      if (matchedBranch?.next_node_id) {
+      if (matchedNextNodeId) {
         const { data: branchNode } = await supabase
           .from("chatbot_nodes")
           .select("*")
-          .eq("id", matchedBranch.next_node_id)
+          .eq("id", matchedNextNodeId)
           .maybeSingle()
 
         if (branchNode) {
@@ -515,7 +553,7 @@ async function executeNode(
             await supabase
               .from("chatbot_sessions")
               .update({
-                current_node_id: matchedBranch.next_node_id,
+                current_node_id: matchedNextNodeId,
                 last_activity_at: new Date().toISOString(),
               })
               .eq("id", sessionId)

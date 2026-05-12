@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { formatDistanceToNowStrict, isAfter, subDays } from "date-fns"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
+import { Plus } from "lucide-react"
 
 import { LeadFilters, type LeadsFilterState } from "@/components/leads/LeadFilters"
 import { LeadTable, type SortDirection, type SortKey } from "@/components/leads/LeadTable"
@@ -220,27 +221,48 @@ export function LeadsPageContent() {
   }
 
   return (
-    <main className="px-6 py-8 sm:px-8">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <main className="pb-20 md:pb-0 md:px-6 md:py-8 lg:px-8">
+      <div className="flex items-center justify-between px-4 py-3 md:mb-6 md:px-0 md:py-0">
         <div>
-          <h1 className="font-heading text-4xl font-semibold tracking-tight text-[#F0F0FA]">
+          <h1 className="text-lg font-bold text-[#F0F0FA] md:font-heading md:text-4xl md:font-semibold md:tracking-tight">
             All Leads
           </h1>
-          <p className="mt-2 text-sm text-[#9090A8]">
-            {filteredLeads.length > 0
-              ? `Updated ${formatDistanceToNowStrict(new Date(sortedLeads[0]?.created_at ?? new Date()), {
-                  addSuffix: true,
-                })}`
-              : "Review every lead currently visible to you."}
+          <p className="mt-0.5 text-xs text-[#9090A8] md:mt-2 md:text-sm">
+            <span className="md:hidden">{filteredLeads.length} leads total</span>
+            <span className="hidden md:inline">
+              {filteredLeads.length > 0
+                ? `Updated ${formatDistanceToNowStrict(new Date(sortedLeads[0]?.created_at ?? new Date()), {
+                    addSuffix: true,
+                  })}`
+                : "Review every lead currently visible to you."}
+            </span>
           </p>
         </div>
         <Link
           href="/leads/new"
-          className="inline-flex h-10 items-center justify-center rounded-lg bg-[#3B82F6] px-4 text-sm font-medium text-white transition hover:bg-[#2563EB]"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-[#3B82F6] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#2563EB] md:h-10 md:px-4"
         >
-          + New Lead
+          <Plus className="size-4" />
+          <span className="hidden md:inline">New Lead</span>
+          <span className="md:hidden">Add</span>
         </Link>
       </div>
+
+      <section className="mb-3 grid grid-cols-2 gap-3 px-4 md:mb-0 md:grid-cols-4 md:px-0">
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-3 md:p-4"
+          >
+            <p className="text-xs text-[#9090A8] md:uppercase md:tracking-[0.05em]">
+              {stat.label}
+            </p>
+            <p className="mt-1 text-xl font-bold text-[#F0F0FA] md:mt-3 md:text-2xl md:font-semibold">
+              {stat.value}
+            </p>
+          </div>
+        ))}
+      </section>
 
       <LeadFilters
         filters={filters}
@@ -258,19 +280,7 @@ export function LeadsPageContent() {
         canFilterAssignedTo={canFilterAssignedTo}
       />
 
-      <section className="mt-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-lg border border-[#2A2A3C] bg-[#111118] p-4"
-          >
-            <p className="text-xs uppercase tracking-[0.05em] text-[#9090A8]">{stat.label}</p>
-            <p className="mt-3 text-2xl font-semibold text-[#F0F0FA]">{stat.value}</p>
-          </div>
-        ))}
-      </section>
-
-      <div className="mt-6">
+      <div className="md:mt-6">
         <LeadTable
           leads={sortedLeads}
           loading={isLoading}

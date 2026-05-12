@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
+import { ensureTriggerEdge, type ChatbotFlowEdge, type ChatbotFlowNode } from "@/lib/utils/chatbot-flow"
 
 function getDb() {
   return createServiceClient(
@@ -236,10 +237,31 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     })
     .filter((edge): edge is IncomingEdge & { id: string } => edge !== null)
 
+  const edgeNodes = incomingNodes.map((node, index) => ({
+    id: idMap[node.id ?? node._original_id ?? ""] ?? node.id ?? "",
+    type: node.type,
+    position: node.position ?? index,
+  })).filter((node) => node.id) as ChatbotFlowNode[]
+  const normalizedEdges = remappedEdges.map((edge): ChatbotFlowEdge => ({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    sourceHandle: edge.sourceHandle ?? null,
+    targetHandle: edge.targetHandle ?? null,
+    type: edge.type,
+    label: edge.label,
+    markerEnd: edge.markerEnd as Record<string, unknown> | undefined,
+    style: edge.style as Record<string, unknown> | undefined,
+    animated: edge.animated,
+    labelStyle: edge.labelStyle as Record<string, unknown> | undefined,
+    labelBgStyle: edge.labelBgStyle as Record<string, unknown> | undefined,
+  }))
+  const edgesWithTrigger = ensureTriggerEdge(normalizedEdges, edgeNodes)
+
   const { error: flowError } = await supabase
     .from("chatbot_flows")
     .update({
-      edges_data: remappedEdges,
+      edges_data: edgesWithTrigger,
       updated_at: new Date().toISOString(),
     })
     .eq("id", params.id)
@@ -260,5 +282,5 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: finalError.message }, { status: 500 })
   }
 
-  return NextResponse.json({ nodes: finalNodes ?? [], edges: remappedEdges, id_map: idMap })
+  return NextResponse.json({ nodes: finalNodes ?? [], edges: edgesWithTrigger, id_map: idMap })
 }

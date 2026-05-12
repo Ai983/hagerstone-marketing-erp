@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { cn } from "@/lib/utils"
@@ -273,6 +274,7 @@ async function searchLeads(search: string): Promise<LeadOption[]> {
 export default function AdminTasksPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const isMobile = useMediaQuery("(max-width: 768px)")
   const setLeadDrawerId = useUIStore((s) => s.setLeadDrawerId)
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -383,9 +385,9 @@ export default function AdminTasksPage() {
   }
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] pb-20 md:p-6 md:pb-0">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4 px-4 py-4 md:mb-5 md:px-0 md:py-0 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
               All Tasks
@@ -394,14 +396,14 @@ export default function AdminTasksPage() {
               Every task across all leads and reps
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-3 gap-2 md:flex md:flex-wrap md:items-center">
             <KpiBadge tone="red" label="Overdue" value={kpis.overdue} />
             <KpiBadge tone="amber" label="Due Today" value={kpis.today} />
             <KpiBadge tone="surface" label="Upcoming" value={kpis.upcoming} />
             <button
               type="button"
               onClick={() => setIsAddOpen(true)}
-              className="ml-0 inline-flex h-9 items-center gap-2 rounded-lg bg-[#3B82F6] px-3 text-sm font-medium text-white transition hover:bg-[#2563EB] lg:ml-2"
+              className="col-span-3 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#3B82F6] px-3 text-sm font-medium text-white transition hover:bg-[#2563EB] md:col-span-1 md:h-9 lg:ml-2"
             >
               <Plus className="size-4" />
               Add Task
@@ -415,7 +417,7 @@ export default function AdminTasksPage() {
           onChange={(next) => setFilters((prev) => ({ ...prev, ...next }))}
         />
 
-        <section className="mt-4 overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118]">
+        <section className="mt-4 overflow-hidden border-y border-[#2A2A3C] bg-[#111118] md:rounded-xl md:border">
           <div className="flex flex-col gap-3 border-b border-[#2A2A3C] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-[#9090A8]">
               {filteredTasks.length} task{filteredTasks.length === 1 ? "" : "s"} found
@@ -448,6 +450,13 @@ export default function AdminTasksPage() {
             </div>
           ) : pageTasks.length === 0 ? (
             <EmptyState />
+          ) : isMobile ? (
+            <MobileAdminTaskList
+              tasks={pageTasks}
+              completingId={completeMutation.variables}
+              onComplete={(taskId) => completeMutation.mutate(taskId)}
+              onOpenLead={setLeadDrawerId}
+            />
           ) : groupMode === "flat" ? (
             <TaskTable
               tasks={pageTasks}
@@ -475,12 +484,12 @@ export default function AdminTasksPage() {
             />
           )}
 
-          <div className="flex items-center justify-between border-t border-[#2A2A3C] px-4 py-3">
+          <div className="flex items-center justify-between gap-3 border-t border-[#2A2A3C] px-4 py-3">
             <button
               type="button"
               disabled={safePage <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="rounded-lg border border-[#2A2A3C] px-3 py-1.5 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1A1A24] disabled:opacity-40"
+              className="flex-1 rounded-xl border border-[#2A2A3C] px-3 py-3 text-sm font-medium text-[#F0F0FA] transition hover:bg-[#1A1A24] disabled:opacity-40 md:flex-none md:rounded-lg md:py-1.5 md:text-xs"
             >
               Previous
             </button>
@@ -491,7 +500,7 @@ export default function AdminTasksPage() {
               type="button"
               disabled={safePage >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="rounded-lg border border-[#2A2A3C] px-3 py-1.5 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1A1A24] disabled:opacity-40"
+              className="flex-1 rounded-xl border border-[#2A2A3C] px-3 py-3 text-sm font-medium text-[#F0F0FA] transition hover:bg-[#1A1A24] disabled:opacity-40 md:flex-none md:rounded-lg md:py-1.5 md:text-xs"
             >
               Next
             </button>
@@ -548,7 +557,7 @@ function FilterBar({
   onChange: (patch: Partial<Filters>) => void
 }) {
   return (
-    <div className="grid gap-3 rounded-xl border border-[#2A2A3C] bg-[#111118] p-4 xl:grid-cols-[180px_170px_1fr_160px_240px]">
+    <div className="mx-4 grid gap-3 rounded-xl border border-[#2A2A3C] bg-[#111118] p-4 md:mx-0 xl:grid-cols-[180px_170px_1fr_160px_240px]">
       <NativeSelect
         label="Assigned Rep"
         value={filters.repId}
@@ -566,17 +575,17 @@ function FilterBar({
       />
       <div>
         <p className="mb-1 text-[11px] font-medium uppercase text-[#9090A8]">Status</p>
-        <div className="grid grid-cols-5 rounded-lg border border-[#2A2A3C] bg-[#0A0A0F] p-1">
+        <div className="grid w-full grid-cols-5 gap-1 rounded-xl bg-[#1A1A24] p-1">
           {statusFilters.map((item) => (
             <button
               key={item.value}
               type="button"
               onClick={() => onChange({ status: item.value })}
               className={cn(
-                "h-8 rounded-md px-2 text-xs font-medium transition",
+                "flex min-h-[40px] items-center justify-center rounded-lg px-1 py-2 text-center text-[11px] font-medium leading-tight transition-all duration-200",
                 filters.status === item.value
-                  ? "bg-[#1E3A5F] text-[#3B82F6]"
-                  : "text-[#9090A8] hover:bg-[#1A1A24] hover:text-[#F0F0FA]"
+                  ? "bg-[#3B82F6] text-white shadow-sm"
+                  : "text-[#9090A8] hover:text-[#F0F0FA]"
               )}
             >
               {item.label}
@@ -602,7 +611,7 @@ function FilterBar({
             value={filters.search}
             onChange={(e) => onChange({ search: e.target.value })}
             placeholder="Lead or task"
-            className="h-10 w-full rounded-lg border border-[#2A2A3C] bg-[#0A0A0F] pl-9 pr-3 text-sm text-[#F0F0FA] outline-none transition placeholder:text-[#5A5A72] focus:border-[#3B82F6]"
+            className="w-full rounded-lg border border-[#2A2A3C] bg-[#0A0A0F] py-3 pl-9 pr-3 text-base text-[#F0F0FA] outline-none transition placeholder:text-[#5A5A72] focus:border-[#3B82F6] md:py-2.5 md:text-sm"
           />
         </div>
       </div>
@@ -629,7 +638,7 @@ function NativeSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-10 w-full rounded-lg border border-[#2A2A3C] bg-[#0A0A0F] px-3 text-sm text-[#F0F0FA] outline-none transition focus:border-[#3B82F6]"
+        className="w-full rounded-lg border border-[#2A2A3C] bg-[#0A0A0F] px-3 py-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] md:py-2.5 md:text-sm"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -679,6 +688,91 @@ function TaskTable({
           ))}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+function MobileAdminTaskList({
+  tasks,
+  completingId,
+  onComplete,
+  onOpenLead,
+}: {
+  tasks: AdminTask[]
+  completingId?: string
+  onComplete: (taskId: string) => void
+  onOpenLead: (leadId: string) => void
+}) {
+  return (
+    <div className="space-y-3 px-4 py-3">
+      {tasks.map((task) => {
+        const status = getTaskStatus(task)
+        const isCompleting = completingId === task.id
+        const isOverdue = status === "overdue"
+        const isTodayStatus = status === "today"
+
+        return (
+          <div
+            key={task.id}
+            className="rounded-xl border border-l-2 border-[#2A2A3C] bg-[#111118] p-4"
+            style={{
+              borderLeftColor: isOverdue ? "#EF4444" : isTodayStatus ? "#F59E0B" : "#2A2A3C",
+            }}
+          >
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <p className="min-w-0 flex-1 text-sm font-medium text-[#F0F0FA]">
+                {task.title}
+              </p>
+              <span
+                className={cn(
+                  "flex-shrink-0 rounded-full px-2 py-1 text-[10px] font-medium",
+                  isOverdue && "bg-red-500/20 text-red-400",
+                  isTodayStatus && "bg-amber-500/20 text-amber-400",
+                  !isOverdue && !isTodayStatus && "bg-[#1A1A24] text-[#9090A8]"
+                )}
+              >
+                {isOverdue ? "Overdue" : isTodayStatus ? "Due Today" : getStatusLabel(status)}
+              </span>
+            </div>
+
+            <div className="mb-3 flex justify-between gap-3 text-xs text-[#9090A8]">
+              <button
+                type="button"
+                className="min-w-0 truncate text-left underline"
+                onClick={() => onOpenLead(task.lead_id)}
+              >
+                {task.lead_name ?? "Unknown lead"}
+              </button>
+              <span className="min-w-0 truncate">{task.rep_name ?? "Unassigned"}</span>
+            </div>
+
+            <p className="mb-3 flex items-center gap-1 text-xs text-[#9090A8]">
+              <CalendarClock className="size-3" />
+              {format(new Date(task.due_at), "dd MMM, hh:mm a")}
+            </p>
+
+            {status === "completed" ? (
+              <p className="rounded-xl bg-[#163322] py-2.5 text-center text-sm font-medium text-[#34D399]">
+                Completed
+              </p>
+            ) : (
+              <button
+                type="button"
+                disabled={isCompleting}
+                onClick={() => onComplete(task.id)}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#10B981]/10 py-2.5 text-sm font-medium text-[#10B981] disabled:opacity-60"
+              >
+                {isCompleting ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="size-4" />
+                )}
+                Mark Complete
+              </button>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

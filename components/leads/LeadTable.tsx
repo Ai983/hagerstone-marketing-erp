@@ -10,7 +10,12 @@ import {
   ChevronRight,
   Copy,
   MoreHorizontal,
+  Briefcase,
+  Globe,
+  MapPin,
+  MessageCircle,
   PenSquare,
+  Phone,
   Trash2,
   UserRound,
 } from "lucide-react"
@@ -19,6 +24,8 @@ import { toast } from "sonner"
 
 import type { LeadSource, ServiceLine } from "@/lib/types"
 import type { LeadListItem } from "@/lib/hooks/useLeads"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
+import { useUIStore } from "@/lib/stores/uiStore"
 import { categoryConfig } from "@/lib/utils/lead-category"
 import { cn } from "@/lib/utils"
 
@@ -221,6 +228,8 @@ export function LeadTable({
   onPageChange,
 }: LeadTableProps) {
   const router = useRouter()
+  const isMobile = useMediaQuery("(max-width: 768px)")
+  const { setLeadDrawerId, setDrawerActiveTab } = useUIStore()
   const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null)
 
   const paginatedLeads = useMemo(() => {
@@ -237,6 +246,159 @@ export function LeadTable({
     await navigator.clipboard.writeText(phone)
     setCopiedLeadId(leadId)
     window.setTimeout(() => setCopiedLeadId((current) => (current === leadId ? null : current)), 1200)
+  }
+
+  if (isMobile) {
+    return (
+      <div className="pb-20 md:pb-0">
+        {loading ? (
+          <div className="space-y-3 px-4 py-3">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-40 animate-pulse rounded-xl border border-[#2A2A3C] bg-[#111118] p-4"
+              >
+                <div className="h-4 w-2/3 rounded bg-[#1A1A24]" />
+                <div className="mt-2 h-3 w-1/2 rounded bg-[#1A1A24]" />
+                <div className="mt-6 grid grid-cols-3 gap-2">
+                  <div className="h-9 rounded-lg bg-[#1A1A24]" />
+                  <div className="h-9 rounded-lg bg-[#1A1A24]" />
+                  <div className="h-9 rounded-lg bg-[#1A1A24]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : paginatedLeads.length > 0 ? (
+          <>
+            <div className="space-y-3 px-4 py-3">
+              {paginatedLeads.map((lead) => (
+                <div
+                  key={lead.id}
+                  className="overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118] transition-transform active:scale-[0.99]"
+                  onClick={() => setLeadDrawerId(lead.id)}
+                >
+                  <div
+                    className="h-1"
+                    style={{ backgroundColor: lead.stage?.color ?? "#3B82F6" }}
+                  />
+                  <div className="p-4">
+                    <div className="mb-2 flex items-start justify-between">
+                      <div className="mr-2 min-w-0 flex-1">
+                        <p className="truncate text-base font-semibold text-[#F0F0FA]">
+                          {lead.full_name}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-[#9090A8]">
+                          {lead.company_name || "No company"}
+                        </p>
+                      </div>
+                      <span
+                        className="flex-shrink-0 rounded-full px-2 py-1 text-[10px] font-medium text-white"
+                        style={{ backgroundColor: lead.stage?.color ?? "#6B7280" }}
+                      >
+                        {lead.stage?.name ?? "Unknown"}
+                      </span>
+                    </div>
+
+                    <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1">
+                      {lead.city ? (
+                        <span className="flex items-center gap-1 text-xs text-[#9090A8]">
+                          <MapPin className="size-3" />
+                          {lead.city}
+                        </span>
+                      ) : null}
+                      {lead.source ? (
+                        <span className="flex items-center gap-1 text-xs text-[#9090A8]">
+                          <Globe className="size-3" />
+                          {lead.source.replace(/_/g, " ")}
+                        </span>
+                      ) : null}
+                      {lead.service_line ? (
+                        <span className="flex items-center gap-1 text-xs text-[#9090A8]">
+                          <Briefcase className="size-3" />
+                          {lead.service_line.replace(/_/g, " ")}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <span className="truncate font-mono text-xs text-[#9090A8]">
+                        {lead.phone || "No phone"}
+                      </span>
+                      <span className="flex-shrink-0 text-xs text-[#5A5A72]">
+                        {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
+                      </span>
+                    </div>
+
+                    <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
+                      <a
+                        href={lead.phone ? `tel:${lead.phone}` : undefined}
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#1A1A24] py-2.5 text-xs font-medium text-[#10B981]"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <Phone className="size-3.5" />
+                        Call
+                      </a>
+                      <button
+                        type="button"
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#1A1A24] py-2.5 text-xs font-medium text-[#25D366]"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setLeadDrawerId(lead.id)
+                          setDrawerActiveTab("WhatsApp")
+                        }}
+                      >
+                        <MessageCircle className="size-3.5" />
+                        WhatsApp
+                      </button>
+                      <button
+                        type="button"
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#3B82F6]/10 py-2.5 text-xs font-medium text-[#3B82F6]"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setLeadDrawerId(lead.id)
+                        }}
+                      >
+                        View
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {totalPages > 1 ? (
+              <div className="flex items-center gap-3 px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => onPageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="flex-1 rounded-xl border border-[#2A2A3C] bg-[#111118] py-3 text-sm font-medium text-[#F0F0FA] disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <span className="text-xs text-[#9090A8]">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onPageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="flex-1 rounded-xl border border-[#2A2A3C] bg-[#111118] py-3 text-sm font-medium text-[#F0F0FA] disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
+            <UserRound className="mb-4 size-12 text-[#5A5A72]" />
+            <p className="text-sm text-[#9090A8]">No leads found</p>
+            <p className="mt-1 text-xs text-[#5A5A72]">Try changing your filters</p>
+          </div>
+        )}
+      </div>
+    )
   }
 
   if (!loading && leads.length === 0) {

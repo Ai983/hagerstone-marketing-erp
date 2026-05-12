@@ -197,7 +197,7 @@ export default function ActivitiesPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: "24px", maxWidth: "800px" }}>
+      <div className="mx-auto max-w-[800px] px-4 py-4 pb-20 md:px-6 md:py-6 md:pb-0">
         <div
           className="animate-pulse"
           style={{
@@ -279,20 +279,15 @@ export default function ActivitiesPage() {
   }
 
   return (
-    <div style={{ padding: "24px", maxWidth: "800px" }}>
-      <h1
-        style={{
-          color: "#F0F0FA",
-          fontSize: "24px",
-          fontWeight: 600,
-          marginBottom: "8px",
-        }}
-      >
-        My Tasks
-      </h1>
-      <p style={{ color: "#9090A8", marginBottom: "32px" }}>
-        {tasks.length} open task{tasks.length !== 1 ? "s" : ""}
-      </p>
+    <div className="mx-auto max-w-[800px] pb-20 md:px-6 md:py-6 md:pb-0">
+      <div className="px-4 py-4 md:px-0 md:py-0">
+        <h1 className="text-xl font-bold text-[#F0F0FA] md:text-2xl md:font-semibold">
+          My Tasks
+        </h1>
+        <p className="mt-1 text-xs text-[#9090A8] md:text-sm">
+          {overdue.length} overdue - {dueToday.length} due today
+        </p>
+      </div>
 
       {fetchError && (
         <div
@@ -311,17 +306,10 @@ export default function ActivitiesPage() {
       )}
 
       {tasks.length === 0 && !fetchError && (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "60px",
-            color: "#5A5A72",
-            background: "#111118",
-            borderRadius: "12px",
-            border: "1px solid #2A2A3C",
-          }}
-        >
-          No open tasks assigned to you.
+        <div className="mx-4 flex flex-col items-center justify-center rounded-xl border border-[#2A2A3C] bg-[#111118] py-20 text-center md:mx-0">
+          <CheckCircle2 className="mb-4 size-12 text-[#10B981]" />
+          <p className="font-semibold text-[#F0F0FA]">All caught up!</p>
+          <p className="mt-1 text-sm text-[#9090A8]">No pending tasks</p>
         </div>
       )}
 
@@ -397,30 +385,32 @@ function TaskGroup({
   if (tasks.length === 0) return null
 
   return (
-    <div style={{ marginBottom: "24px" }}>
-      <h2
-        style={{
-          color: headingColor,
-          fontSize: "14px",
-          fontWeight: 600,
-          marginBottom: "12px",
-          letterSpacing: "1px",
-        }}
-      >
-        {heading}
-      </h2>
+    <div className="mb-6">
+      <div className="sticky top-0 z-10 border-b border-[#2A2A3C] bg-[#0A0A0F] px-4 py-2 md:static md:border-b-0 md:px-0">
+        <h2
+          style={{
+            color: headingColor,
+            fontSize: "12px",
+            fontWeight: 700,
+            letterSpacing: "1px",
+          }}
+        >
+          {heading} ({tasks.length})
+        </h2>
+      </div>
       {tasks.map((task) => (
-        <TaskCard
-          key={task.id}
-          task={task}
-          accentColor={accentColor}
-          isExpanded={expandedIds.has(task.id)}
-          isCompleting={completingIds.has(task.id)}
-          isRemoving={removingIds.has(task.id)}
-          onToggle={() => onToggle(task.id)}
-          onComplete={() => onComplete(task.id)}
-          onOpenLead={onOpenLead}
-        />
+        <div key={task.id} className="mx-4 md:mx-0">
+          <TaskCard
+            task={task}
+            accentColor={accentColor}
+            isExpanded={expandedIds.has(task.id)}
+            isCompleting={completingIds.has(task.id)}
+            isRemoving={removingIds.has(task.id)}
+            onToggle={() => onToggle(task.id)}
+            onComplete={() => onComplete(task.id)}
+            onOpenLead={onOpenLead}
+          />
+        </div>
       ))}
     </div>
   )

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { ArrowDown, ArrowUp, Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { cn } from "@/lib/utils"
 
 interface RepRow {
@@ -47,6 +48,7 @@ const columns: { key: SortKey; label: string; align: "left" | "right" }[] = [
 ]
 
 export function RepProductivityTable() {
+  const isMobile = useMediaQuery("(max-width: 768px)")
   const [sortKey, setSortKey] = useState<SortKey>("closed_leads")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
 
@@ -106,6 +108,40 @@ export function RepProductivityTable() {
   }
 
   return (
+    isMobile ? (
+      <div className="space-y-3">
+        {sorted.map((rep) => (
+          <div
+            key={rep.user_id}
+            className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-4"
+          >
+            <div className="mb-3 flex items-center gap-3">
+              <div className="flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-[#3B82F6] text-sm font-bold text-white">
+                {rep.full_name[0] ?? "?"}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-[#F0F0FA]">{rep.full_name}</p>
+                <p className="text-xs capitalize text-[#9090A8]">{rep.role.replace("_", " ")}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-[#1A1A24] p-2.5 text-center">
+                <p className="text-lg font-bold text-[#F0F0FA]">{rep.assigned_leads}</p>
+                <p className="text-[10px] text-[#9090A8]">Assigned</p>
+              </div>
+              <div className="rounded-xl bg-[#1A1A24] p-2.5 text-center">
+                <p className="text-lg font-bold text-[#10B981]">{rep.closed_leads}</p>
+                <p className="text-[10px] text-[#9090A8]">Closed</p>
+              </div>
+              <div className="rounded-xl bg-[#1A1A24] p-2.5 text-center">
+                <p className="text-lg font-bold text-[#EF4444]">{rep.overdue_tasks}</p>
+                <p className="text-[10px] text-[#9090A8]">Overdue</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
@@ -174,5 +210,6 @@ export function RepProductivityTable() {
         </tbody>
       </table>
     </div>
+    )
   )
 }

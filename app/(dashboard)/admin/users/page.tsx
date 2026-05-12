@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
@@ -11,6 +12,7 @@ import {
 } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import type { Profile, UserRole } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -45,6 +47,8 @@ async function fetchUsers(): Promise<UserRow[]> {
 }
 
 export default function AdminUsersPage() {
+  const router = useRouter()
+  const isMobile = useMediaQuery("(max-width: 768px)")
   const queryClient = useQueryClient()
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
@@ -69,18 +73,25 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] pb-20 md:p-6 md:pb-6">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
-        <div className="mb-5 flex items-center gap-3">
+        <button
+          onClick={() => router.back()}
+          className="mx-4 mb-4 mt-4 rounded-lg bg-[#1A1A24] p-2 text-[#9090A8] md:hidden"
+          aria-label="Go back"
+        >
+          <ArrowLeft className="size-4" />
+        </button>
+        <div className="px-4 pb-4 md:mb-5 md:flex md:items-center md:gap-3 md:px-0 md:pb-0">
           <Link
             href="/admin"
-            className="flex size-8 items-center justify-center rounded-lg border border-[#2A2A3C] text-[#9090A8] transition hover:text-[#F0F0FA]"
+            className="hidden size-8 items-center justify-center rounded-lg border border-[#2A2A3C] text-[#9090A8] transition hover:text-[#F0F0FA] md:flex"
           >
             <ArrowLeft className="size-4" />
           </Link>
           <div>
-            <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+              <h1 className="text-xl font-bold text-[#F0F0FA] md:font-[family-name:var(--font-heading)] md:text-2xl md:font-semibold">
               Users
             </h1>
             <p className="text-sm text-[#9090A8]">Manage team members and roles.</p>
@@ -88,6 +99,58 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Users table */}
+        {isMobile ? (
+          <div className="space-y-3 px-4 py-3">
+            {isLoading ? (
+              <div className="flex h-48 items-center justify-center">
+                <Loader2 className="size-6 animate-spin text-[#9090A8]" />
+              </div>
+            ) : !users || users.length === 0 ? (
+              <div className="py-12 text-center text-sm text-[#9090A8]">No users found</div>
+            ) : (
+              users.map((u) => (
+                <div key={u.id} className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-4">
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-[#3B82F6] font-bold text-white">
+                      {u.full_name?.[0] ?? "?"}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-[#F0F0FA]">{u.full_name}</p>
+                      <p className="truncate text-xs text-[#9090A8]">{u.email}</p>
+                    </div>
+                    <span className={cn("size-2 flex-shrink-0 rounded-full", u.is_active ? "bg-[#10B981]" : "bg-[#EF4444]")} />
+                  </div>
+                  <div className="mb-3 flex items-center gap-3">
+                    <select
+                      value={u.role}
+                      onChange={(e) => updateProfile(u.id, { role: e.target.value as UserRole })}
+                      disabled={updatingId === u.id}
+                      className="flex-1 rounded-xl border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2.5 text-base text-[#F0F0FA] outline-none disabled:opacity-50"
+                    >
+                      {roles.map((r) => (
+                        <option key={r} value={r}>{r.replace("_", " ")}</option>
+                      ))}
+                    </select>
+                    <div className="px-3 text-center">
+                      <p className="text-lg font-bold text-[#F0F0FA]">{u.assigned_leads}</p>
+                      <p className="text-[10px] text-[#9090A8]">Leads</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => updateProfile(u.id, { is_active: !u.is_active })}
+                    disabled={updatingId === u.id}
+                    className={cn(
+                      "w-full rounded-xl py-2.5 text-xs font-medium disabled:opacity-50",
+                      u.is_active ? "bg-[#EF4444]/10 text-[#EF4444]" : "bg-[#10B981]/10 text-[#10B981]"
+                    )}
+                  >
+                    {u.is_active ? "Deactivate User" : "Activate User"}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        ) : (
         <div className="overflow-x-auto rounded-xl border border-[#2A2A3C] bg-[#111118]">
           {isLoading ? (
             <div className="flex h-48 items-center justify-center">
@@ -171,6 +234,7 @@ export default function AdminUsersPage() {
             </table>
           )}
         </div>
+        )}
       </div>
     </main>
   )

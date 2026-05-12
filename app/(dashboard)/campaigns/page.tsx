@@ -44,45 +44,46 @@ export default function CampaignsPage() {
   })
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] pb-20 md:p-6 md:pb-0">
       <div className="mx-auto max-w-5xl">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 px-4 py-4 md:mb-6 md:px-0 md:py-0">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-[#1E3A5F] text-[#3B82F6]">
+            <div className="hidden size-10 items-center justify-center rounded-lg bg-[#1E3A5F] text-[#3B82F6] md:flex">
               <Megaphone className="size-5" />
             </div>
             <div>
-              <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+              <h1 className="text-xl font-bold text-[#F0F0FA] md:font-[family-name:var(--font-heading)] md:text-2xl md:font-semibold">
                 Campaigns
               </h1>
-              <p className="text-sm text-[#9090A8]">
+              <p className="mt-1 text-xs text-[#9090A8] md:mt-0 md:text-sm">
                 Build WhatsApp message sequences and enroll leads.
               </p>
             </div>
           </div>
           <Link
             href="/campaigns/new"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#3B82F6] px-3 py-2 text-xs font-medium text-white transition hover:bg-[#2563EB]"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#3B82F6] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#2563EB] md:text-xs"
           >
             <Plus className="size-3" />
-            New Campaign
+            <span className="hidden md:inline">New Campaign</span>
+            <span className="md:hidden">New</span>
           </Link>
         </div>
 
         {/* Body */}
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 px-4 md:grid-cols-2 md:gap-4 md:px-0">
             {Array.from({ length: 4 }).map((_, i) => (
               <CampaignCardSkeleton key={i} />
             ))}
           </div>
         ) : isError ? (
-          <div className="rounded-xl border border-[#7F1D1D]/50 bg-[#2A1215]/40 p-4 text-sm text-[#F87171]">
+          <div className="mx-4 rounded-xl border border-[#7F1D1D]/50 bg-[#2A1215]/40 p-4 text-sm text-[#F87171] md:mx-0">
             Failed to load campaigns
           </div>
         ) : !data || data.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-[#2A2A3C] bg-[#111118] py-20 text-center">
+          <div className="mx-4 flex flex-col items-center justify-center rounded-xl border border-[#2A2A3C] bg-[#111118] px-4 py-20 text-center md:mx-0">
             <div className="mb-3 flex size-14 items-center justify-center rounded-full bg-[#1E3A5F] text-[#3B82F6]">
               <Megaphone className="size-7" />
             </div>
@@ -99,7 +100,7 @@ export default function CampaignsPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 px-4 md:grid-cols-2 md:gap-4 md:px-0">
             {data.map((c) => (
               <CampaignCard key={c.id} campaign={c} />
             ))}

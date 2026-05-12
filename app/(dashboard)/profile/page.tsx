@@ -223,25 +223,25 @@ export default function ProfilePage() {
     (phone.trim() || "") !== (profile.phone ?? "")
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] pb-32 md:p-6 md:pb-6">
       <div className="mx-auto max-w-5xl">
         {/* Header */}
-        <div className="mb-6 flex items-start gap-4">
+        <div className="flex flex-col items-center px-4 py-6 text-center md:mb-6 md:flex-row md:items-start md:gap-4 md:px-0 md:py-0 md:text-left">
           <div
-            className="flex size-14 shrink-0 items-center justify-center rounded-full text-lg font-semibold"
+            className="mb-3 flex size-20 shrink-0 items-center justify-center rounded-full text-3xl font-bold md:mb-0 md:size-14 md:text-lg md:font-semibold"
             style={{ backgroundColor: role.bg, color: role.color }}
           >
             {getInitials(profile.full_name)}
           </div>
           <div className="flex-1">
-            <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+            <h1 className="text-xl font-bold text-[#F0F0FA] md:font-[family-name:var(--font-heading)] md:text-2xl md:font-semibold">
               My Profile
             </h1>
             <p className="text-sm text-[#9090A8]">
               Manage your personal information
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="mt-2 flex items-center gap-2 md:mt-0">
             <span
               className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
               style={{ backgroundColor: role.bg, color: role.color }}
@@ -252,7 +252,7 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#3A3A52] bg-[#1A1A24] px-3 py-1.5 text-xs font-medium text-[#9090A8] transition hover:border-[#F87171] hover:bg-[#F8717115] hover:text-[#F87171]"
+              className="hidden items-center gap-1.5 rounded-lg border border-[#3A3A52] bg-[#1A1A24] px-3 py-1.5 text-xs font-medium text-[#9090A8] transition hover:border-[#F87171] hover:bg-[#F8717115] hover:text-[#F87171] md:inline-flex"
             >
               <LogOut className="size-3" />
               Logout
@@ -261,7 +261,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Two-column grid on lg+ */}
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 px-4 md:px-0 lg:grid-cols-2">
           {/* ── Personal Info card ──────────────────────────────── */}
           <section className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-5">
             <div className="mb-4 flex items-center gap-2">
@@ -284,7 +284,7 @@ export default function ProfilePage() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
+                  className="w-full rounded-xl border border-[#3A3A52] bg-[#1F1F2E] px-4 py-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 md:rounded-lg md:px-3 md:py-2.5 md:text-sm"
                 />
               </div>
 
@@ -301,7 +301,7 @@ export default function ProfilePage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+91 98765 43210"
-                  className="h-10 w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
+                  className="w-full rounded-xl border border-[#3A3A52] bg-[#1F1F2E] px-4 py-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 md:rounded-lg md:px-3 md:py-2.5 md:text-sm"
                 />
               </div>
 
@@ -342,7 +342,7 @@ export default function ProfilePage() {
                 </p>
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="hidden justify-end pt-2 md:flex">
                 <button
                   type="button"
                   onClick={handleSavePersonal}
@@ -449,6 +449,23 @@ export default function ProfilePage() {
             </section>
         </div>
       </div>
+      <div className="fixed bottom-0 left-0 right-0 space-y-2 border-t border-[#2A2A3C] bg-[#0A0A0F] p-4 md:hidden">
+        <button
+          type="button"
+          onClick={handleSavePersonal}
+          disabled={savingPersonal || !personalDirty}
+          className="w-full rounded-xl bg-[#3B82F6] py-3.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {savingPersonal ? "Saving..." : "Save Changes"}
+        </button>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full rounded-xl border border-[#EF4444]/50 py-3 text-sm font-medium text-[#EF4444]"
+        >
+          Logout
+        </button>
+      </div>
     </main>
   )
 }
@@ -493,7 +510,7 @@ function PasswordField({
           autoComplete={autoComplete}
           placeholder={placeholder}
           className={cn(
-            "h-10 w-full rounded-lg border bg-[#1F1F2E] pl-3 pr-11 text-sm text-[#F0F0FA] outline-none transition focus:ring-2",
+            "w-full rounded-xl border bg-[#1F1F2E] py-3 pl-4 pr-11 text-base text-[#F0F0FA] outline-none transition focus:ring-2 md:rounded-lg md:py-2.5 md:pl-3 md:text-sm",
             error
               ? "border-[#F87171] focus:border-[#F87171] focus:ring-[#F87171]/20"
               : "border-[#3A3A52] focus:border-[#3B82F6] focus:ring-[#3B82F6]/20"
