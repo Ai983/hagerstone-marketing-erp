@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
 
 const ALLOWED_MEDIA_TYPES = new Set(["image", "document", "video", "audio"])
+const MAX_MESSAGE_CHARACTERS = 5000
 
 function getLegacyMessageType(mediaType?: string | null): "text" | "image" | "document" {
   if (mediaType === "image") return "image"
@@ -81,9 +82,9 @@ export async function PUT(
           { status: 400 }
         )
       }
-      if (m.message_template && m.message_template.length > 1000) {
+      if (m.message_template && m.message_template.length > MAX_MESSAGE_CHARACTERS) {
         return NextResponse.json(
-          { error: "Message body cannot exceed 1000 characters" },
+          { error: `Message body cannot exceed ${MAX_MESSAGE_CHARACTERS} characters` },
           { status: 400 }
         )
       }

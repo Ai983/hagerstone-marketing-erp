@@ -208,3 +208,48 @@
   float: left;
   height: 0;
 }
+
+/* Render saved email HTML with the same hierarchy in previews. */
+.email-preview h1 {
+  font-size: 2rem !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  margin-top: 12px !important;
+  margin-bottom: 6px !important;
+}
+.email-preview h2 {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  margin-top: 10px !important;
+  margin-bottom: 4px !important;
+}
+.email-preview h3 {
+  font-size: 1.2rem !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  margin-top: 8px !important;
+  margin-bottom: 4px !important;
+}
+.email-preview p {
+  font-size: 0.938rem !important;
+  line-height: 1.7 !important;
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+}
+.email-preview ul {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin: 4px 0 !important;
+}
+.email-preview ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin: 4px 0 !important;
+}
+.email-preview blockquote {
+  border-left: 3px solid #3B82F6 !important;
+  padding-left: 12px !important;
+  color: #6B7280 !important;
+  margin: 4px 0 !important;
+}

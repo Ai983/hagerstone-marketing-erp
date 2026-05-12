@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils"
 
 const BUCKET_NAME = "campaign-media"
 const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
+const MAX_MESSAGE_CHARACTERS = 5000
 const ACCEPTED_FILE_TYPES = "image/*,.pdf,.doc,.docx,video/*,audio/*,.mp3,.m4a,.aac,.ogg,.wav"
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -167,7 +168,7 @@ function SortableMessageRow({
   const [uploading, setUploading] = useState(false)
 
   const charCount = message.message_template.length
-  const overLimit = charCount > 1000
+  const overLimit = charCount > MAX_MESSAGE_CHARACTERS
   const hasMedia = Boolean(message.media_url)
   const isEmail = message.channel === "email"
 
@@ -433,7 +434,7 @@ function SortableMessageRow({
                 overLimit ? "text-[#F87171]" : "text-[#9090A8]"
               )}
             >
-              {charCount} / 1000 characters
+              {charCount} / {MAX_MESSAGE_CHARACTERS} characters
             </span>
           </div>
 
@@ -764,8 +765,8 @@ export function MessageSequenceBuilder({
       toast.error("Every message needs a body or an attachment")
       return
     }
-    if (messages.some((m) => m.message_template.length > 1000)) {
-      toast.error("One or more messages exceed 1000 characters")
+    if (messages.some((m) => m.message_template.length > MAX_MESSAGE_CHARACTERS)) {
+      toast.error(`One or more messages exceed ${MAX_MESSAGE_CHARACTERS} characters`)
       return
     }
     if (messages.some((m) => m.channel === "email" && !m.email_subject.trim())) {

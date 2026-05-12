@@ -2326,7 +2326,7 @@ function EmailTab({
             </div>
             <div className="thin-scrollbar max-h-[70vh] overflow-y-auto p-5">
               <div
-                className="rounded-lg bg-white p-5 text-sm leading-relaxed text-gray-900"
+                className="email-preview prose max-w-none rounded-lg bg-white p-5 text-sm leading-relaxed text-gray-900"
                 dangerouslySetInnerHTML={{ __html: renderedBody || "<p>No body yet.</p>" }}
               />
               {!renderedBody && (
