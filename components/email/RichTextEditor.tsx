@@ -72,7 +72,16 @@ export function RichTextEditor({
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3],
+        },
+        bulletList: {},
+        orderedList: {},
+        bold: {},
+        italic: {},
+        strike: {},
+      }),
       Underline,
       TextStyle,
       FontSize,
