@@ -36,6 +36,8 @@ import {
   GitBranch,
   UserPlus,
   Bot,
+  Power,
+  PowerOff,
   Image,
   Tag,
   Trash2,
@@ -1556,24 +1558,26 @@ export default function ChatbotFlowBuilderPage() {
   }
 
   return (
-    <main className="flex h-full flex-col bg-[#0A0A0F]">
+    <main className="flex h-full flex-col overflow-x-hidden bg-[#0A0A0F]">
       {/* Top bar */}
-      <div className="flex items-center justify-between border-b border-[#2A2A3C] bg-[#111118] px-4 py-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 border-b border-[#2A2A3C] bg-[#111118] px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <button
             onClick={() => router.push("/admin/chatbot")}
-            className="rounded-lg border border-[#2A2A3C] p-2 text-[#9090A8] hover:text-[#F0F0FA]"
+            className="shrink-0 rounded-lg border border-[#2A2A3C] p-2 text-[#9090A8] hover:text-[#F0F0FA]"
           >
             <ArrowLeft size={16} />
           </button>
-          <div>
-            <h1 className="text-sm font-semibold text-[#F0F0FA]">{flow?.name}</h1>
-            <p className="text-[11px] text-[#5A5A72]">
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold text-[#F0F0FA] md:overflow-visible md:text-clip md:whitespace-normal">{flow?.name}</h1>
+            <p className="truncate text-[11px] text-[#5A5A72] md:overflow-visible md:text-clip md:whitespace-normal">
               Trigger: {flow?.trigger_type} · Keywords: {flow?.trigger_keywords?.join(", ") || "none"}
             </p>
           </div>
+        </div>
+        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:flex-nowrap md:gap-3">
           <span
-            className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+            className="rounded-full px-2.5 py-1 text-[11px] font-semibold md:mr-0"
             style={{
               background: flow?.status === "active" ? "#10B98120" : "#2A2A3C",
               color: flow?.status === "active" ? "#10B981" : "#5A5A72",
@@ -1581,8 +1585,6 @@ export default function ChatbotFlowBuilderPage() {
           >
             {flow?.status === "active" ? "● Active" : "○ Inactive"}
           </span>
-        </div>
-        <div className="flex items-center gap-2">
           <button
             onClick={() => setShowAddPanel(true)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-1.5 text-xs text-[#9090A8] hover:border-[#3B82F6] hover:text-[#F0F0FA]"
@@ -1591,10 +1593,11 @@ export default function ChatbotFlowBuilderPage() {
           </button>
           <button
             onClick={() => toggleStatus()}
-            className="rounded-lg border border-[#2A2A3C] px-3 py-1.5 text-xs transition"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] px-2.5 py-1.5 text-xs transition md:px-3"
             style={{ color: flow?.status === "active" ? "#EF4444" : "#10B981" }}
           >
-            {flow?.status === "active" ? "Deactivate" : "Activate"}
+            {flow?.status === "active" ? <PowerOff size={14} /> : <Power size={14} />}
+            <span className="hidden md:inline">{flow?.status === "active" ? "Deactivate" : "Activate"}</span>
           </button>
           <button
             onClick={() => {
@@ -1603,9 +1606,10 @@ export default function ChatbotFlowBuilderPage() {
               setShowSimulator(true)
               if (simMessages.length === 0) runSimulator()
             }}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-1.5 text-xs text-[#9090A8] transition hover:border-[#3B82F6] hover:text-[#F0F0FA]"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-2.5 py-1.5 text-xs text-[#9090A8] transition hover:border-[#3B82F6] hover:text-[#F0F0FA] md:px-3"
           >
-            <Play size={14} /> Test Flow
+            <Play size={14} />
+            <span className="hidden md:inline">Test Flow</span>
           </button>
           <button
             onClick={saveFlow}
@@ -1636,7 +1640,7 @@ export default function ChatbotFlowBuilderPage() {
       {/* Canvas + side panel */}
       <div className="flex flex-1 overflow-hidden">
         {/* React Flow Canvas */}
-        <div className="flex-1">
+        <div className="h-[calc(100vh-180px)] flex-1 md:h-[calc(100vh-140px)]">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -1648,6 +1652,9 @@ export default function ChatbotFlowBuilderPage() {
             onNodeClick={(_, node) => setSelectedNode(node)}
             onPaneClick={() => setSelectedNode(null)}
             fitView
+            minZoom={0.2}
+            maxZoom={2}
+            proOptions={{ hideAttribution: true }}
             style={{ background: "#0A0A0F" }}
             defaultEdgeOptions={{
               type: "deletable",

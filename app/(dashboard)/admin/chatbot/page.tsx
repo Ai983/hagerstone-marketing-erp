@@ -130,15 +130,15 @@ export default function ChatbotListPage() {
   }
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-x-hidden overflow-y-auto bg-[#0A0A0F] px-4 py-6 md:p-6">
       <div className="mx-auto max-w-5xl">
 
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA] flex items-center gap-2">
-              <Bot size={24} className="text-[#3B82F6]" />
-              WhatsApp Chatbot Builder
+        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
+            <h1 className="flex min-w-0 items-center gap-2 font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+              <Bot size={24} className="shrink-0 text-[#3B82F6]" />
+              <span className="break-words">WhatsApp Chatbot Builder</span>
             </h1>
             <p className="mt-1 text-sm text-[#9090A8]">
               Automate WhatsApp replies based on keywords and flows
@@ -268,8 +268,8 @@ export default function ChatbotListPage() {
                 key={flow.id}
                 className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-5 transition hover:border-[#3A3A52]"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="flex min-w-0 items-start gap-3">
                     <div
                       className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg"
                       style={{
@@ -278,9 +278,9 @@ export default function ChatbotListPage() {
                     >
                       <Bot size={18} style={{ color: flow.status === "active" ? "#10B981" : "#5A5A72" }} />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-semibold text-[#F0F0FA]">{flow.name}</h3>
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <h3 className="min-w-0 truncate text-sm font-semibold text-[#F0F0FA] md:overflow-visible md:text-clip md:whitespace-normal">{flow.name}</h3>
                         <span
                           className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
                           style={{
@@ -300,16 +300,16 @@ export default function ChatbotListPage() {
                         </span>
                       </div>
                       {flow.description && (
-                        <p className="mt-0.5 text-xs text-[#5A5A72]">{flow.description}</p>
+                        <p className="mt-0.5 break-words text-xs text-[#5A5A72]">{flow.description}</p>
                       )}
                       <div className="mt-2 flex flex-wrap items-center gap-3">
                         <span className="flex items-center gap-1 text-[11px] text-[#9090A8]">
                           <Zap size={11} /> {triggerLabels[flow.trigger_type] ?? flow.trigger_type}
                         </span>
                         {flow.trigger_keywords?.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1.5">
                             {flow.trigger_keywords.slice(0, 4).map((kw, i) => (
-                              <span key={i} className="rounded-full bg-[#1F1F2E] px-2 py-0.5 text-[10px] text-[#9090A8]">
+                              <span key={i} className="break-words rounded-full bg-[#1F1F2E] px-2 py-0.5 text-[10px] text-[#9090A8]">
                                 {kw}
                               </span>
                             ))}
@@ -328,7 +328,7 @@ export default function ChatbotListPage() {
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:shrink-0 md:flex-nowrap">
                     <button
                       onClick={() => toggleStatus(flow)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] px-3 py-1.5 text-xs transition hover:border-[#3B82F6]"
