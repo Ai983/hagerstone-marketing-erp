@@ -15,6 +15,9 @@ export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/api/cron")) {
     return NextResponse.next()
   }
+  if (request.nextUrl.pathname.startsWith("/api/email/webhook")) {
+    return NextResponse.next()
+  }
 
   if (request.nextUrl.pathname === "/") {
     return NextResponse.redirect(new URL("/pipeline", request.url))

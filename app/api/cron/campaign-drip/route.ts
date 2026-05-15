@@ -212,16 +212,18 @@ export async function GET(request: NextRequest) {
         continue
       }
 
+      const variables = getEmailVariables(lead)
+      const emailSubject = renderTemplate(
+        message.email_subject ?? campaign?.name ?? "Hagerstone",
+        variables
+      )
+      const emailHtml = renderTemplate(
+        message.message_template ?? "",
+        variables
+      )
+
       try {
-        const variables = getEmailVariables(lead)
-        const emailSubject = renderTemplate(
-          message.email_subject ?? campaign?.name ?? "Hagerstone",
-          variables
-        )
-        const emailHtml = renderTemplate(
-          message.message_template ?? "",
-          variables
-        )
+        const sentAt = new Date().toISOString()
         const email = await sendEmail({
           to: lead.email,
           subject: emailSubject,
@@ -241,6 +243,7 @@ export async function GET(request: NextRequest) {
           subject: emailSubject,
           body_html: emailHtml,
           status: "sent",
+          sent_at: sentAt,
           campaign_id: enrollment.campaign_id,
         })
 
@@ -254,6 +257,20 @@ export async function GET(request: NextRequest) {
         })
       } catch (err) {
         results.failed++
+        await supabase.from("email_logs").insert({
+          lead_id: lead?.id ?? null,
+          sent_by: null,
+          template_id: message.email_template_id ?? null,
+          to_email: lead?.email ?? "",
+          from_email: process.env.EMAIL_FROM!,
+          subject: emailSubject,
+          body_html: emailHtml,
+          status: "failed",
+          sent_at: new Date().toISOString(),
+          failed_at: new Date().toISOString(),
+          campaign_id: enrollment.campaign_id,
+          error_message: err instanceof Error ? err.message : "Email send failed",
+        })
         await logCampaignSend(supabase, {
           campaign_id: enrollment.campaign_id,
           enrollment_id: enrollment.id,

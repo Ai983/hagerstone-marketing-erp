@@ -328,7 +328,7 @@ export default function LoginPage() {
             <div className="pt-1 text-center">
               <span className="text-[13px] text-[#5A5A72]">New sales rep? </span>
               <Link href="/signup" className="text-[13px] font-medium text-[#3B82F6] no-underline hover:underline">Create an account</Link>
-            </div>
+              </div>
           </form>
         </div>
       </section>

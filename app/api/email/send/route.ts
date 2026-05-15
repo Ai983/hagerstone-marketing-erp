@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createClient as createServiceClient } from "@supabase/supabase-js"
 
 import { createClient } from "@/lib/supabase/server"
 import { wrapInEmailTemplate } from "@/lib/utils/email-content"
@@ -7,6 +8,10 @@ import { renderTemplate, sendEmail } from "@/lib/utils/resend"
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
+    const supabaseAdmin = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -61,17 +66,36 @@ export async function POST(request: NextRequest) {
       : wrapInEmailTemplate(renderedHtml)
     const renderedSubject = renderTemplate(subject, variables)
 
-    const email = await sendEmail({
-      to: toEmail,
-      subject: renderedSubject,
-      html: finalHtml,
-      replyTo: profile?.email ?? user.email ?? undefined,
-      leadId,
-      sentBy: user.id,
-      templateId,
-    })
+    const sentAt = new Date().toISOString()
+    let email: Awaited<ReturnType<typeof sendEmail>>
+    try {
+      email = await sendEmail({
+        to: toEmail,
+        subject: renderedSubject,
+        html: finalHtml,
+        replyTo: profile?.email ?? user.email ?? undefined,
+        leadId,
+        sentBy: user.id,
+        templateId,
+      })
+    } catch (err) {
+      await supabaseAdmin.from("email_logs").insert({
+        lead_id: leadId,
+        sent_by: user.id,
+        template_id: templateId ?? null,
+        to_email: toEmail,
+        from_email: process.env.EMAIL_FROM!,
+        subject: renderedSubject,
+        body_html: finalHtml,
+        status: "failed",
+        sent_at: sentAt,
+        failed_at: new Date().toISOString(),
+        error_message: err instanceof Error ? err.message : "Email send failed",
+      })
+      throw err
+    }
 
-    const { data: log, error: logError } = await supabase
+    const { data: log, error: logError } = await supabaseAdmin
       .from("email_logs")
       .insert({
         lead_id: leadId,
@@ -83,6 +107,7 @@ export async function POST(request: NextRequest) {
         subject: renderedSubject,
         body_html: finalHtml,
         status: "sent",
+        sent_at: sentAt,
       })
       .select("id")
       .single()

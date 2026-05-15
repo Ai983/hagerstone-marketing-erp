@@ -20,6 +20,9 @@ export async function sendEmail(options: SendEmailOptions) {
     subject: options.subject,
     html: options.html,
     replyTo: options.replyTo,
+    headers: {
+      "X-Entity-Ref-ID": `${options.leadId ?? "none"}:${options.templateId ?? "manual"}`,
+    },
     tags: [
       { name: "lead_id", value: options.leadId || "none" },
       { name: "template_id", value: options.templateId || "none" },
