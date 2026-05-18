@@ -65,6 +65,8 @@ interface EnrollmentRow {
   id: string
   lead_id: string
   status: string
+  email_opted_out?: boolean | null
+  whatsapp_opted_out?: boolean | null
   current_message_position: number
   enrolled_at: string
   next_message_due_at: string | null
@@ -554,6 +556,16 @@ function EnrolledLeadsTab({
                   >
                     {enrollment.status.replace("_", " ")}
                   </span>
+                  {enrollment.email_opted_out && (
+                    <span className="rounded-full bg-[#7F1D1D]/30 px-2 py-0.5 text-[10px] font-medium text-[#F87171]">
+                      Email opted out
+                    </span>
+                  )}
+                  {enrollment.whatsapp_opted_out && (
+                    <span className="rounded-full bg-[#7F1D1D]/30 px-2 py-0.5 text-[10px] font-medium text-[#F87171]">
+                      WA opted out
+                    </span>
+                  )}
                 </div>
 
                 <div className="mb-3">
@@ -764,14 +776,26 @@ function EnrolledLeadsTab({
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-[11px] font-medium capitalize",
-                          enrollmentStatusStyles[e.status] ?? enrollmentStatusStyles.active
+                      <div className="flex flex-wrap gap-1.5">
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[11px] font-medium capitalize",
+                            enrollmentStatusStyles[e.status] ?? enrollmentStatusStyles.active
+                          )}
+                        >
+                          {e.status.replace("_", " ")}
+                        </span>
+                        {e.email_opted_out && (
+                          <span className="rounded-full bg-[#7F1D1D]/30 px-2 py-0.5 text-[10px] font-medium text-[#F87171]">
+                            Email opted out
+                          </span>
                         )}
-                      >
-                        {e.status.replace("_", " ")}
-                      </span>
+                        {e.whatsapp_opted_out && (
+                          <span className="rounded-full bg-[#7F1D1D]/30 px-2 py-0.5 text-[10px] font-medium text-[#F87171]">
+                            WA opted out
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       {canEdit && (

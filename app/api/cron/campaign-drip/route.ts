@@ -212,6 +212,10 @@ export async function GET(request: NextRequest) {
         })
         continue
       }
+      if (enrollment.email_opted_out === true) {
+        results.skipped++
+        continue
+      }
 
       const variables = getEmailVariables(lead)
       const emailSubject = renderTemplate(
@@ -313,6 +317,10 @@ export async function GET(request: NextRequest) {
           error_message: "No phone / not opted in / inactive",
           sleep_seconds: 0,
         })
+        continue
+      }
+      if (enrollment.whatsapp_opted_out === true) {
+        results.skipped++
         continue
       }
 

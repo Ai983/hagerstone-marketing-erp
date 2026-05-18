@@ -37,7 +37,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     supabase
       .from("campaign_enrollments")
       .select(
-        "*, lead:lead_id(id, full_name, company_name, score, stage:stage_id(name, color))"
+        "*, email_opted_out, whatsapp_opted_out, lead:lead_id(id, full_name, company_name, score, stage:stage_id(name, color))"
       )
       .eq("campaign_id", id)
       .order("enrolled_at", { ascending: false }),

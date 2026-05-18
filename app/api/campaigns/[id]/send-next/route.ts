@@ -207,6 +207,12 @@ export async function POST(
           { status: 400 }
         )
       }
+      if (enrollment.email_opted_out === true) {
+        return NextResponse.json(
+          { error: "Lead has opted out of email for this campaign" },
+          { status: 400 }
+        )
+      }
 
       const variables = getEmailVariables(lead)
       const emailSubject = renderTemplate(
@@ -286,6 +292,12 @@ export async function POST(
       if (!lead?.phone || !lead.whatsapp_opted_in) {
         return NextResponse.json(
           { error: "Lead has no phone or has not opted in to WhatsApp" },
+          { status: 400 }
+        )
+      }
+      if (enrollment.whatsapp_opted_out === true) {
+        return NextResponse.json(
+          { error: "Lead has opted out of WhatsApp for this campaign" },
           { status: 400 }
         )
       }

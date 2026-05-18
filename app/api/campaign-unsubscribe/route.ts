@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
   const { data: enrollment, error } = await supabase
     .from("campaign_enrollments")
-    .select("id, status, lead:leads(id, full_name), campaign:campaigns(name)")
+    .select("id, status, email_opted_out, lead:leads(id, full_name), campaign:campaigns(name)")
     .eq("id", enrollmentId)
     .maybeSingle()
 
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  if (enrollment.status === "opted_out") {
+  if (enrollment.email_opted_out === true) {
     return new NextResponse(unsubscribePage("You are already unsubscribed", true), {
       headers: { "Content-Type": "text/html" },
     })
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
   await supabase
     .from("campaign_enrollments")
-    .update({ status: "opted_out", completed_at: new Date().toISOString() })
+    .update({ email_opted_out: true })
     .eq("id", enrollmentId)
 
   const lead = Array.isArray(enrollment.lead) ? enrollment.lead[0] : enrollment.lead

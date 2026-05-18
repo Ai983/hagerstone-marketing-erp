@@ -75,7 +75,7 @@ interface EnrollmentRow {
   lead:
     | {
         id: string
-        full_name: string
+        full_name: string 
         company_name: string | null
         score: number | null
         stage:

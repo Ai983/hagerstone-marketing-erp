@@ -250,7 +250,7 @@ export async function POST(req: NextRequest) {
           // Opt out all active enrollments for this lead
           await supabaseAdmin
             .from("campaign_enrollments")
-            .update({ status: "opted_out", completed_at: new Date().toISOString() })
+            .update({ whatsapp_opted_out: true })
             .eq("lead_id", leadForOptOut.id)
             .eq("status", "active")
 
