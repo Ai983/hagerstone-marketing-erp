@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
         to: toEmail,
         subject: renderedSubject,
         html: finalHtml,
-        replyTo: profile?.email ?? user.email ?? undefined,
+        replyTo: process.env.EMAIL_REPLY_TO ?? profile?.email ?? user.email ?? undefined,
         leadId,
         sentBy: user.id,
         templateId,

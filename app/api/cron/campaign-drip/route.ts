@@ -245,6 +245,7 @@ export async function GET(request: NextRequest) {
           to: lead.email,
           subject: emailSubject,
           html: htmlWithUnsubscribe,
+          replyTo: process.env.EMAIL_REPLY_TO ?? undefined,
           leadId: lead.id,
           campaignId: enrollment.campaign_id,
           templateId: message.email_template_id ?? undefined,
