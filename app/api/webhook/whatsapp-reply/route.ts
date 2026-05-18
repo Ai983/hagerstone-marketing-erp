@@ -230,6 +230,49 @@ export async function POST(req: NextRequest) {
       console.error("Chatbot engine error (non-fatal):", chatbotError)
     }
 
+    // Handle STOP for campaign opt-out
+    const stopText = (message?.text ?? message?.message ?? text ?? "").trim().toUpperCase()
+    if (stopText === "STOP" || stopText === "STOP." || stopText === "UNSUBSCRIBE") {
+      const senderPhone = message?.from ?? message?.phone ?? phone ?? ""
+      if (senderPhone) {
+        const supabaseAdmin = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        )
+        // Find the lead by phone
+        const { data: leadForOptOut } = await supabaseAdmin
+          .from("leads")
+          .select("id, full_name, phone")
+          .ilike("phone", `%${senderPhone.replace(/\D/g, "").slice(-10)}%`)
+          .maybeSingle()
+
+        if (leadForOptOut) {
+          // Opt out all active enrollments for this lead
+          await supabaseAdmin
+            .from("campaign_enrollments")
+            .update({ status: "opted_out", completed_at: new Date().toISOString() })
+            .eq("lead_id", leadForOptOut.id)
+            .eq("status", "active")
+
+          // Log it
+          await supabaseAdmin.from("interactions").insert({
+            lead_id: leadForOptOut.id,
+            type: "whatsapp_received",
+            title: "Opted out via STOP reply",
+            notes: "Lead replied STOP and was opted out from all active campaign enrollments",
+            is_automated: true,
+          })
+
+          // Send confirmation back
+          const { sendWhatsAppMessage } = await import("@/lib/utils/maytapi")
+          await sendWhatsAppMessage(
+            senderPhone,
+            "You have been unsubscribed from our campaigns. You will not receive further automated messages. Reply START if you wish to re-subscribe."
+          )
+        }
+      }
+    }
+
     console.log("Webhook processed for lead:", lead.full_name)
     return NextResponse.json({ success: true })
 

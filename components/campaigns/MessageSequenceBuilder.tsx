@@ -26,6 +26,11 @@ import { CSS } from "@dnd-kit/utilities"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
+  Camera,
+  CaseSensitive,
+  Code2,
+  Eye,
+  Film,
   FileText,
   GripVertical,
   Image as ImageIcon,
@@ -34,14 +39,18 @@ import {
   MessageCircle,
   Music,
   Paperclip,
+  Pencil,
   Plus,
   Save,
   Trash2,
   Video,
   X,
 } from "lucide-react"
+import { RichTextEditor } from "@/components/email/RichTextEditor"
+import { VideoInsertPanel } from "@/components/email/VideoInsertPanel"
 import { createClient } from "@/lib/supabase/client"
 import { getCachedUser } from "@/lib/hooks/useUser"
+import { plainTextToEmailHtml } from "@/lib/utils/email-content"
 import { cn } from "@/lib/utils"
 
 const BUCKET_NAME = "campaign-media"
@@ -166,11 +175,18 @@ function SortableMessageRow({
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const [editorMode, setEditorMode] = useState<"rich" | "html" | "plain">("rich")
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [isVideoPanelOpen, setIsVideoPanelOpen] = useState(false)
 
   const charCount = message.message_template.length
   const overLimit = charCount > MAX_MESSAGE_CHARACTERS
   const hasMedia = Boolean(message.media_url)
   const isEmail = message.channel === "email"
+  const emailPreviewHtml =
+    editorMode === "plain"
+      ? plainTextToEmailHtml(message.message_template)
+      : message.message_template
 
   const handleFileSelect = async (file: File) => {
     if (uploading) return // guard against double-clicks
@@ -311,6 +327,29 @@ function SortableMessageRow({
     })
   }
 
+  const handleInsertImage = () => {
+    const imageUrl = window.prompt("Paste image URL")
+    if (!imageUrl?.trim()) return
+    const alt =
+      window.prompt("Image alt text", "Hagerstone image") ?? "Hagerstone image"
+    const imageHtml = `<p style="text-align:center;"><img src="${imageUrl.trim()}" alt="${alt}" style="max-width:100%; height:auto; border-radius:8px;" /></p>`
+    onChange(message.id, {
+      message_template: `${message.message_template}${
+        message.message_template.trim() ? "\n\n" : ""
+      }${imageHtml}`,
+    })
+  }
+
+  const modeOptions: {
+    value: "rich" | "html" | "plain"
+    label: string
+    icon: typeof Pencil
+  }[] = [
+    { value: "rich", label: "Rich", icon: Pencil },
+    { value: "html", label: "HTML", icon: Code2 },
+    { value: "plain", label: "Plain", icon: CaseSensitive },
+  ]
+
   return (
     <div
       ref={setNodeRef}
@@ -398,45 +437,145 @@ function SortableMessageRow({
           </div>
 
           {isEmail && (
-            <input
-              type="text"
-              value={message.email_subject}
-              onChange={(e) =>
-                onChange(message.id, { email_subject: e.target.value })
-              }
-              disabled={!canEdit}
-              placeholder="Email subject"
-              className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6] disabled:opacity-50"
-            />
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={message.email_subject}
+                onChange={(e) =>
+                  onChange(message.id, { email_subject: e.target.value })
+                }
+                disabled={!canEdit}
+                placeholder="Email subject"
+                className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6] disabled:opacity-50"
+              />
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="inline-flex rounded-lg border border-[#2A2A3C] bg-[#1A1A24] p-1">
+                  {modeOptions.map(({ value, label, icon: Icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={!canEdit}
+                      onClick={() => setEditorMode(value)}
+                      className={cn(
+                        "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-[#9090A8] transition hover:text-[#F0F0FA] disabled:opacity-50",
+                        editorMode === value &&
+                          "bg-[#3B82F6] text-white hover:text-white"
+                      )}
+                    >
+                      <Icon className="size-3.5" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleInsertImage}
+                    disabled={!canEdit}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-1.5 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1F1F2E] disabled:opacity-50"
+                  >
+                    <Camera className="size-3.5" />
+                    Insert Image
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsVideoPanelOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-1.5 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1F1F2E]"
+                  >
+                    <Film className="size-3.5" />
+                    Insert Video
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 py-1.5 text-xs font-medium text-[#F0F0FA] transition hover:bg-[#1F1F2E]"
+                  >
+                    <Eye className="size-3.5" />
+                    Preview
+                  </button>
+                </div>
+              </div>
+
+              {isVideoPanelOpen && (
+                <div className="mb-3">
+                  <VideoInsertPanel
+                    onCancel={() => setIsVideoPanelOpen(false)}
+                    onInsert={(html) => {
+                      onChange(message.id, {
+                        message_template:
+                          message.message_template +
+                          (message.message_template.trim() ? "\n\n" : "") +
+                          html,
+                      })
+                      setIsVideoPanelOpen(false)
+                    }}
+                  />
+                </div>
+              )}
+
+              {editorMode === "rich" ? (
+                <RichTextEditor
+                  content={message.message_template}
+                  onChange={(newValue) =>
+                    onChange(message.id, { message_template: newValue })
+                  }
+                  placeholder="Hi {{lead_name}},"
+                />
+              ) : (
+                <textarea
+                  value={message.message_template}
+                  onChange={(e) =>
+                    onChange(message.id, { message_template: e.target.value })
+                  }
+                  disabled={!canEdit}
+                  rows={editorMode === "plain" ? 8 : 10}
+                  placeholder={
+                    editorMode === "plain"
+                      ? "Hi {{lead_name}},"
+                      : "<p>Hi {{lead_name}},</p>"
+                  }
+                  className="w-full resize-y rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6] disabled:opacity-50"
+                />
+              )}
+
+              <span className="block text-[11px] text-[#9090A8]">
+                Available: {"{{lead_name}}"}, {"{{rep_name}}"},{" "}
+                {"{{company_name}}"}, {"{{service_line}}"}, {"{{city}}"}
+              </span>
+            </div>
           )}
 
-          {/* Message body */}
-          <textarea
-            value={message.message_template}
-            onChange={(e) =>
-              onChange(message.id, { message_template: e.target.value })
-            }
-            disabled={!canEdit}
-            placeholder={
-              isEmail
-                ? "<p>Hi {{lead_name}}, following up...</p>"
-                : hasMedia
-                ? "Caption (shown below the attachment)…"
-                : "Hi {{name}}, just following up on your enquiry…"
-            }
-            rows={4}
-            className="w-full resize-none rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6] disabled:opacity-50"
-          />
-          <div className="flex items-center justify-between">
-            <span
-              className={cn(
-                "text-[11px]",
-                overLimit ? "text-[#F87171]" : "text-[#9090A8]"
-              )}
-            >
-              {charCount} / {MAX_MESSAGE_CHARACTERS} characters
-            </span>
-          </div>
+          {!isEmail && (
+            <>
+              {/* Message body */}
+              <textarea
+                value={message.message_template}
+                onChange={(e) =>
+                  onChange(message.id, { message_template: e.target.value })
+                }
+                disabled={!canEdit}
+                placeholder={
+                  hasMedia
+                    ? "Caption (shown below the attachment)…"
+                    : "Hi {{name}}, just following up on your enquiry…"
+                }
+                rows={4}
+                className="w-full resize-none rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6] disabled:opacity-50"
+              />
+              <div className="flex items-center justify-between">
+                <span
+                  className={cn(
+                    "text-[11px]",
+                    overLimit ? "text-[#F87171]" : "text-[#9090A8]"
+                  )}
+                >
+                  {charCount} / {MAX_MESSAGE_CHARACTERS} characters
+                </span>
+              </div>
+            </>
+          )}
 
           {/* Attachment block */}
           {canEdit && !isEmail && (
@@ -602,12 +741,35 @@ function SortableMessageRow({
               </div>
             </div>
           )}
-          {isEmail && message.message_template.trim() && (
-            <div className="rounded-lg bg-white p-3 text-xs leading-relaxed text-gray-900">
-              <p className="mb-2 font-semibold">
-                {message.email_subject || "Email subject"}
-              </p>
-              <div dangerouslySetInnerHTML={{ __html: message.message_template }} />
+          {isEmail && isPreviewOpen && (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
+              <div className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118]">
+                <div className="flex items-center justify-between border-b border-[#2A2A3C] px-4 py-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[#F0F0FA]">
+                      {message.email_subject || "Preview"}
+                    </p>
+                    <p className="text-xs text-[#9090A8]">
+                      Campaign email message
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewOpen(false)}
+                    className="rounded-lg p-2 text-[#9090A8] transition hover:bg-[#1A1A24] hover:text-[#F0F0FA]"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+                <div className="thin-scrollbar max-h-[70vh] overflow-y-auto p-5">
+                  <div
+                    className="email-preview prose max-w-none rounded-lg bg-white p-5 text-sm leading-relaxed text-gray-900"
+                    dangerouslySetInnerHTML={{
+                      __html: emailPreviewHtml || "<p>No body yet.</p>",
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>

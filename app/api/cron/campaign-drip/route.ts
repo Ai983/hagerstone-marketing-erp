@@ -7,6 +7,7 @@ import {
   sendWhatsAppWithButtons,
 } from "@/lib/utils/maytapi"
 import { renderTemplate, sendEmail } from "@/lib/utils/resend"
+import { wrapInEmailTemplate } from "@/lib/utils/email-content"
 
 export const dynamic = "force-dynamic"
 type WhatsAppButton = { id: string; title: string }
@@ -221,13 +222,25 @@ export async function GET(request: NextRequest) {
         message.message_template ?? "",
         variables
       )
+      const finalHtml = emailHtml.includes("Hagerstone International")
+        ? emailHtml
+        : wrapInEmailTemplate(emailHtml)
+      const unsubscribeToken = Buffer.from(enrollment.id).toString("base64")
+      const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/campaign-unsubscribe?token=${unsubscribeToken}`
+      const htmlWithUnsubscribe = finalHtml + `
+<div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;text-align:center;">
+  <p style="font-size:12px;color:#999;margin:0;">
+    You received this email because you enquired about our services.<br>
+    <a href="${unsubscribeUrl}" style="color:#999;text-decoration:underline;">Unsubscribe from this campaign</a>
+  </p>
+</div>`
 
       try {
         const sentAt = new Date().toISOString()
         const email = await sendEmail({
           to: lead.email,
           subject: emailSubject,
-          html: emailHtml,
+          html: htmlWithUnsubscribe,
           leadId: lead.id,
           campaignId: enrollment.campaign_id,
           templateId: message.email_template_id ?? undefined,
@@ -241,7 +254,7 @@ export async function GET(request: NextRequest) {
           to_email: lead.email,
           from_email: process.env.EMAIL_FROM!,
           subject: emailSubject,
-          body_html: emailHtml,
+          body_html: htmlWithUnsubscribe,
           status: "sent",
           sent_at: sentAt,
           campaign_id: enrollment.campaign_id,
@@ -264,7 +277,7 @@ export async function GET(request: NextRequest) {
           to_email: lead?.email ?? "",
           from_email: process.env.EMAIL_FROM!,
           subject: emailSubject,
-          body_html: emailHtml,
+          body_html: htmlWithUnsubscribe,
           status: "failed",
           sent_at: new Date().toISOString(),
           failed_at: new Date().toISOString(),
@@ -303,15 +316,16 @@ export async function GET(request: NextRequest) {
         continue
       }
 
+    const messageWithStop = processedMessage + "\n\n_Reply STOP to unsubscribe from this campaign._"
     const mediaType = getMediaType(message.media_type)
     const sendResult = mediaUrl
       ? await sendWhatsAppMedia(lead.phone, mediaType, mediaUrl, {
-          caption: processedMessage,
+          caption: messageWithStop,
           filename: message.media_filename ?? undefined,
         })
       : buttons.length > 0
-        ? await sendWhatsAppWithButtons(lead.phone, processedMessage, buttons)
-        : await sendWhatsAppMessage(lead.phone, processedMessage)
+        ? await sendWhatsAppWithButtons(lead.phone, messageWithStop, buttons)
+        : await sendWhatsAppMessage(lead.phone, messageWithStop)
 
     if (!sendResult.success) {
       console.error("Send failed:", lead.full_name, sendResult.error)

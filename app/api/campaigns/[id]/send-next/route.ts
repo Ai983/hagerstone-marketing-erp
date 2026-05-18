@@ -7,6 +7,8 @@ import {
   sendWhatsAppMessage,
   sendWhatsAppWithButtons,
 } from "@/lib/utils/maytapi"
+import { renderTemplate, sendEmail } from "@/lib/utils/resend"
+import { wrapInEmailTemplate } from "@/lib/utils/email-content"
 
 const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
 type WhatsAppButton = { id: string; title: string }
@@ -44,6 +46,22 @@ function getMediaType(raw: unknown): MaytapiMediaType {
   return "media"
 }
 
+function getEmailVariables(lead: {
+  full_name?: string | null
+  company_name?: string | null
+  service_line?: string | null
+  city?: string | null
+}) {
+  return {
+    lead_name: lead.full_name ?? "",
+    company_name: lead.company_name ?? "",
+    service_line: (lead.service_line ?? "").replaceAll("_", " "),
+    city: lead.city ?? "",
+    visit_date: "",
+    rep_name: "Hagerstone Team",
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -67,16 +85,6 @@ export async function POST(
     const role = profile?.role
     if (!role || !WRITE_ROLES.has(role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
-
-    if (!process.env.MAYTAPI_API_TOKEN) {
-      return NextResponse.json(
-        {
-          error:
-            "Maytapi credentials not configured. Set MAYTAPI_API_TOKEN.",
-        },
-        { status: 503 }
-      )
     }
 
     const body = await request.json().catch(() => null)
@@ -108,7 +116,7 @@ export async function POST(
         `
         *,
         lead:leads(
-          id, full_name, company_name, phone, whatsapp_opted_in, assigned_to
+          id, full_name, company_name, phone, email, service_line, city, whatsapp_opted_in, assigned_to
         ),
         campaign:campaigns(id, name, status)
       `
@@ -148,20 +156,6 @@ export async function POST(
     if (enrollment.status !== "active") {
       return NextResponse.json(
         { error: "Enrollment is not active" },
-        { status: 400 }
-      )
-    }
-
-    if (!lead?.phone) {
-      return NextResponse.json(
-        { error: "Lead has no phone number" },
-        { status: 400 }
-      )
-    }
-
-    if (!lead.whatsapp_opted_in) {
-      return NextResponse.json(
-        { error: "Lead has not opted in to WhatsApp" },
         { status: 400 }
       )
     }
@@ -206,21 +200,135 @@ export async function POST(
         : null
     const buttons = getButtons(message.buttons)
 
-    const mediaType = getMediaType(message.media_type)
-    const sendResult = mediaUrl
-      ? await sendWhatsAppMedia(lead.phone, mediaType, mediaUrl, {
-          caption: processedMessage,
-          filename: message.media_filename ?? undefined,
-        })
-      : buttons.length > 0
-        ? await sendWhatsAppWithButtons(lead.phone, processedMessage, buttons)
-        : await sendWhatsAppMessage(lead.phone, processedMessage)
+    if (message.channel === "email") {
+      if (!lead?.email) {
+        return NextResponse.json(
+          { error: "Lead has no email address" },
+          { status: 400 }
+        )
+      }
 
-    if (!sendResult.success) {
-      return NextResponse.json(
-        { error: sendResult.error ?? "Failed to send message" },
-        { status: 502 }
+      const variables = getEmailVariables(lead)
+      const emailSubject = renderTemplate(
+        message.email_subject ?? "Message from Hagerstone",
+        variables
       )
+      const emailHtml = renderTemplate(message.message_template ?? "", variables)
+      const finalHtml = emailHtml.includes("Hagerstone International")
+        ? emailHtml
+        : wrapInEmailTemplate(emailHtml)
+      const unsubscribeToken = Buffer.from(enrollment.id).toString("base64")
+      const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/campaign-unsubscribe?token=${unsubscribeToken}`
+      const htmlWithUnsubscribe = finalHtml + `
+<div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;text-align:center;">
+  <p style="font-size:12px;color:#999;margin:0;">
+    You received this email because you enquired about our services.<br>
+    <a href="${unsubscribeUrl}" style="color:#999;text-decoration:underline;">Unsubscribe from this campaign</a>
+  </p>
+</div>`
+
+      const sentAt = new Date().toISOString()
+      let emailResult
+      try {
+        emailResult = await sendEmail({
+          to: lead.email,
+          subject: emailSubject,
+          html: htmlWithUnsubscribe,
+          leadId: lead.id,
+          campaignId: campaignId,
+          templateId: message.email_template_id ?? undefined,
+        })
+      } catch (err) {
+        await supabase.from("email_logs").insert({
+          lead_id: lead.id,
+          sent_by: user.id,
+          template_id: message.email_template_id ?? null,
+          to_email: lead.email,
+          from_email: process.env.EMAIL_FROM!,
+          subject: emailSubject,
+          body_html: htmlWithUnsubscribe,
+          status: "failed",
+          sent_at: sentAt,
+          failed_at: new Date().toISOString(),
+          campaign_id: campaignId,
+          error_message: err instanceof Error ? err.message : "Email send failed",
+        })
+        return NextResponse.json(
+          { error: err instanceof Error ? err.message : "Email send failed" },
+          { status: 502 }
+        )
+      }
+
+      await supabase.from("email_logs").insert({
+        lead_id: lead.id,
+        sent_by: user.id,
+        template_id: message.email_template_id ?? null,
+        resend_email_id: emailResult?.id ?? null,
+        to_email: lead.email,
+        from_email: process.env.EMAIL_FROM!,
+        subject: emailSubject,
+        body_html: htmlWithUnsubscribe,
+        status: "sent",
+        sent_at: sentAt,
+        campaign_id: campaignId,
+      })
+
+      await supabase.from("interactions").insert({
+        lead_id: lead.id,
+        user_id: user.id,
+        type: "email_sent",
+        title: `Campaign email ${nextPosition} sent`,
+        notes: emailSubject,
+        campaign_id: campaignId,
+        is_automated: true,
+      })
+    } else {
+      if (!lead?.phone || !lead.whatsapp_opted_in) {
+        return NextResponse.json(
+          { error: "Lead has no phone or has not opted in to WhatsApp" },
+          { status: 400 }
+        )
+      }
+
+      if (!process.env.MAYTAPI_API_TOKEN) {
+        return NextResponse.json(
+          {
+            error:
+              "Maytapi credentials not configured. Set MAYTAPI_API_TOKEN.",
+          },
+          { status: 503 }
+        )
+      }
+
+      const messageWithStop = processedMessage + "\n\n_Reply STOP to unsubscribe from this campaign._"
+      const mediaType = getMediaType(message.media_type)
+      const sendResult = mediaUrl
+        ? await sendWhatsAppMedia(lead.phone, mediaType, mediaUrl, {
+            caption: messageWithStop,
+            filename: message.media_filename ?? undefined,
+          })
+        : buttons.length > 0
+          ? await sendWhatsAppWithButtons(lead.phone, messageWithStop, buttons)
+          : await sendWhatsAppMessage(lead.phone, messageWithStop)
+
+      if (!sendResult.success) {
+        return NextResponse.json(
+          { error: sendResult.error ?? "Failed to send message" },
+          { status: 502 }
+        )
+      }
+
+      await supabase.from("interactions").insert({
+        lead_id: lead.id,
+        user_id: user.id,
+        type: "whatsapp_sent",
+        title: `Campaign message ${nextPosition} sent now`,
+        notes: processedMessage,
+        campaign_id: campaignId,
+        is_automated: true,
+        media_url: mediaUrl,
+        media_type: mediaUrl ? message.media_type ?? getMediaType(message.media_type) : null,
+      })
     }
 
     const { data: nextMessage } = await supabase
@@ -247,18 +355,6 @@ export async function POST(
         completed_at: nextDueAt ? null : now,
       })
       .eq("id", enrollment.id)
-
-    await supabase.from("interactions").insert({
-      lead_id: lead.id,
-      user_id: user.id,
-      type: "whatsapp_sent",
-      title: `Campaign message ${nextPosition} sent now`,
-      notes: processedMessage,
-      campaign_id: campaignId,
-      is_automated: true,
-      media_url: mediaUrl,
-      media_type: mediaUrl ? message.media_type ?? getMediaType(message.media_type) : null,
-    })
 
     await supabase
       .from("campaigns")
