@@ -226,9 +226,11 @@ export async function GET(request: NextRequest) {
         message.message_template ?? "",
         variables
       )
-      const finalHtml = emailHtml.includes("Hagerstone International")
+      const finalHtml = emailHtml.includes("{{unsubscribe_url}}")
         ? emailHtml
-        : wrapInEmailTemplate(emailHtml)
+        : emailHtml.includes("1a1a1a") || emailHtml.includes("social-footer")
+          ? emailHtml
+          : wrapInEmailTemplate(emailHtml)
       const unsubscribeToken = Buffer.from(enrollment.id).toString("base64")
       const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/campaign-unsubscribe?token=${unsubscribeToken}`
       const htmlWithUnsubscribe = finalHtml.replace('{{unsubscribe_url}}', unsubscribeUrl)
