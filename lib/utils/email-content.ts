@@ -21,9 +21,12 @@ export function plainTextToEmailHtml(plainText: string): string {
 export function wrapInEmailTemplate(bodyContent: string): string {
   return `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px 30px;">
-  <div style="border-bottom: 3px solid #B8860B; padding-bottom: 15px; margin-bottom: 25px;">
-    <h2 style="color: #B8860B; margin: 0; font-size: 20px;">Hagerstone International</h2>
-    <p style="color: #666; margin: 4px 0 0; font-size: 12px;">Premium Interior Design & Build</p>
+  <div style="border-bottom: 3px solid #B8860B; padding-bottom: 15px; margin-bottom: 25px; text-align: center;">
+    <img src="${process.env.NEXT_PUBLIC_APP_URL}/logo.png" 
+         alt="Hagerstone International" 
+         width="180" 
+         style="display:inline-block; max-width:180px; height:auto;">
+    <p style="color: #666; margin: 8px 0 0; font-size: 12px;">Premium Interior Design & Build</p>
   </div>
 
   <div style="color: #333; font-size: 15px; line-height: 1.7;">
