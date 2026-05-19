@@ -22,7 +22,7 @@ export function wrapInEmailTemplate(bodyContent: string): string {
   return `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px 30px;">
   <div style="border-bottom: 3px solid #B8860B; padding-bottom: 15px; margin-bottom: 25px; text-align: center;">
-    <img src="${process.env.NEXT_PUBLIC_APP_URL}/logo.png" 
+    <img src="https://hagerstone-marketing-erp.vercel.app/logo.png" 
          alt="Hagerstone International" 
          width="180" 
          style="display:inline-block; max-width:180px; height:auto;">
