@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
 
 const ALLOWED_MEDIA_TYPES = new Set(["image", "document", "video", "audio"])
-const MAX_MESSAGE_CHARACTERS = 5000
+const MAX_MESSAGE_CHARACTERS = 15000
 
 function getLegacyMessageType(mediaType?: string | null): "text" | "image" | "document" {
   if (mediaType === "image") return "image"
