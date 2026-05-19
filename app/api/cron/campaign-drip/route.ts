@@ -231,13 +231,7 @@ export async function GET(request: NextRequest) {
         : wrapInEmailTemplate(emailHtml)
       const unsubscribeToken = Buffer.from(enrollment.id).toString("base64")
       const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/campaign-unsubscribe?token=${unsubscribeToken}`
-      const htmlWithUnsubscribe = finalHtml + `
-<div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;text-align:center;">
-  <p style="font-size:12px;color:#999;margin:0;">
-    You received this email because you enquired about our services.<br>
-    <a href="${unsubscribeUrl}" style="color:#999;text-decoration:underline;">Unsubscribe from this campaign</a>
-  </p>
-</div>`
+      const htmlWithUnsubscribe = finalHtml.replace('{{unsubscribe_url}}', unsubscribeUrl)
 
       try {
         const sentAt = new Date().toISOString()

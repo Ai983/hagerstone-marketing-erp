@@ -64,6 +64,9 @@ export async function POST(request: NextRequest) {
     const finalHtml = renderedHtml.includes("Hagerstone International")
       ? renderedHtml
       : wrapInEmailTemplate(renderedHtml)
+    const unsubscribeToken = Buffer.from(leadId).toString("base64")
+    const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/campaign-unsubscribe?token=${unsubscribeToken}`
+    const finalHtmlWithFooter = finalHtml.replace('{{unsubscribe_url}}', unsubscribeUrl)
     const renderedSubject = renderTemplate(subject, variables)
 
     const sentAt = new Date().toISOString()
@@ -72,7 +75,7 @@ export async function POST(request: NextRequest) {
       email = await sendEmail({
         to: toEmail,
         subject: renderedSubject,
-        html: finalHtml,
+        html: finalHtmlWithFooter,
         replyTo: process.env.EMAIL_REPLY_TO ?? profile?.email ?? user.email ?? undefined,
         leadId,
         sentBy: user.id,
@@ -86,7 +89,7 @@ export async function POST(request: NextRequest) {
         to_email: toEmail,
         from_email: process.env.EMAIL_FROM!,
         subject: renderedSubject,
-        body_html: finalHtml,
+        body_html: finalHtmlWithFooter,
         status: "failed",
         sent_at: sentAt,
         failed_at: new Date().toISOString(),
@@ -105,7 +108,7 @@ export async function POST(request: NextRequest) {
         to_email: toEmail,
         from_email: process.env.EMAIL_FROM!,
         subject: renderedSubject,
-        body_html: finalHtml,
+        body_html: finalHtmlWithFooter,
         status: "sent",
         sent_at: sentAt,
       })
