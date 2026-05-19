@@ -226,11 +226,11 @@ export async function GET(request: NextRequest) {
         message.message_template ?? "",
         variables
       )
-      const finalHtml = emailHtml.includes("{{unsubscribe_url}}")
+      const finalHtml = emailHtml.includes("mvhtbqkgnkbhinethfor") || 
+                    emailHtml.includes("unsubscribe_url") ||
+                    emailHtml.includes("instagram")
         ? emailHtml
-        : emailHtml.includes("1a1a1a") || emailHtml.includes("social-footer")
-          ? emailHtml
-          : wrapInEmailTemplate(emailHtml)
+        : wrapInEmailTemplate(emailHtml)
       const unsubscribeToken = Buffer.from(enrollment.id).toString("base64")
       const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/campaign-unsubscribe?token=${unsubscribeToken}`
       const htmlWithUnsubscribe = finalHtml.replace('{{unsubscribe_url}}', unsubscribeUrl)
