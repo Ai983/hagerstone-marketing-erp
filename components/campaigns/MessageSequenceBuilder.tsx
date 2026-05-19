@@ -55,7 +55,7 @@ import { cn } from "@/lib/utils"
 
 const BUCKET_NAME = "campaign-media"
 const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
-const MAX_MESSAGE_CHARACTERS = 5000
+const MAX_MESSAGE_CHARACTERS = 15000
 const ACCEPTED_FILE_TYPES = "image/*,.pdf,.doc,.docx,video/*,audio/*,.mp3,.m4a,.aac,.ogg,.wav"
 
 // ── Types ───────────────────────────────────────────────────────────
