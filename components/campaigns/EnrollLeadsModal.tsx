@@ -223,7 +223,7 @@ export function EnrollLeadsModal({
             className="fixed left-1/2 top-1/2 z-[61] flex max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118] shadow-2xl"
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-[#2A2A3C] px-5 py-3.5">
+            <div className="flex shrink-0 items-center justify-between border-b border-[#2A2A3C] px-5 py-3.5">
               <div className="flex items-center gap-2">
                 <UserPlus className="size-4 text-[#3B82F6]" />
                 <h3 className="text-sm font-semibold text-[#F0F0FA]">
@@ -239,7 +239,7 @@ export function EnrollLeadsModal({
             </div>
 
             {/* Search */}
-            <div className="flex items-center gap-2 border-b border-[#2A2A3C] px-4 py-2.5">
+            <div className="flex shrink-0 items-center gap-2 border-b border-[#2A2A3C] px-4 py-2.5">
               <Search className="size-3.5 text-[#9090A8]" />
               <input
                 type="text"
@@ -254,7 +254,7 @@ export function EnrollLeadsModal({
             </div>
 
             {/* Stage filter pills */}
-            <div className="border-b border-[#2A2A3C]">
+            <div className="shrink-0 border-b border-[#2A2A3C]">
               <div
                 className="thin-scrollbar flex gap-1.5 overflow-x-auto px-4 py-2"
                 style={{ WebkitOverflowScrolling: "touch" }}
@@ -285,7 +285,7 @@ export function EnrollLeadsModal({
               <button
                 type="button"
                 onClick={toggleSelectAllInFilter}
-                className="flex items-center gap-2 border-b border-[#2A2A3C] bg-[#1A1A24] px-3 py-2 text-left transition hover:bg-[#1F1F2E]"
+                className="flex shrink-0 items-center gap-2 border-b border-[#2A2A3C] bg-[#1A1A24] px-3 py-2 text-left transition hover:bg-[#1F1F2E]"
               >
                 <span
                   className={cn(
@@ -308,7 +308,7 @@ export function EnrollLeadsModal({
 
             {/* Lead list — only this section scrolls. */}
             <div
-              className="thin-scrollbar max-h-80 overflow-y-scroll overscroll-contain"
+              className="thin-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain"
               style={{ WebkitOverflowScrolling: "touch" }}
             >
               {isLoading ? (
@@ -404,7 +404,7 @@ export function EnrollLeadsModal({
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-2 border-t border-[#2A2A3C] px-5 py-3.5">
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-[#2A2A3C] bg-[#111118] p-4">
               <button
                 onClick={onClose}
                 className="rounded-lg px-4 py-2 text-xs font-medium text-[#9090A8] transition hover:text-[#F0F0FA]"
