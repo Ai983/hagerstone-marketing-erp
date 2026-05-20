@@ -221,7 +221,7 @@ export function EnrollLeadsModal({
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15 }}
             className="fixed left-1/2 top-1/2 z-[61] flex w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118] shadow-2xl"
-            style={{ height: "min(600px, calc(100vh - 120px))" }}
+            style={{ height: "min(520px, calc(100vh - 100px))" }}
           >
             {/* Header */}
             <div className="flex shrink-0 items-center justify-between border-b border-[#2A2A3C] px-5 py-3.5">
