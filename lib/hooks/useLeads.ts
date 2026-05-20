@@ -10,12 +10,14 @@ export interface DuplicateLeadMatch {
   company_name?: string | null
   phone?: string | null
   phone_alt?: string | null
+  email?: string | null
+  duplicateField?: "phone" | "email"
   stage?: Pick<PipelineStage, "id" | "name" | "slug"> | null
 }
 
 export interface CreateLeadInput {
   full_name: string
-  phone: string
+  phone?: string
   phone_alt?: string
   email?: string
   designation?: string
@@ -63,22 +65,49 @@ export function useLeads() {
     return (data ?? []) as LeadListItem[]
   }
 
-  const checkDuplicate = async (phone: string): Promise<DuplicateLeadMatch | null> => {
+  const checkDuplicate = async (
+    phone?: string,
+    email?: string
+  ): Promise<DuplicateLeadMatch | null> => {
     const supabase = createClient()
-    const normalizedPhone = phone.trim()
+    const normalizedPhone = phone?.trim()
+    const normalizedEmail = email?.trim()
 
-    const { data, error } = await supabase
-      .from("leads")
-      .select("id, full_name, company_name, phone, phone_alt, stage:stage_id(id, name, slug)")
-      .or(`phone.eq.${normalizedPhone},phone_alt.eq.${normalizedPhone}`)
-      .limit(1)
-      .maybeSingle()
+    if (normalizedPhone) {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id, full_name, company_name, phone, phone_alt, email, stage:stage_id(id, name, slug)")
+        .or(`phone.eq.${normalizedPhone},phone_alt.eq.${normalizedPhone}`)
+        .limit(1)
+        .maybeSingle()
 
-    if (error) {
-      throw error
+      if (error) {
+        throw error
+      }
+
+      if (data) {
+        return { ...(data as unknown as DuplicateLeadMatch), duplicateField: "phone" }
+      }
     }
 
-    return data as DuplicateLeadMatch | null
+    if (normalizedEmail) {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id, full_name, company_name, phone, phone_alt, email, stage:stage_id(id, name, slug)")
+        .ilike("email", normalizedEmail)
+        .limit(1)
+        .maybeSingle()
+
+      if (error) {
+        throw error
+      }
+
+      if (data) {
+        return { ...(data as unknown as DuplicateLeadMatch), duplicateField: "email" }
+      }
+    }
+
+    return null
   }
 
   const getStageBySlug = async (slug: string): Promise<PipelineStage | null> => {
@@ -118,7 +147,7 @@ export function useLeads() {
     const payload = {
       ...data,
       full_name: data.full_name.trim(),
-      phone: data.phone.trim(),
+      phone: normalizeOptionalString(data.phone),
       phone_alt: normalizeOptionalString(data.phone_alt),
       email: normalizeOptionalString(data.email),
       designation: normalizeOptionalString(data.designation),

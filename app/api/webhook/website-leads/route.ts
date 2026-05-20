@@ -26,7 +26,7 @@ async function sendManagerNotification(lead: {
   id: string
   full_name: string
   company_name?: string
-  phone: string
+  phone?: string | null
   city?: string
   service_line?: string
 }) {
@@ -39,7 +39,7 @@ async function sendManagerNotification(lead: {
     "\u{1F514} *New Website Lead*",
     `Name: ${lead.full_name}`,
     lead.company_name ? `Company: ${lead.company_name}` : null,
-    `Phone: ${lead.phone}`,
+    lead.phone ? `Phone: ${lead.phone}` : null,
     lead.city ? `City: ${lead.city}` : null,
     lead.service_line
       ? `Service: ${lead.service_line
@@ -80,16 +80,16 @@ export async function POST(request: NextRequest) {
   }
 
   const fullName = (body.full_name as string | undefined)?.trim()
-  const phone = (body.phone as string | undefined)?.trim()
+  const phone = (body.phone as string | undefined)?.trim() || null
+  const email = (body.email as string | undefined)?.trim() || null
 
-  if (!fullName || !phone) {
+  if (!fullName || (!phone && !email)) {
     return NextResponse.json(
-      { error: "full_name and phone are required" },
+      { error: "full_name and at least one of phone or email are required" },
       { status: 400 }
     )
   }
 
-  const email = (body.email as string | undefined)?.trim() || null
   const companyName = (body.company_name as string | undefined)?.trim() || null
   const city = (body.city as string | undefined)?.trim() || null
   const serviceLine = (body.service_line as string | undefined)?.trim() || null
@@ -99,24 +99,41 @@ export async function POST(request: NextRequest) {
   const utmCampaign = (body.utm_campaign as string | undefined)?.trim() || null
 
   // 3. Normalise phone
-  const normalisedPhone = normalisePhone(phone)
+  const normalisedPhone = phone ? normalisePhone(phone) : null
 
   const supabase = getServiceClient()
 
   // 4. Check duplicate
-  const { data: existingLead } = await supabase
-    .from("leads")
-    .select("id, full_name")
-    .or(
-      `phone.ilike.%${normalisedPhone}%,phone_alt.ilike.%${normalisedPhone}%`
-    )
-    .limit(1)
-    .maybeSingle()
+  let duplicate: { id: string; full_name?: string | null } | null = null
+
+  if (normalisedPhone) {
+    const { data: existingLead } = await supabase
+      .from("leads")
+      .select("id, full_name")
+      .or(
+        `phone.ilike.%${normalisedPhone}%,phone_alt.ilike.%${normalisedPhone}%`
+      )
+      .limit(1)
+      .maybeSingle()
+
+    duplicate = existingLead
+  }
+
+  if (!duplicate && email) {
+    const { data: emailDuplicate } = await supabase
+      .from("leads")
+      .select("id")
+      .ilike("email", email.trim())
+      .maybeSingle()
+    if (emailDuplicate) {
+      duplicate = emailDuplicate
+    }
+  }
 
   // 5. If duplicate
-  if (existingLead) {
+  if (duplicate) {
     await supabase.from("interactions").insert({
-      lead_id: existingLead.id,
+      lead_id: duplicate.id,
       type: "lead_created",
       title: "Duplicate enquiry from website",
       notes: message
@@ -126,7 +143,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(
-      { status: "duplicate", existing_lead_id: existingLead.id },
+      { status: "duplicate", existing_lead_id: duplicate.id },
       { status: 200 }
     )
   }

@@ -44,17 +44,14 @@ const emptyToUndefined = (value: unknown) => {
 
 const leadFormSchema = z.object({
   full_name: z.string().trim().min(1, "Full name is required."),
-  phone: z
-    .string()
-    .trim()
-    .min(1, "Phone is required.")
-    .refine((value) => value.replace(/\D/g, "").length >= 10, {
-      message: "Phone must be at least 10 digits.",
-    }),
+  phone: z.string().optional().or(z.literal("")).refine(
+    (val) => !val || val.replace(/\D/g, "").length >= 10,
+    { message: "Phone must be at least 10 digits" }
+  ),
   phone_alt: z.preprocess(emptyToUndefined, z.string().optional()),
-  email: z.preprocess(
-    emptyToUndefined,
-    z.string().email("Enter a valid email address.").optional()
+  email: z.string().optional().or(z.literal("")).refine(
+    (val) => !val || z.string().email().safeParse(val).success,
+    { message: "Enter a valid email address" }
   ),
   designation: z.preprocess(emptyToUndefined, z.string().optional()),
   company_name: z.preprocess(emptyToUndefined, z.string().optional()),
@@ -78,7 +75,15 @@ const leadFormSchema = z.object({
   referral_name: z.preprocess(emptyToUndefined, z.string().optional()),
   whatsapp_opted_in: z.boolean(),
   initial_notes: z.preprocess(emptyToUndefined, z.string().optional()),
-})
+}).refine(
+  (data) =>
+    (data.phone && data.phone.trim().length > 0) ||
+    (data.email && data.email.trim().length > 0),
+  {
+    message: "Please enter at least a phone number or email address",
+    path: ["phone"],
+  }
+)
 
 type LeadFormValues = z.infer<typeof leadFormSchema>
 type LeadFormInput = z.input<typeof leadFormSchema>
@@ -158,7 +163,8 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
 
     const company = duplicateLead.company_name ? ` at ${duplicateLead.company_name}` : ""
     const stage = duplicateLead.stage?.name ? ` in stage ${duplicateLead.stage.name}` : ""
-    return `A lead with this phone already exists: ${duplicateLead.full_name}${company}${stage}. Do you want to continue creating a new lead anyway?`
+    const field = duplicateLead.duplicateField === "email" ? "email" : "phone"
+    return `A lead with this ${field} already exists: ${duplicateLead.full_name}${company}${stage}. Do you want to continue creating a new lead anyway?`
   }, [duplicateLead])
 
   const persistLead = async (data: CreateLeadInput) => {
@@ -223,7 +229,7 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
         assigned_to: user.id,
       }
 
-      const duplicate = await checkDuplicate(values.phone)
+      const duplicate = await checkDuplicate(values.phone, values.email)
       if (duplicate) {
         setDuplicateLead(duplicate)
         setPendingLeadData(leadPayload)
@@ -318,8 +324,15 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
               <FieldError message={errors.full_name?.message} />
             </div>
             <div>
-              <label className={labelClasses}>Phone</label>
-              <input {...register("phone")} className={inputClasses} />
+              <label className={labelClasses}>Phone or Email required</label>
+              <input
+                {...register("phone")}
+                className={inputClasses}
+                placeholder="9876543210 (optional if email provided)"
+              />
+              <p className="mt-2 text-xs text-[#9090A8]">
+                At least one of phone or email is required
+              </p>
               <FieldError message={errors.phone?.message} />
             </div>
             <div>
