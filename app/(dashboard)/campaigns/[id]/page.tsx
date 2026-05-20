@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Loader2,
+  Mail,
   Megaphone,
   Plug,
   Plus,
@@ -86,13 +87,39 @@ interface EnrollmentRow {
     | null
 }
 
+interface EmailLog {
+  id: string
+  status: string
+  opened_at: string | null
+  clicked_at: string | null
+  opened_count: number | null
+  clicked_count: number | null
+  lead_id: string | null
+  to_email: string
+  subject: string
+  created_at: string
+  lead:
+    | { id: string; full_name: string; company_name: string | null }
+    | { id: string; full_name: string; company_name: string | null }[]
+    | null
+}
+
+interface EmailStats {
+  total_sent: number
+  opened: number
+  clicked: number
+  bounced: number
+}
+
 interface DetailResponse {
   campaign: Campaign
   messages: MessageRow[]
   enrollments: EnrollmentRow[]
+  emailLogs: EmailLog[]
+  emailStats: EmailStats
 }
 
-const tabs = ["Messages", "Enrolled Leads", "Settings"] as const
+const tabs = ["Messages", "Enrolled Leads", "Email Analytics", "Settings"] as const
 type TabName = (typeof tabs)[number]
 
 // Slide direction depends on whether we're moving forward or backward
@@ -133,7 +160,7 @@ function CampaignStatCard({
 }: {
   label: string
   value: number
-  tone: "default" | "green" | "blue" | "purple"
+  tone: "default" | "green" | "blue" | "purple" | "red"
 }) {
   return (
     <div className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-3">
@@ -144,7 +171,8 @@ function CampaignStatCard({
           tone === "default" && "text-[#F0F0FA]",
           tone === "green" && "text-[#10B981]",
           tone === "blue" && "text-[#3B82F6]",
-          tone === "purple" && "text-[#8B5CF6]"
+          tone === "purple" && "text-[#8B5CF6]",
+          tone === "red" && "text-[#EF4444]"
         )}
       >
         {value}
@@ -308,11 +336,13 @@ export default function CampaignDetailPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 md:mt-4 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:mt-4 md:grid-cols-6">
             <CampaignStatCard label="Enrolled" value={enrolledCount} tone="default" />
-            <CampaignStatCard label="Messages Sent" value={sentCount} tone="green" />
-            <CampaignStatCard label="Replies" value={0} tone="blue" />
-            <CampaignStatCard label="Completed" value={completedCount} tone="purple" />
+            <CampaignStatCard label="Sent" value={sentCount} tone="green" />
+            <CampaignStatCard label="Opened" value={data.emailStats?.opened ?? 0} tone="blue" />
+            <CampaignStatCard label="Clicked" value={data.emailStats?.clicked ?? 0} tone="purple" />
+            <CampaignStatCard label="Bounced" value={data.emailStats?.bounced ?? 0} tone="red" />
+            <CampaignStatCard label="Completed" value={completedCount} tone="green" />
           </div>
         </div>
 
@@ -368,6 +398,13 @@ export default function CampaignDetailPage() {
                 onOpenEnroll={() => setEnrollOpen(true)}
                 onOpenLead={(leadId) => setLeadDrawerId(leadId)}
                 onRefresh={refresh}
+              />
+            )}
+
+            {activeTab === "Email Analytics" && (
+              <EmailAnalyticsTab
+                emailLogs={data.emailLogs ?? []}
+                emailStats={data.emailStats}
               />
             )}
 
@@ -843,6 +880,186 @@ function EnrolledLeadsTab({
 }
 
 // ── Settings Tab ─────────────────────────────────────────────────
+
+function EmailAnalyticsTab({
+  emailLogs,
+  emailStats,
+}: {
+  emailLogs: EmailLog[]
+  emailStats: EmailStats
+}) {
+  const [filter, setFilter] = useState<"all" | "opened" | "clicked" | "not_opened" | "bounced">("all")
+
+  const filtered = emailLogs.filter((log) => {
+    if (filter === "opened") return log.opened_at || log.status === "opened" || log.status === "clicked"
+    if (filter === "clicked") return log.clicked_at || log.status === "clicked"
+    if (filter === "not_opened") return !log.opened_at && log.status !== "opened" && log.status !== "clicked"
+    if (filter === "bounced") return log.status === "bounced" || log.status === "failed"
+    return true
+  })
+
+  const openRate = emailStats.total_sent > 0
+    ? Math.round((emailStats.opened / emailStats.total_sent) * 100)
+    : 0
+  const clickRate = emailStats.total_sent > 0
+    ? Math.round((emailStats.clicked / emailStats.total_sent) * 100)
+    : 0
+
+  return (
+    <div className="space-y-4">
+      {/* Rate summary */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-3">
+          <p className="text-xs text-[#9090A8]">Total Sent</p>
+          <p className="mt-1 text-2xl font-bold text-[#F0F0FA]">{emailStats.total_sent}</p>
+        </div>
+        <div className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-3">
+          <p className="text-xs text-[#9090A8]">Open Rate</p>
+          <p className="mt-1 text-2xl font-bold text-[#3B82F6]">{openRate}%</p>
+          <p className="text-[11px] text-[#9090A8]">{emailStats.opened} leads</p>
+        </div>
+        <div className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-3">
+          <p className="text-xs text-[#9090A8]">Click Rate</p>
+          <p className="mt-1 text-2xl font-bold text-[#8B5CF6]">{clickRate}%</p>
+          <p className="text-[11px] text-[#9090A8]">{emailStats.clicked} leads</p>
+        </div>
+        <div className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-3">
+          <p className="text-xs text-[#9090A8]">Bounced</p>
+          <p className="mt-1 text-2xl font-bold text-[#EF4444]">{emailStats.bounced}</p>
+        </div>
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex flex-wrap gap-2">
+        {([
+          { key: "all", label: `All (${emailLogs.length})` },
+          { key: "opened", label: `Opened (${emailStats.opened})` },
+          { key: "clicked", label: `Clicked (${emailStats.clicked})` },
+          { key: "not_opened", label: `Not Opened (${emailStats.total_sent - emailStats.opened})` },
+          { key: "bounced", label: `Bounced (${emailStats.bounced})` },
+        ] as const).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setFilter(tab.key)}
+            className={cn(
+              "rounded-full px-3 py-1.5 text-xs font-medium transition",
+              filter === tab.key
+                ? "bg-[#3B82F6] text-white"
+                : "border border-[#2A2A3C] bg-[#111118] text-[#9090A8] hover:text-[#F0F0FA]"
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Leads table */}
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-[#2A2A3C] bg-[#111118] py-16 text-center">
+          <Mail className="mb-3 size-10 text-[#9090A8]" />
+          <p className="text-sm font-medium text-[#F0F0FA]">No emails match this filter</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-[#2A2A3C] bg-[#111118]">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[#2A2A3C] text-[11px] uppercase tracking-wider text-[#9090A8]">
+                <th className="px-4 py-3 text-left font-medium">Lead</th>
+                <th className="px-4 py-3 text-left font-medium">Email</th>
+                <th className="px-4 py-3 text-left font-medium">Subject</th>
+                <th className="px-4 py-3 text-left font-medium">Sent</th>
+                <th className="px-4 py-3 text-left font-medium">Opened</th>
+                <th className="px-4 py-3 text-left font-medium">Clicked</th>
+                <th className="px-4 py-3 text-left font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((log) => {
+                const lead = Array.isArray(log.lead) ? log.lead[0] : log.lead
+                return (
+                  <tr key={log.id} className="border-b border-[#2A2A3C]/60 hover:bg-[#1A1A24]/60">
+                    <td className="px-4 py-3">
+                      <p className="text-xs font-medium text-[#F0F0FA]">{lead?.full_name ?? "Unknown"}</p>
+                      <p className="text-[11px] text-[#9090A8]">{lead?.company_name ?? "—"}</p>
+                    </td>
+                    <td className="px-4 py-3 text-[11px] text-[#9090A8]">{log.to_email}</td>
+                    <td className="max-w-[160px] truncate px-4 py-3 text-[11px] text-[#9090A8]">{log.subject}</td>
+                    <td className="px-4 py-3 text-[11px] text-[#9090A8]">
+                      {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                    </td>
+                    <td className="px-4 py-3 text-[11px]">
+                      {log.opened_at ? (
+                        <span className="text-[#10B981]">
+                          {formatDistanceToNow(new Date(log.opened_at), { addSuffix: true })}
+                          {log.opened_count && log.opened_count > 1 && (
+                            <span className="ml-1 text-[#9090A8]">({log.opened_count}x)</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-[#5A5A72]">Not opened</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-[11px]">
+                      {log.clicked_at ? (
+                        <span className="text-[#8B5CF6]">
+                          {formatDistanceToNow(new Date(log.clicked_at), { addSuffix: true })}
+                          {log.clicked_count && log.clicked_count > 1 && (
+                            <span className="ml-1 text-[#9090A8]">({log.clicked_count}x)</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-[#5A5A72]">No clicks</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <EmailStatusPill log={log} />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EmailStatusPill({ log }: { log: EmailLog }) {
+  if (log.clicked_at || log.status === "clicked") {
+    return (
+      <span className="rounded-full bg-[#2E1A47] px-2 py-0.5 text-[11px] font-medium text-[#C084FC]">
+        Clicked
+      </span>
+    )
+  }
+  if (log.opened_at || log.status === "opened") {
+    return (
+      <span className="rounded-full bg-[#163322] px-2 py-0.5 text-[11px] font-medium text-[#34D399]">
+        Opened {log.opened_count ?? 1} times
+      </span>
+    )
+  }
+  if (log.status === "bounced" || log.status === "failed") {
+    return (
+      <span className="rounded-full bg-[#7F1D1D] px-2 py-0.5 text-[11px] font-medium text-white">
+        Bounced
+      </span>
+    )
+  }
+  if (log.status === "delivered") {
+    return (
+      <span className="rounded-full bg-[#1E3A5F] px-2 py-0.5 text-[11px] font-medium text-[#60A5FA]">
+        Delivered
+      </span>
+    )
+  }
+  return (
+    <span className="rounded-full bg-[#1F1F2E] px-2 py-0.5 text-[11px] font-medium text-[#C7C7D8]">
+      Sent
+    </span>
+  )
+}
 
 function SettingsTab({
   campaign,

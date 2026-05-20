@@ -27,7 +27,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
 
   const id = params.id
 
-  const [campaignRes, messagesRes, enrollmentsRes] = await Promise.all([
+  const [campaignRes, messagesRes, enrollmentsRes, emailLogsRes] = await Promise.all([
     supabase.from("campaigns").select("*").eq("id", id).maybeSingle(),
     supabase
       .from("campaign_messages")
@@ -41,16 +41,30 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
       )
       .eq("campaign_id", id)
       .order("enrolled_at", { ascending: false }),
+    supabase
+      .from("email_logs")
+      .select("id, status, opened_at, clicked_at, opened_count, clicked_count, lead_id, to_email, subject, created_at, lead:lead_id(id, full_name, company_name)")
+      .eq("campaign_id", id)
+      .order("created_at", { ascending: false }),
   ])
 
   if (campaignRes.error || !campaignRes.data) {
     return NextResponse.json({ error: "Campaign not found" }, { status: 404 })
   }
 
+  const emailLogs = emailLogsRes.data ?? []
+
   return NextResponse.json({
     campaign: campaignRes.data,
     messages: messagesRes.data ?? [],
     enrollments: enrollmentsRes.data ?? [],
+    emailLogs,
+    emailStats: {
+      total_sent: emailLogs.length,
+      opened: emailLogs.filter((e) => e.opened_at || e.status === "opened" || e.status === "clicked").length,
+      clicked: emailLogs.filter((e) => e.clicked_at || e.status === "clicked").length,
+      bounced: emailLogs.filter((e) => e.status === "bounced" || e.status === "failed").length,
+    },
   })
 }
 
