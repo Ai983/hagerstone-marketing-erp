@@ -3,7 +3,7 @@
 // Centralizes: model id, endpoint, headers, JSON extraction, and
 // a uniform error shape so every AI route has the same behavior.
 
-export const CLAUDE_MODEL = "claude-sonnet-4-5-20250514"
+export const CLAUDE_MODEL = "claude-sonnet-4-20250514"
 
 export interface ClaudeCallOptions {
   system: string
