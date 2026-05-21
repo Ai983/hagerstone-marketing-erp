@@ -116,7 +116,8 @@ export async function POST(
         `
         *,
         lead:leads(
-          id, full_name, company_name, phone, email, service_line, city, whatsapp_opted_in, assigned_to
+          id, full_name, company_name, phone, email, service_line, city, whatsapp_opted_in, assigned_to,
+          email_opted_in, email_unsubscribed_at
         ),
         campaign:campaigns(id, name, status)
       `
@@ -210,6 +211,12 @@ export async function POST(
       if (enrollment.email_opted_out === true) {
         return NextResponse.json(
           { error: "Lead has opted out of email for this campaign" },
+          { status: 400 }
+        )
+      }
+      if (lead.email_opted_in === false && lead.email_unsubscribed_at) {
+        return NextResponse.json(
+          { error: "Lead has unsubscribed from emails" },
           { status: 400 }
         )
       }

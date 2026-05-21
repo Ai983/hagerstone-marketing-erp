@@ -70,6 +70,9 @@ export interface Lead {
   utm_source?: string
   utm_campaign?: string
   whatsapp_opted_in: boolean
+  email_opted_in?: boolean | null
+  email_unsubscribed_at?: string | null
+  email_unsubscribed_campaign?: string | null
   score: number
   category: "hot" | "warm" | "lukewarm" | "cold" | null
   category_remarks: string | null

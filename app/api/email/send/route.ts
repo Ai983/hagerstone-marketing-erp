@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const [{ data: lead, error: leadError }, { data: profile }] = await Promise.all([
       supabase
         .from("leads")
-        .select("id, full_name, company_name, service_line, city")
+        .select("id, full_name, company_name, service_line, city, email_opted_in, email_unsubscribed_at")
         .eq("id", leadId)
         .maybeSingle(),
       supabase
@@ -50,6 +50,13 @@ export async function POST(request: NextRequest) {
     if (leadError) throw leadError
     if (!lead) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 })
+    }
+
+    if (lead.email_opted_in === false && lead.email_unsubscribed_at) {
+      return NextResponse.json(
+        { error: "This lead has unsubscribed from emails. Cannot send." },
+        { status: 400 }
+      )
     }
 
     const variables = {

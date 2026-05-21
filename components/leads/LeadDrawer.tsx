@@ -10,6 +10,7 @@ import {
   Phone,
   CalendarPlus,
   Pencil,
+  Save,
   MessageCircle,
   MessageSquare,
   Mail,
@@ -300,6 +301,24 @@ function OverviewTab({
   const [reassignOpen, setReassignOpen] = useState(false)
   const queryClient = useQueryClient()
   const currentStageSlug = lead.stage?.slug
+  const [isEditing, setIsEditing] = useState(false)
+  const [editData, setEditData] = useState({
+    full_name: lead.full_name ?? "",
+    phone: lead.phone ?? "",
+    email: lead.email ?? "",
+    company_name: lead.company_name ?? "",
+    designation: lead.designation ?? "",
+    city: lead.city ?? "",
+    state: lead.state ?? "",
+    industry: lead.industry ?? "",
+    service_line: lead.service_line ?? "",
+    estimated_budget: lead.estimated_budget ?? "",
+    project_size_sqft: lead.project_size_sqft ?? "",
+    expected_timeline: lead.expected_timeline ?? "",
+    initial_notes: lead.initial_notes ?? "",
+    whatsapp_opted_in: lead.whatsapp_opted_in ?? false,
+  })
+  const [saving, setSaving] = useState(false)
 
   const [boqData, setBOQData] = useState({
     boq_received_date: lead.boq_received_date ?? "",
@@ -335,6 +354,22 @@ function OverviewTab({
   const [wonUploading, setWonUploading] = useState(false)
 
   useEffect(() => {
+    setEditData({
+      full_name: lead.full_name ?? "",
+      phone: lead.phone ?? "",
+      email: lead.email ?? "",
+      company_name: lead.company_name ?? "",
+      designation: lead.designation ?? "",
+      city: lead.city ?? "",
+      state: lead.state ?? "",
+      industry: lead.industry ?? "",
+      service_line: lead.service_line ?? "",
+      estimated_budget: lead.estimated_budget ?? "",
+      project_size_sqft: lead.project_size_sqft ?? "",
+      expected_timeline: lead.expected_timeline ?? "",
+      initial_notes: lead.initial_notes ?? "",
+      whatsapp_opted_in: lead.whatsapp_opted_in ?? false,
+    })
     setBOQData({
       boq_received_date: lead.boq_received_date ?? "",
       boq_document_url: lead.boq_document_url ?? null,
@@ -369,6 +404,20 @@ function OverviewTab({
     lead.boq_received_date,
     lead.boq_remarks,
     lead.boq_scope,
+    lead.full_name,
+    lead.phone,
+    lead.email,
+    lead.company_name,
+    lead.designation,
+    lead.city,
+    lead.state,
+    lead.industry,
+    lead.service_line,
+    lead.estimated_budget,
+    lead.project_size_sqft,
+    lead.expected_timeline,
+    lead.initial_notes,
+    lead.whatsapp_opted_in,
     lead.proposal_deadline,
     lead.proposal_estimated_cost,
     lead.proposal_remarks,
@@ -420,6 +469,46 @@ function OverviewTab({
     },
     recentInteractionCount
   )
+
+  const handleSaveEdit = async () => {
+    setSaving(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from("leads")
+        .update({
+          full_name: editData.full_name.trim(),
+          phone: editData.phone.trim() || null,
+          email: editData.email.trim() || null,
+          company_name: editData.company_name.trim() || null,
+          designation: editData.designation.trim() || null,
+          city: editData.city.trim() || null,
+          state: editData.state.trim() || null,
+          industry: editData.industry.trim() || null,
+          service_line: editData.service_line || null,
+          estimated_budget: editData.estimated_budget.trim() || null,
+          project_size_sqft: editData.project_size_sqft
+            ? Number(editData.project_size_sqft)
+            : null,
+          expected_timeline: editData.expected_timeline.trim() || null,
+          initial_notes: editData.initial_notes.trim() || null,
+          whatsapp_opted_in: editData.whatsapp_opted_in,
+        })
+        .eq("id", lead.id)
+
+      if (error) throw error
+
+      queryClient.invalidateQueries({ queryKey: ["lead-drawer-detail", lead.id] })
+      queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
+      queryClient.invalidateQueries({ queryKey: ["leads"] })
+      toast.success("Lead updated successfully")
+      setIsEditing(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update lead")
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const handleSaveBOQ = async () => {
     const supabase = createClient()
@@ -738,28 +827,176 @@ function OverviewTab({
       </div>
 
       {/* Lead profile grid */}
+      <div className="flex items-center justify-between px-4 pb-1 pt-3">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">
+          Lead Details
+        </p>
+        {!isEditing ? (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="inline-flex items-center gap-1 rounded-lg border border-[#2A2A3C] px-2.5 py-1 text-[11px] font-medium text-[#9090A8] transition hover:border-[#3B82F6] hover:text-[#3B82F6]"
+          >
+            <Pencil className="size-3" />
+            Edit
+          </button>
+        ) : (
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setIsEditing(false)
+                setEditData({
+                  full_name: lead.full_name ?? "",
+                  phone: lead.phone ?? "",
+                  email: lead.email ?? "",
+                  company_name: lead.company_name ?? "",
+                  designation: lead.designation ?? "",
+                  city: lead.city ?? "",
+                  state: lead.state ?? "",
+                  industry: lead.industry ?? "",
+                  service_line: lead.service_line ?? "",
+                  estimated_budget: lead.estimated_budget ?? "",
+                  project_size_sqft: lead.project_size_sqft ?? "",
+                  expected_timeline: lead.expected_timeline ?? "",
+                  initial_notes: lead.initial_notes ?? "",
+                  whatsapp_opted_in: lead.whatsapp_opted_in ?? false,
+                })
+              }}
+              className="inline-flex items-center gap-1 rounded-lg border border-[#2A2A3C] px-2.5 py-1 text-[11px] font-medium text-[#9090A8] transition hover:text-[#F0F0FA]"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              disabled={saving}
+              className="inline-flex items-center gap-1 rounded-lg bg-[#3B82F6] px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-[#2563EB] disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="size-3 animate-spin" /> : <Save className="size-3" />}
+              Save
+            </button>
+          </div>
+        )}
+      </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-4 p-4">
-        <FieldRow label="Full Name" value={lead.full_name} />
-        <FieldRow label="Phone" value={lead.phone} />
-        <FieldRow label="Email" value={lead.email} />
-        <FieldRow label="Company" value={lead.company_name} />
-        <FieldRow label="Designation" value={lead.designation} />
-        <FieldRow label="City" value={lead.city} />
-        <FieldRow label="State" value={lead.state} />
-        <FieldRow label="Industry" value={lead.industry} />
-        <FieldRow label="Service Line" value={lead.service_line?.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} />
-        <FieldRow label="Est. Budget" value={lead.estimated_budget} />
-        <FieldRow label="Project Size" value={lead.project_size_sqft ? `${lead.project_size_sqft.toLocaleString()} sq ft` : null} />
-        <FieldRow label="Expected Timeline" value={lead.expected_timeline} />
-        <FieldRow label="Source" value={sourceLabel} />
-        <FieldRow
-          label="WhatsApp Opted In"
-          value={
-            <span className={lead.whatsapp_opted_in ? "text-[#34D399]" : "text-[#9090A8]"}>
-              {lead.whatsapp_opted_in ? "Yes" : "No"}
-            </span>
-          }
-        />
+        {isEditing ? (
+          <>
+            <div>
+              <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Full Name</label>
+              <input value={editData.full_name} onChange={e => setEditData(p => ({...p, full_name: e.target.value}))}
+                className="mt-1 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Phone</label>
+              <input value={editData.phone} onChange={e => setEditData(p => ({...p, phone: e.target.value}))}
+                className="mt-1 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Email</label>
+              <input value={editData.email} onChange={e => setEditData(p => ({...p, email: e.target.value}))}
+                className="mt-1 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Company</label>
+              <input value={editData.company_name} onChange={e => setEditData(p => ({...p, company_name: e.target.value}))}
+                className="mt-1 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Designation</label>
+              <input value={editData.designation} onChange={e => setEditData(p => ({...p, designation: e.target.value}))}
+                className="mt-1 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">City</label>
+              <input value={editData.city} onChange={e => setEditData(p => ({...p, city: e.target.value}))}
+                className="mt-1 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">State</label>
+              <input value={editData.state} onChange={e => setEditData(p => ({...p, state: e.target.value}))}
+                className="mt-1 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Industry</label>
+              <input value={editData.industry} onChange={e => setEditData(p => ({...p, industry: e.target.value}))}
+                className="mt-1 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Service Line</label>
+              <select value={editData.service_line} onChange={e => setEditData(p => ({...p, service_line: e.target.value}))}
+                className="mt-1 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]">
+                <option value="">Select service line</option>
+                <option value="office_interiors">Office Interiors</option>
+                <option value="mep">MEP Works</option>
+                <option value="facade_glazing">Facade & Glazing</option>
+                <option value="peb_construction">PEB Construction</option>
+                <option value="civil_works">Civil Works</option>
+                <option value="hospitality">Hospitality</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Est. Budget</label>
+              <input value={editData.estimated_budget} onChange={e => setEditData(p => ({...p, estimated_budget: e.target.value}))}
+                className="mt-1 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Project Size (sqft)</label>
+              <input type="number" value={editData.project_size_sqft} onChange={e => setEditData(p => ({...p, project_size_sqft: e.target.value}))}
+                className="mt-1 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Expected Timeline</label>
+              <input value={editData.expected_timeline} onChange={e => setEditData(p => ({...p, expected_timeline: e.target.value}))}
+                className="mt-1 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]" />
+            </div>
+            <div className="col-span-2">
+              <label className="text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">Initial Notes</label>
+              <textarea value={editData.initial_notes} onChange={e => setEditData(p => ({...p, initial_notes: e.target.value}))}
+                rows={3}
+                className="mt-1 w-full resize-none rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]" />
+            </div>
+            <div className="col-span-2 flex items-center gap-2">
+              <input type="checkbox" id="wa-opted" checked={editData.whatsapp_opted_in}
+                onChange={e => setEditData(p => ({...p, whatsapp_opted_in: e.target.checked}))}
+                className="rounded" />
+              <label htmlFor="wa-opted" className="text-sm text-[#F0F0FA]">WhatsApp Opted In</label>
+            </div>
+          </>
+        ) : (
+          <>
+            <FieldRow label="Full Name" value={lead.full_name} />
+            <FieldRow label="Phone" value={lead.phone} />
+            <FieldRow label="Email" value={lead.email} />
+            <FieldRow label="Company" value={lead.company_name} />
+            <FieldRow label="Designation" value={lead.designation} />
+            <FieldRow label="City" value={lead.city} />
+            <FieldRow label="State" value={lead.state} />
+            <FieldRow label="Industry" value={lead.industry} />
+            <FieldRow label="Service Line" value={lead.service_line?.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} />
+            <FieldRow label="Est. Budget" value={lead.estimated_budget} />
+            <FieldRow label="Project Size" value={lead.project_size_sqft ? `${lead.project_size_sqft.toLocaleString()} sq ft` : null} />
+            <FieldRow label="Expected Timeline" value={lead.expected_timeline} />
+            <FieldRow label="Source" value={sourceLabel} />
+            <FieldRow label="WhatsApp Opted In" value={
+              <span className={lead.whatsapp_opted_in ? "text-[#34D399]" : "text-[#9090A8]"}>
+                {lead.whatsapp_opted_in ? "Yes" : "No"}
+              </span>
+            } />
+            <FieldRow label="Email Opted In" value={
+              <div>
+                <span className={lead.email_opted_in ? "text-[#34D399]" : "text-[#EF4444]"}>
+                  {lead.email_opted_in ? "Yes" : "No"}
+                </span>
+                {lead.email_unsubscribed_at && (
+                  <p className="mt-0.5 text-[11px] text-[#9090A8]">
+                    Unsubscribed {formatDistanceToNow(new Date(lead.email_unsubscribed_at), { addSuffix: true })}
+                    {lead.email_unsubscribed_campaign && (
+                      <span> from <em>{lead.email_unsubscribed_campaign}</em></span>
+                    )}
+                  </p>
+                )}
+              </div>
+            } />
+          </>
+        )}
       </div>
 
       {/* Notes */}

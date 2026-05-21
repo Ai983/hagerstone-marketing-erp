@@ -46,6 +46,28 @@ export async function GET(request: NextRequest) {
     .update({ email_opted_out: true })
     .eq("id", enrollmentId)
 
+  // Get lead_id from enrollment
+  const { data: enrollmentData } = await supabase
+    .from("campaign_enrollments")
+    .select("lead_id, campaign:campaigns(name)")
+    .eq("id", enrollmentId)
+    .maybeSingle()
+
+  if (enrollmentData?.lead_id) {
+    const campaignName = Array.isArray(enrollmentData.campaign)
+      ? enrollmentData.campaign[0]?.name
+      : (enrollmentData.campaign as { name?: string } | null)?.name
+
+    await supabase
+      .from("leads")
+      .update({
+        email_opted_in: false,
+        email_unsubscribed_at: new Date().toISOString(),
+        email_unsubscribed_campaign: campaignName ?? null,
+      })
+      .eq("id", enrollmentData.lead_id)
+  }
+
   const lead = Array.isArray(enrollment.lead) ? enrollment.lead[0] : enrollment.lead
   const campaign = Array.isArray(enrollment.campaign) ? enrollment.campaign[0] : enrollment.campaign
 

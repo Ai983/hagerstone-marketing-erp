@@ -119,7 +119,8 @@ export async function GET(request: NextRequest) {
       *,
       lead:leads(
         id, full_name, company_name,
-        phone, email, whatsapp_opted_in, assigned_to, service_line, city
+        phone, email, whatsapp_opted_in, assigned_to, service_line, city,
+        email_opted_in, email_unsubscribed_at
       ),
       campaign:campaigns(id, name, status)
     `
@@ -213,6 +214,10 @@ export async function GET(request: NextRequest) {
         continue
       }
       if (enrollment.email_opted_out === true) {
+        results.skipped++
+        continue
+      }
+      if (lead.email_opted_in === false && lead.email_unsubscribed_at) {
         results.skipped++
         continue
       }
