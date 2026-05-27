@@ -44,6 +44,15 @@ function normalizePhone(raw: string): string {
   return digits
 }
 
+function cleanPhoneValue(raw?: string | null): string {
+  const value = raw?.trim() ?? ""
+  const lower = value.toLowerCase()
+  if (!value || lower === "na" || lower === "n/a" || lower === "none" || lower === "null" || value === "-") {
+    return ""
+  }
+  return value
+}
+
 export async function POST(request: NextRequest) {
   try {
     // ── Auth ────────────────────────────────────────────────────
@@ -119,30 +128,26 @@ export async function POST(request: NextRequest) {
       const rowNum = raw.row ?? i + 1
 
       const fullName = raw.full_name?.trim()
-      const phoneRaw = raw.phone?.trim()
+      const phoneRaw = cleanPhoneValue(raw.phone)
 
       if (!fullName) {
         errors.push({ row: rowNum, error: "Full Name is required" })
         continue
       }
-      if (!phoneRaw) {
-        errors.push({ row: rowNum, error: "Phone is required" })
-        continue
-      }
 
       const normalised = normalizePhone(phoneRaw)
-      if (normalised.length < 7) {
+      if (phoneRaw && normalised.length < 7) {
         errors.push({ row: rowNum, error: "Phone number is too short" })
         continue
       }
 
       // Duplicate (existing DB row)
-      if (existingPhones.has(normalised)) {
+      if (normalised && existingPhones.has(normalised)) {
         skipped.push({ row: rowNum, phone: phoneRaw, reason: "Already exists" })
         continue
       }
       // Duplicate (same phone earlier in this batch)
-      if (seenInBatch.has(normalised)) {
+      if (normalised && seenInBatch.has(normalised)) {
         skipped.push({ row: rowNum, phone: phoneRaw, reason: "Duplicate in file" })
         continue
       }
@@ -168,7 +173,7 @@ export async function POST(request: NextRequest) {
 
       const insertPayload = {
         full_name: fullName,
-        phone: phoneRaw,
+        phone: phoneRaw || null,
         email: raw.email?.trim() || null,
         company_name: raw.company_name?.trim() || null,
         city: raw.city?.trim() || null,
@@ -192,8 +197,10 @@ export async function POST(request: NextRequest) {
       }
 
       imported++
-      seenInBatch.add(normalised)
-      existingPhones.add(normalised) // guard subsequent rows
+      if (normalised) {
+        seenInBatch.add(normalised)
+        existingPhones.add(normalised) // guard subsequent rows
+      }
     }
 
     return NextResponse.json({

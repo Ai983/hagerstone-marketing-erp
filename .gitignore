@@ -28,6 +28,15 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# portfolio media is hosted in Supabase Storage
+/public/portfolio/**/*.png
+/public/portfolio/**/*.jpg
+/public/portfolio/**/*.jpeg
+/public/portfolio/**/*.pdf
+/public/portfolio/**/*.mp4
+!/public/portfolio/hagerstone-logo.png
+!/public/portfolio/**/.gitkeep
+
 # vercel
 .vercel
 

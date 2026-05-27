@@ -43,7 +43,7 @@ const ALLOWED_SOURCES = new Set([
 
 const HEADER_ROW = [
   "Full Name*",
-  "Phone*",
+  "Phone",
   "Email",
   "Company Name",
   "City",
@@ -100,6 +100,15 @@ function normalizePhone(raw: string): string {
   const digits = raw.replace(/\D/g, "")
   if (digits.length === 12 && digits.startsWith("91")) return digits.slice(2)
   return digits
+}
+
+function cleanPhoneValue(raw: string): string {
+  const value = raw.trim()
+  const lower = value.toLowerCase()
+  if (!value || lower === "na" || lower === "n/a" || lower === "none" || lower === "null" || value === "-") {
+    return ""
+  }
+  return value
 }
 
 function parseYesNo(value: unknown): boolean {
@@ -187,7 +196,7 @@ async function validateRows(raw: Record<string, unknown>[]): Promise<ParsedRow[]
 
   raw.forEach((row, idx) => {
     const fullName = getField(row, "Full Name")
-    const phone = getField(row, "Phone")
+    const phone = cleanPhoneValue(getField(row, "Phone"))
     const email = getField(row, "Email")
     const companyName = getField(row, "Company Name")
     const city = getField(row, "City")
@@ -220,9 +229,6 @@ async function validateRows(raw: Record<string, unknown>[]): Promise<ParsedRow[]
     if (!fullName) {
       status = "error"
       error = "Missing Full Name"
-    } else if (!phone) {
-      status = "error"
-      error = "Missing Phone"
     } else if (serviceLine && !ALLOWED_SERVICE_LINES.has(serviceLine)) {
       status = "error"
       error = `Invalid Service Line. Allowed: ${Array.from(ALLOWED_SERVICE_LINES).join(", ")}`
@@ -233,15 +239,15 @@ async function validateRows(raw: Record<string, unknown>[]): Promise<ParsedRow[]
 
     if (status === "valid") {
       const norm = normalizePhone(phone)
-      if (norm.length < 7) {
+      if (phone && norm.length < 7) {
         status = "error"
         error = "Phone number is too short"
-      } else if (existingPhones.has(norm) || seenInFile.has(norm)) {
+      } else if (norm && (existingPhones.has(norm) || seenInFile.has(norm))) {
         status = "duplicate"
         error = existingPhones.has(norm)
           ? "Already exists in database"
           : "Duplicate within this file"
-      } else {
+      } else if (norm) {
         seenInFile.add(norm)
       }
     }

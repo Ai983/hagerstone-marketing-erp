@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
-const PUBLIC_PATHS = new Set(["/login", "/signup"])
+const PUBLIC_PATHS = new Set(["/login", "/signup", "/portfolio"])
+const PUBLIC_PREFIXES = ["/portfolio/"]
 
 export async function middleware(request: NextRequest) {
   // Webhooks (Maytapi inbound, website lead capture, etc.) come from
@@ -54,7 +55,10 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const isPublicPath = PUBLIC_PATHS.has(request.nextUrl.pathname)
+  const pathname = request.nextUrl.pathname
+  const isPublicPath =
+    PUBLIC_PATHS.has(pathname) ||
+    PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 
   if (!user && !isPublicPath) {
     return NextResponse.redirect(new URL("/login", request.url))
@@ -117,10 +121,11 @@ export async function middleware(request: NextRequest) {
 
 // Skip middleware for Next internals AND any static asset extension
 // served from /public — otherwise unauthenticated requests for files
-// like /logo.png get redirected to /login, which the browser then
-// renders as a broken image.
+// like /logo.png or /portfolio/pdfs/mep.pdf get redirected to /login.
+// PDF is included so leads can open sector portfolio PDFs without
+// being prompted for a login they don't have.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff|woff2|ttf|otf|map)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:pdf|png|jpg|jpeg|gif|webp|svg|ico|css|js|woff|woff2|ttf|otf|map|mp4|webm|mov)$).*)",
   ],
 }
