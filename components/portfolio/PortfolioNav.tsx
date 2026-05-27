@@ -41,15 +41,13 @@ export function PortfolioNav() {
       transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1], delay: 0.1 }}
       className="fixed left-0 right-0 top-0 z-[1000]"
       style={{
-        background: "rgba(251,249,244,0.96)",
-        backdropFilter: "blur(24px) saturate(180%)",
-        WebkitBackdropFilter: "blur(24px) saturate(180%)",
-        borderBottom: isScrolled
-          ? "1px solid rgba(232,226,210,0.8)"
-          : "1px solid rgba(232,226,210,0.4)",
+        background: isScrolled ? "rgba(251,249,244,0.92)" : "transparent",
+        backdropFilter: isScrolled ? "blur(24px) saturate(180%)" : "none",
+        WebkitBackdropFilter: isScrolled ? "blur(24px) saturate(180%)" : "none",
+        borderBottom: isScrolled ? "1px solid rgba(232,226,210,0.65)" : "1px solid transparent",
         boxShadow: isScrolled
           ? "0 6px 24px rgba(26,22,18,0.06)"
-          : "0 1px 0 rgba(26,22,18,0.02)",
+          : "none",
         transition: "all 300ms cubic-bezier(0.4,0,0.2,1)",
       }}
     >
@@ -68,6 +66,7 @@ export function PortfolioNav() {
                 maxWidth: 280,
                 objectFit: "contain",
                 display: "block",
+                filter: isScrolled ? "none" : "drop-shadow(0 2px 8px rgba(0,0,0,0.45))",
                 transition: "height 300ms cubic-bezier(0.4,0,0.2,1)",
               }}
               onError={(event) => {
@@ -97,11 +96,16 @@ export function PortfolioNav() {
               key={link.href}
               href={link.href}
               onClick={(event) => handleLinkClick(event, link.href)}
-              className="relative px-4 py-2 text-[13px] font-medium tracking-[0.04em] text-[var(--port-secondary)] no-underline transition-colors duration-200 hover:text-[var(--port-ink)] group"
+              className="relative px-4 py-2 text-[13px] font-medium tracking-[0.04em] no-underline transition-colors duration-200 group"
+              style={{
+                color: isScrolled ? "var(--port-secondary)" : "rgba(255,255,255,0.82)",
+                textShadow: isScrolled ? "none" : "0 2px 10px rgba(0,0,0,0.55)",
+              }}
             >
               {link.label}
               <span
-                className="absolute bottom-0 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-[var(--port-accent)] transition-all duration-300 group-hover:w-6"
+                className="absolute bottom-0 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full transition-all duration-300 group-hover:w-6"
+                style={{ background: isScrolled ? "var(--port-accent)" : "#E8D5A8" }}
               />
             </a>
           ))}
@@ -111,7 +115,15 @@ export function PortfolioNav() {
           <a
             href="#contact"
             onClick={(event) => handleLinkClick(event, "#contact")}
-            className="hidden md:inline-flex items-center gap-2 rounded-full border border-[var(--port-border-hover)] bg-[var(--port-surface)] px-5 py-2.5 text-[13px] font-semibold tracking-[0.03em] text-[var(--port-ink)] no-underline transition-all duration-250 hover:bg-[var(--port-ink)] hover:text-[var(--port-bg)] hover:border-[var(--port-ink)] hover:-translate-y-0.5"
+            className="hidden md:inline-flex items-center gap-2 rounded-full border px-5 py-2.5 text-[13px] font-semibold tracking-[0.03em] no-underline transition-all duration-250 hover:-translate-y-0.5"
+            style={{
+              borderColor: isScrolled ? "var(--port-border-hover)" : "rgba(232,213,168,0.55)",
+              background: isScrolled ? "var(--port-surface)" : "rgba(255,255,255,0.08)",
+              color: isScrolled ? "var(--port-ink)" : "#fff",
+              backdropFilter: isScrolled ? "none" : "blur(16px)",
+              WebkitBackdropFilter: isScrolled ? "none" : "blur(16px)",
+              textShadow: isScrolled ? "none" : "0 1px 8px rgba(0,0,0,0.45)",
+            }}
           >
             <span
               className="h-1.5 w-1.5 rounded-full bg-[var(--port-accent)]"
@@ -124,15 +136,26 @@ export function PortfolioNav() {
             type="button"
             aria-label="Toggle menu"
             onClick={() => setIsMobileOpen((prev) => !prev)}
-            className="lg:hidden flex h-10 w-10 flex-col items-center justify-center gap-1.5 rounded-full border border-[var(--port-border)] bg-[var(--port-surface)]"
+            className="lg:hidden flex h-10 w-10 flex-col items-center justify-center gap-1.5 rounded-full border"
+            style={{
+              borderColor: isScrolled ? "var(--port-border)" : "rgba(232,213,168,0.45)",
+              background: isScrolled ? "var(--port-surface)" : "rgba(255,255,255,0.08)",
+              backdropFilter: isScrolled ? "none" : "blur(16px)",
+            }}
           >
             <span
-              className="block h-[1.5px] w-4 rounded-full bg-[var(--port-ink)] transition-transform duration-300"
-              style={{ transform: isMobileOpen ? "translateY(3.5px) rotate(45deg)" : "none" }}
+              className="block h-[1.5px] w-4 rounded-full transition-transform duration-300"
+              style={{
+                background: isScrolled ? "var(--port-ink)" : "#fff",
+                transform: isMobileOpen ? "translateY(3.5px) rotate(45deg)" : "none",
+              }}
             />
             <span
-              className="block h-[1.5px] w-4 rounded-full bg-[var(--port-ink)] transition-transform duration-300"
-              style={{ transform: isMobileOpen ? "translateY(-3.5px) rotate(-45deg)" : "none" }}
+              className="block h-[1.5px] w-4 rounded-full transition-transform duration-300"
+              style={{
+                background: isScrolled ? "var(--port-ink)" : "#fff",
+                transform: isMobileOpen ? "translateY(-3.5px) rotate(-45deg)" : "none",
+              }}
             />
           </button>
         </div>

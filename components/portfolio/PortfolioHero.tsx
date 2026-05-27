@@ -345,7 +345,7 @@ export function PortfolioHero({ leadName }: PortfolioHeroProps) {
                   <a
                     href="#contact"
                     onClick={handleConsultationClick}
-                    className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#E8D5A8] px-8 py-4 text-[14px] font-semibold tracking-[0.04em] text-[var(--port-ink)] no-underline transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#FBE9C0] hover:shadow-[0_12px_28px_rgba(232,213,168,0.4)]"
+                    className="group inline-flex min-h-[50px] min-w-[220px] items-center justify-center gap-2.5 rounded-full bg-[#E8D5A8] px-9 py-4 text-[14px] font-semibold tracking-[0.04em] text-[var(--port-ink)] no-underline shadow-[0_8px_24px_rgba(232,213,168,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#FBE9C0] hover:shadow-[0_12px_28px_rgba(232,213,168,0.4)]"
                   >
                     Book a Free Consultation
                     <svg
@@ -362,7 +362,7 @@ export function PortfolioHero({ leadName }: PortfolioHeroProps) {
                     href="https://calendly.com/hagerstone-sales/30min"
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/[0.06] px-8 py-4 text-[14px] font-semibold tracking-[0.04em] text-white no-underline backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#E8D5A8] hover:bg-[rgba(232,213,168,0.12)]"
+                    className="inline-flex min-h-[50px] min-w-[180px] items-center justify-center gap-2.5 rounded-full border border-white/35 bg-white/[0.08] px-9 py-4 text-[14px] font-semibold tracking-[0.04em] text-white no-underline backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#E8D5A8] hover:bg-[rgba(232,213,168,0.12)]"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                       <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8" />
