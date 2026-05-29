@@ -16,7 +16,7 @@ const companySizeOptions = ["1-10", "11-50", "51-200", "201-500", "500+"] as con
 const serviceLineOptions = [
   { label: "Office Interiors", value: "office_interiors" },
   { label: "MEP", value: "mep" },
-  { label: "Facade & Glazing", value: "facade_glazing" },
+  { label: "Facade doors & Windows", value: "facade_glazing" },
   { label: "PEB Construction", value: "peb_construction" },
   { label: "Civil Works", value: "civil_works" },
   { label: "Multiple", value: "multiple" },

@@ -40,7 +40,7 @@ const HERO_SLIDES: HeroSlide[] = [
     eyebrow: "Design · Build · Deliver",
     titleStart: "Crafted spaces, engineered for",
     titleAccent: "longevity",
-    sub: "Office interiors, MEP, facade glazing, PEB construction and civil works — handled end-to-end by one trusted team.",
+    sub: "Office interiors, MEP, facade doors & windows, EPC construction and civil works — handled end-to-end by one trusted team.",
     metric: "15M+",
     metricLabel: "SQ FT DESIGNED",
     image: "/portfolio/office-interiors/msc/1.jpg",
@@ -179,7 +179,7 @@ export function PortfolioHero({ leadName }: PortfolioHeroProps) {
                 muted
                 playsInline
                 autoPlay={isActive}
-                preload="auto"
+                preload={isActive ? "auto" : "none"}
                 className="absolute inset-0 h-full w-full object-cover"
                 onEnded={() => handleVideoEnded(idx)}
                 onError={() =>
@@ -191,6 +191,7 @@ export function PortfolioHero({ leadName }: PortfolioHeroProps) {
               <img
                 src={portfolioMedia(s.image)}
                 alt=""
+                loading={isActive ? "eager" : "lazy"}
                 className="absolute inset-0 h-full w-full object-cover"
                 onError={() =>
                   setImgErrors((p) => ({ ...p, [idx]: true }))

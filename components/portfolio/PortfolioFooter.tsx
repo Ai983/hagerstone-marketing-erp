@@ -8,9 +8,12 @@ const FOOTER_LINKS = {
   services: [
     { label: "Office Interiors", href: "#projects" },
     { label: "MEP Engineering", href: "#projects" },
-    { label: "Facade & Glazing", href: "#projects" },
-    { label: "PEB", href: "#projects" },
+    { label: "Facade doors & Windows", href: "#projects" },
+    { label: "EPC", href: "#projects" },
     { label: "Hospitality", href: "#projects" },
+    { label: "Retail", href: "#projects" },
+    { label: "Club House", href: "#projects" },
+    { label: "Sales Gallery", href: "#projects" },
   ],
   company: [
     { label: "About Us", href: "https://hagerstone.com" },
@@ -53,6 +56,7 @@ export function PortfolioFooter() {
               <img
                 src={portfolioMedia("/portfolio/hagerstone-logo.png")}
                 alt="Hagerstone International"
+                loading="lazy"
                 style={{
                   height: 110,
                   width: "auto",
@@ -213,18 +217,18 @@ export function PortfolioFooter() {
             <ul className="space-y-3">
               <li>
                 <a
-                  href="tel:+919980813555"
+                  href="tel:+919910820078"
                   className="port-link-underline inline-block text-[14px] text-[var(--port-secondary)] no-underline"
                 >
-                  +91 99808 13555
+                  +91 99108 20078
                 </a>
               </li>
               <li>
                 <a
-                  href="mailto:sales@hagerstone.com"
+                  href="mailto:world@hagerstone.com"
                   className="port-link-underline inline-block text-[14px] text-[var(--port-secondary)] no-underline"
                 >
-                  sales@hagerstone.com
+                  world@hagerstone.com
                 </a>
               </li>
               <li>

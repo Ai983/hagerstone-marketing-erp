@@ -31,7 +31,7 @@ const ALL = "__all__"
 const serviceLineOptions: Array<{ label: string; value: ServiceLine }> = [
   { label: "Office Interiors", value: "office_interiors" },
   { label: "MEP", value: "mep" },
-  { label: "Facade / Glazing", value: "facade_glazing" },
+  { label: "Facade doors & Windows", value: "facade_glazing" },
   { label: "PEB Construction", value: "peb_construction" },
   { label: "Civil Works", value: "civil_works" },
   { label: "Multiple", value: "multiple" },

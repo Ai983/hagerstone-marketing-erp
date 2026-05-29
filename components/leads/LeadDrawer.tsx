@@ -926,7 +926,7 @@ function OverviewTab({
                 <option value="">Select service line</option>
                 <option value="office_interiors">Office Interiors</option>
                 <option value="mep">MEP Works</option>
-                <option value="facade_glazing">Facade & Glazing</option>
+                <option value="facade_glazing">Facade doors & Windows</option>
                 <option value="peb_construction">PEB Construction</option>
                 <option value="civil_works">Civil Works</option>
                 <option value="hospitality">Hospitality</option>
@@ -1196,7 +1196,7 @@ function OverviewTab({
                   <option value="">Select scope</option>
                   <option value="office_interiors">Office Interiors</option>
                   <option value="mep">MEP Works</option>
-                  <option value="facade_glazing">Facade & Glazing</option>
+                  <option value="facade_glazing">Facade doors & Windows</option>
                   <option value="peb_construction">PEB Construction</option>
                   <option value="civil_works">Civil Works</option>
                   <option value="multiple">Multiple Scopes</option>
@@ -1958,7 +1958,7 @@ function OverviewTab({
                   <option value="">Select scope</option>
                   <option value="office_interiors">Office Interiors</option>
                   <option value="mep">MEP Works</option>
-                  <option value="facade_glazing">Facade & Glazing</option>
+                  <option value="facade_glazing">Facade doors & Windows</option>
                   <option value="peb_construction">PEB Construction</option>
                   <option value="civil_works">Civil Works</option>
                   <option value="multiple">Multiple Scopes</option>

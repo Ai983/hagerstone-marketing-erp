@@ -147,6 +147,7 @@ export function ClientLogos() {
               <img
                 src={portfolioMedia(logo.src)}
                 alt={logo.name}
+                loading="lazy"
                 style={{
                   maxHeight: 60,
                   maxWidth: "100%",

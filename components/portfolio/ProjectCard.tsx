@@ -84,6 +84,7 @@ export function ProjectCard({ project, accentColor }: ProjectCardProps) {
               <img
                 src={portfolioMedia(src)}
                 alt={project.title + " photo " + (index + 1)}
+                loading={index === 0 ? "eager" : "lazy"}
                 style={{
                   position: "absolute",
                   inset: 0,

@@ -18,7 +18,7 @@ const serviceLines = [
   { value: "all", label: "All service lines" },
   { value: "office_interiors", label: "Office Interiors" },
   { value: "mep", label: "MEP" },
-  { value: "facade_glazing", label: "Facade & Glazing" },
+  { value: "facade_glazing", label: "Facade doors & Windows" },
   { value: "peb_construction", label: "PEB Construction" },
   { value: "civil_works", label: "Civil Works" },
   { value: "multiple", label: "Multiple" },
