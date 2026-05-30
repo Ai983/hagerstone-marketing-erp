@@ -6,6 +6,15 @@ import { ChevronDown, Filter, Search, X } from "lucide-react"
 import type { LeadSource, PipelineStage, Profile, ServiceLine } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
+export type ProfileCategoryFilter =
+  | "all"
+  | "office_interiors"
+  | "mep"
+  | "facade_glazing"
+  | "peb_construction"
+  | "civil_works"
+  | "hospitality"
+
 export interface LeadsFilterState {
   search: string
   stages: string[]
@@ -13,7 +22,18 @@ export interface LeadsFilterState {
   serviceLines: ServiceLine[]
   assignedTo: string[]
   category: "all" | "hot" | "warm" | "lukewarm" | "cold" | "uncategorized"
+  profile: ProfileCategoryFilter
 }
+
+const profileFilterOptions: { value: ProfileCategoryFilter; label: string }[] = [
+  { value: "all", label: "All Profiles" },
+  { value: "office_interiors", label: "Office Interiors" },
+  { value: "mep", label: "MEP" },
+  { value: "facade_glazing", label: "Facade & Glazing" },
+  { value: "peb_construction", label: "PEB & Construction" },
+  { value: "civil_works", label: "Civil Works" },
+  { value: "hospitality", label: "Hospitality" },
+]
 
 interface LeadFiltersProps {
   filters: LeadsFilterState
@@ -190,6 +210,7 @@ export function LeadFilters({
     filters.serviceLines.length +
     filters.assignedTo.length +
     (filters.category !== "all" ? 1 : 0) +
+    (filters.profile !== "all" ? 1 : 0) +
     (filters.search ? 1 : 0)
 
   const hasActiveFilters = activeFilterCount > 0
@@ -268,6 +289,19 @@ export function LeadFilters({
             <option value="cold">Cold</option>
             <option value="uncategorized">Uncategorized</option>
           </select>
+          <select
+            value={filters.profile}
+            onChange={(event) =>
+              update({ profile: event.target.value as ProfileCategoryFilter })
+            }
+            className="h-10 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none transition hover:border-[#4A4A62] sm:min-w-[160px]"
+          >
+            {profileFilterOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
           {canFilterAssignedTo ? (
             <MultiSelectDropdown
               label="Assigned To"
@@ -287,6 +321,7 @@ export function LeadFilters({
                   serviceLines: [],
                   assignedTo: [],
                   category: "all",
+                  profile: "all",
                 })
               }
               className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] transition hover:bg-[#1A1A24]"
@@ -333,6 +368,19 @@ export function LeadFilters({
               <option value="cold">Cold</option>
               <option value="uncategorized">Uncategorized</option>
             </select>
+            <select
+              value={filters.profile}
+              onChange={(event) =>
+                update({ profile: event.target.value as ProfileCategoryFilter })
+              }
+              className="h-11 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-base text-[#F0F0FA] outline-none transition hover:border-[#4A4A62]"
+            >
+              {profileFilterOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
             {canFilterAssignedTo ? (
               <MultiSelectDropdown
                 label="Assigned To"
@@ -352,6 +400,7 @@ export function LeadFilters({
                     serviceLines: [],
                     assignedTo: [],
                     category: "all",
+                    profile: "all",
                   })
                 }
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA]"

@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { portfolioMedia } from "@/lib/utils/portfolio-media"
+import { portfolioImage } from "@/lib/utils/portfolio-media"
 
 const CLIENT_LOGOS = [
   { name: "AECOM", src: "/portfolio/clients/AECOM.png" },
@@ -145,7 +145,7 @@ export function ClientLogos() {
               }}
             >
               <img
-                src={portfolioMedia(logo.src)}
+                src={portfolioImage(logo.src, { width: 400, quality: 80 })}
                 alt={logo.name}
                 loading="lazy"
                 style={{

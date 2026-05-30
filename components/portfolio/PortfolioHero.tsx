@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { useEffect, useRef, useState, type MouseEvent } from "react"
 
 import type { Sector } from "@/lib/portfolio-data"
-import { portfolioMedia } from "@/lib/utils/portfolio-media"
+import { portfolioImage, portfolioMedia } from "@/lib/utils/portfolio-media"
 
 type PortfolioHeroProps = {
   sector: Sector
@@ -155,7 +155,7 @@ export function PortfolioHero({ leadName }: PortfolioHeroProps) {
 
   return (
     <section
-      className="relative h-screen min-h-[680px] w-full overflow-hidden bg-[#0F0C08]"
+      className="relative h-screen min-h-[600px] w-full overflow-hidden bg-[#0F0C08] sm:min-h-[680px]"
     >
       {HERO_SLIDES.map((s, idx) => {
         const isActive = idx === currentSlide
@@ -176,6 +176,7 @@ export function PortfolioHero({ leadName }: PortfolioHeroProps) {
                   videoRefs.current[idx] = el
                 }}
                 src={videoSrc ? portfolioMedia(videoSrc) : undefined}
+                poster={portfolioImage(s.image, { width: 1280, quality: 60 })}
                 muted
                 playsInline
                 autoPlay={isActive}
@@ -189,7 +190,7 @@ export function PortfolioHero({ leadName }: PortfolioHeroProps) {
             ) : !imgErrors[idx] ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={portfolioMedia(s.image)}
+                src={portfolioImage(s.image, { width: 1920, quality: 70 })}
                 alt=""
                 loading={isActive ? "eager" : "lazy"}
                 className="absolute inset-0 h-full w-full object-cover"
@@ -277,7 +278,7 @@ export function PortfolioHero({ leadName }: PortfolioHeroProps) {
                 </motion.div>
 
                 <h1
-                  className="font-syne text-[40px] font-bold leading-[1.02] tracking-[-0.02em] text-white md:text-[56px] lg:text-[72px]"
+                  className="font-syne text-[32px] font-bold leading-[1.05] tracking-[-0.02em] text-white sm:text-[40px] sm:leading-[1.02] md:text-[56px] lg:text-[72px]"
                   style={{
                     textShadow:
                       "0 4px 24px rgba(0,0,0,0.65), 0 2px 8px rgba(0,0,0,0.45), 0 0 2px rgba(0,0,0,0.30)",
@@ -373,7 +374,7 @@ export function PortfolioHero({ leadName }: PortfolioHeroProps) {
                     Book Your Slot
                   </a>
 
-                  <div className="ml-2 flex items-center gap-4 border-l border-white/15 pl-6">
+                  <div className="flex w-full items-center gap-4 border-t border-white/15 pt-4 sm:ml-2 sm:w-auto sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
                     <div
                       className="font-syne text-[34px] font-bold leading-none text-[#E8D5A8]"
                       style={{

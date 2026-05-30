@@ -104,6 +104,13 @@ export async function POST(request: NextRequest) {
   const goal = (body?.goal as string | undefined) || "lead_nurture"
   const serviceLine = (body?.service_line as string | undefined) || "all"
   const status = (body?.status as string | undefined) || "draft"
+  const targetProfileCategoryRaw = body?.target_profile_category
+  const targetProfileCategory =
+    typeof targetProfileCategoryRaw === "string" && targetProfileCategoryRaw.trim()
+      ? targetProfileCategoryRaw.trim()
+      : null
+  const autoEnrollEnabled =
+    targetProfileCategory != null && body?.auto_enroll_enabled === true
 
   const { data: campaign, error } = await supabase
     .from("campaigns")
@@ -114,6 +121,8 @@ export async function POST(request: NextRequest) {
       status,
       created_by: user.id,
       audience_filters: { goal, service_line: serviceLine },
+      target_profile_category: targetProfileCategory,
+      auto_enroll_enabled: autoEnrollEnabled,
     })
     .select("*")
     .single()

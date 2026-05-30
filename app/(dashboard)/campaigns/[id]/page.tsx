@@ -39,6 +39,13 @@ import { cn } from "@/lib/utils"
 
 const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
 
+function formatProfileCategory(value: string) {
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+}
+
 interface Campaign {
   id: string
   name: string
@@ -46,6 +53,8 @@ interface Campaign {
   status: string
   created_at: string
   audience_filters: { goal?: string; service_line?: string } | null
+  target_profile_category: string | null
+  auto_enroll_enabled: boolean | null
 }
 
 interface MessageRow {
@@ -324,6 +333,29 @@ export default function CampaignDetailPage() {
                 <p className="mt-0.5 hidden text-sm text-[#9090A8] md:block">
                   {campaign.description}
                 </p>
+              )}
+              {campaign.target_profile_category && (
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#9090A8]">
+                  <span>
+                    Profile Target:{" "}
+                    <span className="font-medium text-[#F0F0FA]">
+                      {formatProfileCategory(campaign.target_profile_category)}
+                    </span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    Auto-Enroll:
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                        campaign.auto_enroll_enabled
+                          ? "bg-[#143C2A] text-[#34D399]"
+                          : "bg-[#1F1F2E] text-[#9090A8]"
+                      )}
+                    >
+                      {campaign.auto_enroll_enabled ? "Active" : "Off"}
+                    </span>
+                  </span>
+                </div>
               )}
             </div>
             <button

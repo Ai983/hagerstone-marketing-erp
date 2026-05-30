@@ -7,7 +7,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
 
-import { LeadFilters, type LeadsFilterState } from "@/components/leads/LeadFilters"
+import {
+  LeadFilters,
+  type LeadsFilterState,
+  type ProfileCategoryFilter,
+} from "@/components/leads/LeadFilters"
 import { LeadTable, type SortDirection, type SortKey } from "@/components/leads/LeadTable"
 import { useLeads } from "@/lib/hooks/useLeads"
 import type { LeadSource, ServiceLine, UserRole } from "@/lib/types"
@@ -69,6 +73,8 @@ export function LeadsPageContent() {
       category:
         (searchParams.get("category") as LeadsFilterState["category"] | null) ??
         "all",
+      profile:
+        (searchParams.get("profile") as ProfileCategoryFilter | null) ?? "all",
     }),
     [searchParams]
   )
@@ -88,6 +94,9 @@ export function LeadsPageContent() {
     }
     if (nextFilters.category !== "all") {
       nextParams.set("category", nextFilters.category)
+    }
+    if (nextFilters.profile !== "all") {
+      nextParams.set("profile", nextFilters.profile)
     }
 
     const queryString = nextParams.toString()
@@ -125,13 +134,26 @@ export function LeadsPageContent() {
           ? lead.category == null
           : lead.category === filters.category)
 
+      let matchesProfile = filters.profile === "all"
+      if (!matchesProfile) {
+        const leadProfile = lead as typeof lead & {
+          profile_category_primary?: string | null
+          profile_categories?: string[] | null
+        }
+        matchesProfile =
+          leadProfile.profile_category_primary === filters.profile ||
+          (Array.isArray(leadProfile.profile_categories) &&
+            leadProfile.profile_categories.includes(filters.profile))
+      }
+
       return (
         matchesSearch &&
         matchesStage &&
         matchesSource &&
         matchesServiceLine &&
         matchesAssignedTo &&
-        matchesCategory
+        matchesCategory &&
+        matchesProfile
       )
     })
   }, [filters, leadsQuery.data])

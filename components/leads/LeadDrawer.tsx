@@ -352,6 +352,15 @@ function OverviewTab({
     won_date: lead.won_date ?? "",
   })
   const [wonUploading, setWonUploading] = useState(false)
+  const [categorising, setCategorising] = useState(false)
+
+  // AI-categorisation fields aren't on the Lead type yet (schema migration
+  // pending). Local widening keeps the JSX typed without touching lib/types.
+  const leadCat = lead as Lead & {
+    profile_categories?: string[] | null
+    profile_category_primary?: string | null
+    profile_category_reason?: string | null
+  }
 
   useEffect(() => {
     setEditData({
@@ -507,6 +516,31 @@ function OverviewTab({
       toast.error(err instanceof Error ? err.message : "Failed to update lead")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleCategorise = async () => {
+    if (!lead?.id || categorising) return
+    setCategorising(true)
+    try {
+      const res = await fetch("/api/ai/categorise-lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lead_id: lead.id }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success("Lead categorised: " + data.categories.join(", "))
+        queryClient.invalidateQueries({ queryKey: ["lead-drawer-detail", lead.id] })
+        queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
+        queryClient.invalidateQueries({ queryKey: ["leads"] })
+      } else {
+        toast.error("Categorisation failed: " + data.error)
+      }
+    } catch {
+      toast.error("Categorisation failed")
+    } finally {
+      setCategorising(false)
     }
   }
 
@@ -971,6 +1005,117 @@ function OverviewTab({
             <FieldRow label="State" value={lead.state} />
             <FieldRow label="Industry" value={lead.industry} />
             <FieldRow label="Service Line" value={lead.service_line?.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} />
+
+            {/* AI Profile Category */}
+            <div
+              className="col-span-2"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "12px 0",
+                borderBottom: "1px solid #2A2A3C",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#9090A8",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                AI PROFILE
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {leadCat.profile_categories && leadCat.profile_categories.length > 0 ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 6,
+                      flexWrap: "wrap",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    {leadCat.profile_categories.map((cat: string) => (
+                      <span
+                        key={cat}
+                        style={{
+                          fontSize: 11,
+                          padding: "3px 10px",
+                          borderRadius: 4,
+                          background:
+                            cat === leadCat.profile_category_primary
+                              ? "rgba(201,168,76,0.15)"
+                              : "rgba(255,255,255,0.05)",
+                          border:
+                            cat === leadCat.profile_category_primary
+                              ? "1px solid rgba(201,168,76,0.4)"
+                              : "1px solid rgba(255,255,255,0.1)",
+                          color:
+                            cat === leadCat.profile_category_primary
+                              ? "#C9A84C"
+                              : "#9090A8",
+                          letterSpacing: "0.06em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {cat.replace(/_/g, " ")}
+                      </span>
+                    ))}
+
+                    <button
+                      onClick={handleCategorise}
+                      disabled={categorising}
+                      style={{
+                        fontSize: 11,
+                        padding: "3px 8px",
+                        background: "transparent",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: 4,
+                        color: "#9090A8",
+                        cursor: categorising ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {categorising ? "..." : "↺"}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleCategorise}
+                    disabled={categorising}
+                    style={{
+                      fontSize: 12,
+                      padding: "6px 14px",
+                      background: "rgba(201,168,76,0.1)",
+                      border: "1px solid rgba(201,168,76,0.3)",
+                      borderRadius: 4,
+                      color: "#C9A84C",
+                      cursor: categorising ? "not-allowed" : "pointer",
+                      opacity: categorising ? 0.6 : 1,
+                    }}
+                  >
+                    {categorising ? "Analysing..." : "✦ AI Categorise"}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {leadCat.profile_category_reason && (
+              <div
+                className="col-span-2"
+                style={{
+                  fontSize: 11,
+                  color: "#9090A8",
+                  padding: "4px 0 8px",
+                  fontStyle: "italic",
+                  lineHeight: 1.5,
+                }}
+              >
+                {leadCat.profile_category_reason}
+              </div>
+            )}
+
             <FieldRow label="Est. Budget" value={lead.estimated_budget} />
             <FieldRow label="Project Size" value={lead.project_size_sqft ? `${lead.project_size_sqft.toLocaleString()} sq ft` : null} />
             <FieldRow label="Expected Timeline" value={lead.expected_timeline} />

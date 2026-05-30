@@ -229,6 +229,22 @@ export async function POST(request: NextRequest) {
     service_line: serviceLine ?? undefined,
   })
 
+  // Fire-and-forget AI categorisation — non-blocking
+  // Wrapped in try-catch so it never breaks lead creation
+  try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    fetch(`${appUrl}/api/ai/categorise-lead`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lead_id: newLead.id }),
+    }).catch(() => {
+      // Silently ignore — categorisation failure must never
+      // affect lead creation
+    })
+  } catch {
+    // Silently ignore
+  }
+
   return NextResponse.json(
     { status: "created", lead_id: newLead.id },
     { status: 201 }

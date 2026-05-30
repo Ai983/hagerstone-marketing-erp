@@ -20,6 +20,8 @@ interface LeadOption {
   stage_id: string | null
   stage_name: string | null
   stage_color: string | null
+  profile_category_primary: string | null
+  profile_categories: string[] | null
 }
 
 interface StageOption {
@@ -29,11 +31,22 @@ interface StageOption {
   position: number
 }
 
+const PROFILE_CATEGORY_OPTIONS: { value: string; label: string; color: string }[] = [
+  { value: "office_interiors", label: "Office Interiors", color: "#3B82F6" },
+  { value: "mep", label: "MEP", color: "#F59E0B" },
+  { value: "facade_glazing", label: "Facade & Glazing", color: "#8B5CF6" },
+  { value: "peb_construction", label: "PEB & Construction", color: "#EF4444" },
+  { value: "civil_works", label: "Civil Works", color: "#10B981" },
+  { value: "hospitality", label: "Hospitality", color: "#EC4899" },
+]
+
 async function fetchLeads(): Promise<LeadOption[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from("leads")
-    .select("id, full_name, company_name, score, stage_id, stage:stage_id(name, color)")
+    .select(
+      "id, full_name, company_name, score, stage_id, stage:stage_id(name, color), profile_category_primary, profile_categories"
+    )
     .order("score", { ascending: false })
     .limit(500)
   if (error) throw error
@@ -47,6 +60,10 @@ async function fetchLeads(): Promise<LeadOption[]> {
       stage_id: (l.stage_id as string | null) ?? null,
       stage_name: (stage as { name?: string } | null)?.name ?? null,
       stage_color: (stage as { color?: string } | null)?.color ?? null,
+      profile_category_primary:
+        (l as { profile_category_primary?: string | null }).profile_category_primary ?? null,
+      profile_categories:
+        (l as { profile_categories?: string[] | null }).profile_categories ?? null,
     }
   })
 }
@@ -86,6 +103,7 @@ export function EnrollLeadsModal({
 }: EnrollLeadsModalProps) {
   const [query, setQuery] = useState("")
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null)
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [submitting, setSubmitting] = useState(false)
 
@@ -107,8 +125,15 @@ export function EnrollLeadsModal({
       setSelected(new Set())
       setQuery("")
       setSelectedStageId(null)
+      setSelectedProfile(null)
     }
   }, [open])
+
+  // Match a lead against a profile category (primary OR array contains)
+  const leadMatchesProfile = (lead: LeadOption, profile: string) =>
+    lead.profile_category_primary === profile ||
+    (Array.isArray(lead.profile_categories) &&
+      lead.profile_categories.includes(profile))
 
   // Count of not-yet-enrolled leads in a specific stage (ignores search).
   // Used for the pill badges.
@@ -127,7 +152,21 @@ export function EnrollLeadsModal({
     [leads, alreadyEnrolledIds]
   )
 
-  // Combined search + stage filter
+  // Count of not-yet-enrolled leads per profile category (ignores search).
+  const profileCount = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const l of leads ?? []) {
+      if (alreadyEnrolledIds.has(l.id)) continue
+      for (const option of PROFILE_CATEGORY_OPTIONS) {
+        if (leadMatchesProfile(l, option.value)) {
+          map.set(option.value, (map.get(option.value) ?? 0) + 1)
+        }
+      }
+    }
+    return map
+  }, [leads, alreadyEnrolledIds])
+
+  // Combined search + stage + profile filter
   const filtered = useMemo(() => {
     if (!leads) return []
     const q = query.trim().toLowerCase()
@@ -137,9 +176,11 @@ export function EnrollLeadsModal({
         l.full_name.toLowerCase().includes(q) ||
         (l.company_name ?? "").toLowerCase().includes(q)
       const matchesStage = !selectedStageId || l.stage_id === selectedStageId
-      return matchesSearch && matchesStage
+      const matchesProfile =
+        !selectedProfile || leadMatchesProfile(l, selectedProfile)
+      return matchesSearch && matchesStage && matchesProfile
     })
-  }, [leads, query, selectedStageId])
+  }, [leads, query, selectedStageId, selectedProfile])
 
   // Filtered rows that can actually be selected (not already enrolled)
   const selectableFiltered = useMemo(
@@ -239,6 +280,23 @@ export function EnrollLeadsModal({
               </button>
             </div>
 
+            {/* Primary action bar — Enroll button moved up here so it's
+                always visible without scrolling */}
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#2A2A3C] bg-[#0F0F15] px-4 py-2.5">
+              <span className="text-[11px] text-[#9090A8]">
+                <span className="font-semibold text-[#F0F0FA]">{selected.size}</span>{" "}
+                lead{selected.size === 1 ? "" : "s"} selected
+              </span>
+              <button
+                onClick={handleEnroll}
+                disabled={submitting || selected.size === 0}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#3B82F6] px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-[#2563EB] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {submitting && <Loader2 className="size-3 animate-spin" />}
+                Enroll Selected ({selected.size})
+              </button>
+            </div>
+
             {/* Search */}
             <div className="flex shrink-0 items-center gap-2 border-b border-[#2A2A3C] px-4 py-2.5">
               <Search className="size-3.5 text-[#9090A8]" />
@@ -249,17 +307,47 @@ export function EnrollLeadsModal({
                 placeholder="Search by name or company…"
                 className="w-full bg-transparent text-xs text-[#F0F0FA] placeholder-[#9090A8] outline-none"
               />
-              <span className="ml-auto text-[11px] text-[#9090A8]">
-                {selected.size} selected
-              </span>
+            </div>
+
+            {/* Profile category filter pills */}
+            <div className="shrink-0 border-b border-[#2A2A3C]">
+              <div
+                className="thin-scrollbar flex items-center gap-1.5 overflow-x-auto px-4 py-2"
+                style={{ WebkitOverflowScrolling: "touch" }}
+              >
+                <span className="shrink-0 pr-1 text-[10px] uppercase tracking-wider text-[#9090A8]">
+                  Profile
+                </span>
+                <StagePill
+                  label="All"
+                  count={allAvailableCount}
+                  color="#3B82F6"
+                  active={selectedProfile === null}
+                  onClick={() => setSelectedProfile(null)}
+                  showDot={false}
+                />
+                {PROFILE_CATEGORY_OPTIONS.map((p) => (
+                  <StagePill
+                    key={p.value}
+                    label={p.label}
+                    count={profileCount.get(p.value) ?? 0}
+                    color={p.color}
+                    active={selectedProfile === p.value}
+                    onClick={() => setSelectedProfile(p.value)}
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Stage filter pills */}
             <div className="shrink-0 border-b border-[#2A2A3C]">
               <div
-                className="thin-scrollbar flex gap-1.5 overflow-x-auto px-4 py-2"
+                className="thin-scrollbar flex items-center gap-1.5 overflow-x-auto px-4 py-2"
                 style={{ WebkitOverflowScrolling: "touch" }}
               >
+                <span className="shrink-0 pr-1 text-[10px] uppercase tracking-wider text-[#9090A8]">
+                  Stage
+                </span>
                 <StagePill
                   label="All"
                   count={allAvailableCount}
@@ -404,21 +492,13 @@ export function EnrollLeadsModal({
               )}
             </div>
 
-            {/* Footer */}
-            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-[#2A2A3C] bg-[#111118] p-4">
+            {/* Footer — just an escape hatch; primary Enroll action is at the top */}
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-[#2A2A3C] bg-[#111118] px-4 py-2.5">
               <button
                 onClick={onClose}
-                className="rounded-lg px-4 py-2 text-xs font-medium text-[#9090A8] transition hover:text-[#F0F0FA]"
+                className="rounded-lg px-4 py-1.5 text-xs font-medium text-[#9090A8] transition hover:text-[#F0F0FA]"
               >
                 Cancel
-              </button>
-              <button
-                onClick={handleEnroll}
-                disabled={submitting || selected.size === 0}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#3B82F6] px-4 py-2 text-xs font-medium text-white transition hover:bg-[#2563EB] disabled:opacity-50"
-              >
-                {submitting && <Loader2 className="size-3 animate-spin" />}
-                Enroll Selected ({selected.size})
               </button>
             </div>
           </motion.div>

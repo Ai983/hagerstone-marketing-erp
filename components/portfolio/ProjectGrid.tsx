@@ -43,30 +43,36 @@ export function ProjectGrid({ sector }: ProjectGridProps) {
       transition={{ duration: 0.6, ease: EASE }}
       className="port-section relative bg-[var(--port-bg)] px-6 md:px-12 lg:px-[8vw]"
     >
-      <div className="mb-16 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-        <div className="max-w-2xl">
-          <div className="port-eyebrow mb-5">Our Work · Featured Projects</div>
-          <h2 className="font-syne text-[40px] font-bold leading-[1.05] tracking-[-0.02em] text-[var(--port-ink)] md:text-[52px]">
-            <AnimatePresence mode="wait">
-              <motion.span
-                key={sector.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.3 }}
-                className="inline-block"
-              >
-                {sector.label} <span className="port-serif italic font-medium text-[var(--port-accent-deep)]">portfolio</span>
-              </motion.span>
-            </AnimatePresence>
-          </h2>
-          <p className="mt-5 max-w-[520px] text-[16px] leading-[1.65] text-[var(--port-secondary)]">
-            Each space we deliver is a careful blend of design vision, engineering precision, and craft. Browse a curated selection of our recent work below.
-          </p>
+      <div className="mb-12" style={{ textAlign: "center" }}>
+        <div className="port-eyebrow mb-5" style={{ justifyContent: "center" }}>
+          Our Work · Featured Projects
         </div>
+        <h2
+          className="font-syne text-[40px] font-bold leading-[1.05] tracking-[-0.02em] text-[var(--port-ink)] md:text-[52px]"
+          style={{ marginLeft: "auto", marginRight: "auto", textAlign: "center" }}
+        >
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={sector.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.3 }}
+              className="inline-block"
+            >
+              {sector.label} <span className="port-serif italic font-medium text-[var(--port-accent-deep)]">portfolio</span>
+            </motion.span>
+          </AnimatePresence>
+        </h2>
+        <p
+          className="mt-5 text-[16px] leading-[1.65] text-[var(--port-secondary)]"
+          style={{ marginLeft: "auto", marginRight: "auto", maxWidth: 700, textAlign: "center" }}
+        >
+          Each space we deliver is a careful blend of design vision, engineering precision, and craft. Browse a curated selection of our recent work below.
+        </p>
 
         {sector.id !== "mep" ? (
-          <div className="flex items-center gap-6 text-[12px] text-[var(--port-muted)]">
+          <div className="mt-6 flex items-center justify-center gap-6 text-[12px] text-[var(--port-muted)]">
             <div className="flex items-baseline gap-2">
               <span className="font-syne text-[28px] font-bold leading-none text-[var(--port-ink)]">
                 {String(sector.projects.length).padStart(2, "0")}

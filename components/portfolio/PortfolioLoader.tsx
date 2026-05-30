@@ -73,12 +73,10 @@ export function PortfolioLoader() {
             <img
               src={portfolioMedia("/portfolio/hagerstone-logo.png")}
               alt="Hagerstone International"
+              className="block h-[110px] w-auto sm:h-[160px]"
               style={{
-                height: 160,
-                width: "auto",
                 maxWidth: 560,
                 objectFit: "contain",
-                display: "block",
                 margin: "0 auto",
               }}
               onError={(event) => {

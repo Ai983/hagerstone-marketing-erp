@@ -63,15 +63,6 @@ function StatTile({ value, label, index, isInView }: StatTileProps) {
       }}
     >
       <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }}
-        transition={{ duration: 0.5, delay: tileDelay + 0.1 }}
-        className="mb-3 text-[10px] font-medium tracking-[0.22em] text-[var(--port-accent-deep)]"
-      >
-        0{index + 1}
-      </motion.div>
-
-      <motion.div
         className="font-syne font-bold leading-[0.95] tracking-[-0.02em] text-[var(--port-ink)]"
         style={{
           fontSize: "clamp(48px, 6vw, 72px)",

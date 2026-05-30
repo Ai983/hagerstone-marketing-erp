@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react"
 
 import type { Project } from "@/lib/portfolio-data"
-import { portfolioMedia } from "@/lib/utils/portfolio-media"
+import { portfolioImage } from "@/lib/utils/portfolio-media"
 
 type ProjectCardProps = {
   project: Project
@@ -82,7 +82,7 @@ export function ProjectCard({ project, accentColor }: ProjectCardProps) {
           >
             {!imgErrors[index] ? (
               <img
-                src={portfolioMedia(src)}
+                src={portfolioImage(src, { width: 1000, quality: 72 })}
                 alt={project.title + " photo " + (index + 1)}
                 loading={index === 0 ? "eager" : "lazy"}
                 style={{

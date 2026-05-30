@@ -103,6 +103,10 @@ const portfolioStyles = `
   .port-page .sector-tabs-scroll::-webkit-scrollbar { display: none; }
   .port-page .project-card .arrow-btn { opacity: 0; transform: translateY(-50%) scale(0.92); }
   .port-page .project-card:hover .arrow-btn { opacity: 1; transform: translateY(-50%) scale(1); }
+  /* Touch devices have no hover — keep carousel arrows visible so users can navigate */
+  @media (hover: none) {
+    .port-page .project-card .arrow-btn { opacity: 1; transform: translateY(-50%) scale(1); }
+  }
 
   .port-eyebrow {
     display: inline-flex;

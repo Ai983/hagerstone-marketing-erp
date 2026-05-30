@@ -12,6 +12,7 @@ export function SectorTabs({
   activeSector: Sector
   onSelect: (id: string) => void
 }) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null)
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
   const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 })
   const [lineStyle, setLineStyle] = useState({ left: 0, width: 0 })
@@ -28,6 +29,16 @@ export function SectorTabs({
         setPillStyle({ left: el.offsetLeft, width: el.offsetWidth })
         setLineStyle({ left: el.offsetLeft + 16, width: el.offsetWidth - 32 })
         setIsReady(true)
+
+        // When the row overflows (mobile), center the active tab in view.
+        const scroller = scrollerRef.current
+        if (scroller && scroller.scrollWidth > scroller.clientWidth) {
+          const target = el.offsetLeft - (scroller.clientWidth - el.offsetWidth) / 2
+          scroller.scrollTo({
+            left: Math.max(0, target),
+            behavior: "smooth",
+          })
+        }
       }
     }
     updateIndicator()
@@ -84,12 +95,25 @@ export function SectorTabs({
           </span>
         </div>
 
-        {/* Tab row */}
-        <div className="w-full overflow-hidden">
+        {/* Tab row — horizontal scroll on mobile (overflow tabs are reachable),
+            centered & static on md+ where all 8 fit comfortably. */}
+        <div className="relative w-full">
+          {/* Edge fade hints — only visible while scrollable (mobile) */}
           <div
-            className="relative flex items-center justify-center py-2.5"
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-[rgba(251,249,244,0.95)] to-transparent md:hidden"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-[rgba(251,249,244,0.95)] to-transparent md:hidden"
+          />
+
+          <div
+            ref={scrollerRef}
+            className="sector-tabs-scroll relative flex items-center justify-start overflow-x-auto py-2.5 md:justify-center md:overflow-x-hidden"
+            style={{ WebkitOverflowScrolling: "touch", scrollSnapType: "x proximity" }}
           >
-            <div className="relative flex items-center gap-0">
+            <div className="relative flex items-center gap-0 px-2 md:px-0">
 
               {/* Hover ghost pill */}
               <AnimatePresence>
@@ -166,7 +190,7 @@ export function SectorTabs({
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                     style={{
                       position: "relative",
-                      padding: "11px 16px",
+                      padding: "12px 16px",
                       background: "transparent",
                       border: "none",
                       cursor: "pointer",
@@ -184,6 +208,8 @@ export function SectorTabs({
                       gap: 8,
                       userSelect: "none",
                       WebkitUserSelect: "none",
+                      scrollSnapAlign: "center",
+                      flexShrink: 0,
                     }}
                     animate={{
                       color: isActive ? "#FBF9F4" : hoveredId === sector.id ? "var(--port-ink)" : "var(--port-secondary)",

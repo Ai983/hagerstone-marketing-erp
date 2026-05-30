@@ -57,12 +57,10 @@ export function PortfolioFooter() {
                 src={portfolioMedia("/portfolio/hagerstone-logo.png")}
                 alt="Hagerstone International"
                 loading="lazy"
+                className="block h-[78px] w-auto sm:h-[110px]"
                 style={{
-                  height: 110,
-                  width: "auto",
                   maxWidth: 400,
                   objectFit: "contain",
-                  display: "block",
                 }}
                 onError={(event) => {
                   event.currentTarget.style.display = "none"

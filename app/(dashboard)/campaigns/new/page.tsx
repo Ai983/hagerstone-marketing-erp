@@ -24,6 +24,16 @@ const serviceLines = [
   { value: "multiple", label: "Multiple" },
 ] as const
 
+const profileCategories = [
+  { value: "", label: "None — manual enrollment only" },
+  { value: "office_interiors", label: "Office Interiors" },
+  { value: "mep", label: "MEP Services" },
+  { value: "facade_glazing", label: "Facade & Glazing" },
+  { value: "peb_construction", label: "PEB & Construction" },
+  { value: "civil_works", label: "Civil Works" },
+  { value: "hospitality", label: "Hospitality" },
+] as const
+
 export default function NewCampaignPage() {
   const router = useRouter()
   const [name, setName] = useState("")
@@ -31,6 +41,8 @@ export default function NewCampaignPage() {
   const [goal, setGoal] = useState<typeof goals[number]["value"]>("lead_nurture")
   const [serviceLine, setServiceLine] = useState<typeof serviceLines[number]["value"]>("all")
   const [status, setStatus] = useState<"draft" | "active">("draft")
+  const [targetProfileCategory, setTargetProfileCategory] = useState<string>("")
+  const [autoEnrollEnabled, setAutoEnrollEnabled] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,6 +59,8 @@ export default function NewCampaignPage() {
           goal,
           service_line: serviceLine,
           status,
+          target_profile_category: targetProfileCategory || null,
+          auto_enroll_enabled: targetProfileCategory ? autoEnrollEnabled : false,
         }),
       })
       const data = await res.json()
@@ -175,6 +189,49 @@ export default function NewCampaignPage() {
               <option value="active">Active</option>
             </select>
           </div>
+
+          {/* Target Profile Category */}
+          <div>
+            <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">
+              Target Profile Category (for auto-enrollment)
+            </label>
+            <select
+              value={targetProfileCategory}
+              onChange={(e) => setTargetProfileCategory(e.target.value)}
+              className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2 text-sm text-[#F0F0FA] outline-none focus:border-[#3B82F6]"
+            >
+              {profileCategories.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-[#9090A8]">
+              When set, leads categorised with this profile will be auto-enrolled if auto-enroll is enabled.
+            </p>
+          </div>
+
+          {/* Auto-Enroll — only when a target profile is selected */}
+          {targetProfileCategory && (
+            <div className="rounded-lg border border-[#2A2A3C] bg-[#0F0F15] p-3">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={autoEnrollEnabled}
+                  onChange={(e) => setAutoEnrollEnabled(e.target.checked)}
+                  className="mt-0.5 size-4 rounded border-[#3A3A52] bg-[#1F1F2E] accent-[#3B82F6]"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-[#F0F0FA]">
+                    Auto-enroll leads when AI assigns this category
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-[#9090A8]">
+                    New leads categorised as this profile will be automatically added to this campaign.
+                  </span>
+                </span>
+              </label>
+            </div>
+          )}
 
           {/* Submit */}
           <div className="flex justify-end gap-2">

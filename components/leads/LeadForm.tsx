@@ -181,6 +181,20 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
       }).catch(() => {
         // scoring failure shouldn't block lead creation UX
       })
+      // Fire-and-forget AI categorisation — non-blocking
+      // Wrapped in try-catch so it never breaks lead creation
+      try {
+        fetch("/api/ai/categorise-lead", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lead_id: lead.id }),
+        }).catch(() => {
+          // Silently ignore — categorisation failure must never
+          // affect lead creation
+        })
+      } catch {
+        // Silently ignore
+      }
       // Lead-assignment notification is handled by the Supabase DB trigger
       // on the leads table — do not insert it here or it will duplicate.
       toast.success("Lead created successfully")

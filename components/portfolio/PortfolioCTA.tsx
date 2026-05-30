@@ -433,9 +433,59 @@ export function PortfolioCTA() {
                 </svg>
               </motion.a>
             ))}
+
+            <motion.a
+              href="https://www.hagerstone.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Hagerstone website — hagerstone.com"
+              title="Visit hagerstone.com"
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={
+                isInView
+                  ? { opacity: 1, scale: 1 }
+                  : { opacity: 0, scale: 0.85 }
+              }
+              transition={{
+                duration: 0.4,
+                delay: 1.15 + SOCIAL_LINKS.length * 0.08,
+                ease: [0.4, 0, 0.2, 1],
+              }}
+              whileHover={{ y: -4, scale: 1.08 }}
+              className="group relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-[rgba(232,213,168,0.28)] bg-[rgba(251,249,244,0.05)] text-[#E8D5A8] no-underline backdrop-blur-sm transition-colors duration-300 hover:border-transparent hover:text-white"
+            >
+              <span
+                className="pointer-events-none absolute inset-0 scale-0 rounded-full transition-transform duration-400 ease-out group-hover:scale-100"
+                style={{ background: "linear-gradient(135deg, #A57F3F 0%, #C9A876 100%)" }}
+              />
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="relative z-[1]"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+            </motion.a>
           </div>
           <span className="hidden text-[12px] text-[rgba(251,249,244,0.55)] sm:inline">
             @hagerstone_international
+            <span className="mx-2 text-[rgba(251,249,244,0.35)]">·</span>
+            <a
+              href="https://www.hagerstone.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[rgba(251,249,244,0.55)] no-underline transition-colors duration-200 hover:text-[#E8D5A8]"
+            >
+              hagerstone.com →
+            </a>
           </span>
         </motion.div>
       </div>

@@ -60,14 +60,13 @@ export function PortfolioNav() {
             <img
               src={portfolioMedia("/portfolio/hagerstone-logo.png")}
               alt="Hagerstone International"
+              className={`block w-auto transition-[height] duration-300 ${
+                isScrolled ? "h-[40px] sm:h-[52px]" : "h-[46px] sm:h-[62px]"
+              }`}
               style={{
-                height: isScrolled ? 52 : 62,
-                width: "auto",
                 maxWidth: 280,
                 objectFit: "contain",
-                display: "block",
                 filter: isScrolled ? "none" : "drop-shadow(0 2px 8px rgba(0,0,0,0.45))",
-                transition: "height 300ms cubic-bezier(0.4,0,0.2,1)",
               }}
               onError={(event) => {
                 event.currentTarget.style.display = "none"
