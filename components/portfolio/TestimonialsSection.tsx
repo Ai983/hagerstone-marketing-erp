@@ -1,9 +1,12 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { motion, useInView, type Variants } from "framer-motion"
 import { useRef } from "react"
 
 import { SECTORS, TESTIMONIALS } from "@/lib/portfolio-data"
+import { portfolioImage } from "@/lib/utils/portfolio-media"
 
 const EASE: [number, number, number, number] = [0.4, 0, 0.2, 1]
 
@@ -126,23 +129,51 @@ export function TestimonialsSection() {
               </p>
 
               <div className="relative mt-7 flex items-center gap-4 border-t border-[var(--port-border-soft)] pt-6">
-                <div
-                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full font-syne text-[16px] font-bold text-white"
-                  style={{
-                    background: `linear-gradient(135deg, ${accentColor}, var(--port-accent-deep))`,
-                    boxShadow: "0 4px 12px rgba(126,93,41,0.20)",
-                  }}
-                >
-                  {testimonial.name.charAt(0)}
-                </div>
+                {testimonial.logo ? (
+                  <div
+                    className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-[var(--port-surface)] p-2"
+                    style={{
+                      borderColor: "var(--port-border)",
+                      boxShadow: "0 2px 8px rgba(26,22,18,0.06)",
+                    }}
+                  >
+                    <img
+                      src={portfolioImage(testimonial.logo, { width: 200, quality: 85 })}
+                      alt={`${testimonial.company} logo`}
+                      loading="lazy"
+                      style={{
+                        maxHeight: "100%",
+                        maxWidth: "100%",
+                        width: "auto",
+                        height: "auto",
+                        objectFit: "contain",
+                        display: "block",
+                      }}
+                      onError={(event) => {
+                        // If the logo file is missing, hide the box gracefully
+                        // and let the text-only client name carry the card.
+                        const wrapper = event.currentTarget.parentElement
+                        if (wrapper) wrapper.style.display = "none"
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl font-syne text-[18px] font-bold text-white"
+                    style={{
+                      background: `linear-gradient(135deg, ${accentColor}, var(--port-accent-deep))`,
+                      boxShadow: "0 4px 12px rgba(126,93,41,0.20)",
+                    }}
+                  >
+                    {testimonial.name.charAt(0)}
+                  </div>
+                )}
                 <div>
-                  <div className="font-syne text-[15px] font-bold text-[var(--port-ink)]">
-                    {testimonial.name}
+                  <div className="font-syne text-[15px] font-bold uppercase tracking-[0.06em] text-[var(--port-ink)]">
+                    {testimonial.company}
                   </div>
                   <div className="mt-1 text-[12px] leading-[1.5] text-[var(--port-muted)]">
                     {testimonial.designation}
-                    <span className="mx-1.5 text-[var(--port-muted-soft)]">·</span>
-                    {testimonial.company}
                   </div>
                 </div>
               </div>

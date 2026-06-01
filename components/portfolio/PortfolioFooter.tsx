@@ -34,7 +34,7 @@ export function PortfolioFooter() {
 
   return (
     <footer
-      className="relative overflow-hidden border-t border-[var(--port-border)] px-6 pt-20 pb-10 md:px-12 lg:px-[8vw]"
+      className="relative overflow-hidden border-t border-[var(--port-border)] px-4 pt-12 pb-8 sm:px-6 md:px-12 md:pt-20 md:pb-10 lg:px-[8vw]"
       style={{
         background:
           "linear-gradient(180deg, var(--port-bg-soft) 0%, #F0EBDE 100%)",
@@ -50,14 +50,14 @@ export function PortfolioFooter() {
       />
 
       <div className="relative">
-        <div className="grid grid-cols-1 gap-12 pb-16 md:grid-cols-12 md:gap-8">
+        <div className="grid grid-cols-1 gap-8 pb-10 text-center md:grid-cols-12 md:gap-8 md:pb-16 md:text-left">
           <div className="md:col-span-5">
-            <a href="/portfolio" className="inline-flex items-center gap-3 no-underline">
+            <a href="/portfolio" className="inline-flex items-center justify-center gap-3 no-underline md:justify-start">
               <img
                 src={portfolioMedia("/portfolio/hagerstone-logo.png")}
                 alt="Hagerstone International"
                 loading="lazy"
-                className="block h-[78px] w-auto sm:h-[110px]"
+                className="block h-[64px] w-auto sm:h-[78px] md:h-[110px]"
                 style={{
                   maxWidth: 400,
                   objectFit: "contain",
@@ -93,15 +93,15 @@ export function PortfolioFooter() {
               </div>
             </a>
 
-            <p className="mt-6 max-w-md text-[14px] leading-[1.75] text-[var(--port-secondary)]">
+            <p className="mx-auto mt-4 max-w-md text-[13px] leading-[1.65] text-[var(--port-secondary)] md:mx-0 md:mt-6 md:text-[14px] md:leading-[1.75]">
               A design-build firm crafting workspaces, retail, hospitality &amp; industrial environments across India since 2015. ISO 9001:2015 certified, 500+ projects delivered.
             </p>
 
-            <div className="mt-7">
+            <div className="mt-5 md:mt-7">
               <div className="mb-3 text-[10px] font-medium tracking-[0.22em] text-[var(--port-muted)]">
                 FOLLOW US
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap justify-center gap-3 md:justify-start">
                 {[
                   {
                     label: "Instagram",
@@ -130,8 +130,8 @@ export function PortfolioFooter() {
                   },
                   {
                     label: "WhatsApp",
-                    handle: "+91 78606 50640",
-                    href: "https://wa.me/917860650640",
+                    handle: "+91 99108 20078",
+                    href: "https://wa.me/919910820078",
                     brandColor: "#25D366",
                     brandHoverBg: "#25D366",
                     path: "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.33 1.85.57 2.81.7A2 2 0 0 1 22 16.92z",
@@ -144,7 +144,7 @@ export function PortfolioFooter() {
                     rel="noreferrer"
                     aria-label={`${social.label} — ${social.handle}`}
                     title={`${social.label} · ${social.handle}`}
-                    className="social-icon group relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-[var(--port-border)] bg-[var(--port-surface)] text-[var(--port-secondary)] transition-all duration-300 hover:-translate-y-1.5 hover:border-transparent hover:text-white hover:shadow-lg"
+                    className="social-icon group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[var(--port-border)] bg-[var(--port-surface)] text-[var(--port-secondary)] transition-all duration-300 hover:-translate-y-1.5 hover:border-transparent hover:text-white hover:shadow-lg md:h-11 md:w-11"
                     style={{
                       ["--brand-bg" as string]: social.brandHoverBg,
                     }}
@@ -175,14 +175,14 @@ export function PortfolioFooter() {
           </div>
 
           <div className="md:col-span-3">
-            <div className="mb-5 text-[11px] tracking-[0.18em] text-[var(--port-muted)]">SERVICES</div>
-            <ul className="space-y-3">
+            <div className="mb-3 text-[11px] tracking-[0.18em] text-[var(--port-muted)] md:mb-5">SERVICES</div>
+            <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2 md:block md:space-y-3">
               {FOOTER_LINKS.services.map((link) => (
                 <li key={link.label}>
                   <a
                     href={link.href}
                     onClick={(event) => handleLinkClick(event, link.href)}
-                    className="port-link-underline inline-block text-[14px] text-[var(--port-secondary)] no-underline"
+                    className="port-link-underline inline-block whitespace-nowrap text-[13px] text-[var(--port-secondary)] no-underline md:text-[14px]"
                   >
                     {link.label}
                   </a>
@@ -192,8 +192,8 @@ export function PortfolioFooter() {
           </div>
 
           <div className="md:col-span-2">
-            <div className="mb-5 text-[11px] tracking-[0.18em] text-[var(--port-muted)]">COMPANY</div>
-            <ul className="space-y-3">
+            <div className="mb-3 text-[11px] tracking-[0.18em] text-[var(--port-muted)] md:mb-5">COMPANY</div>
+            <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2 md:block md:space-y-3">
               {FOOTER_LINKS.company.map((link) => (
                 <li key={link.label}>
                   <a
@@ -201,7 +201,7 @@ export function PortfolioFooter() {
                     onClick={(event) => handleLinkClick(event, link.href)}
                     target={link.href.startsWith("http") ? "_blank" : undefined}
                     rel={link.href.startsWith("http") ? "noreferrer" : undefined}
-                    className="port-link-underline inline-block text-[14px] text-[var(--port-secondary)] no-underline"
+                    className="port-link-underline inline-block whitespace-nowrap text-[13px] text-[var(--port-secondary)] no-underline md:text-[14px]"
                   >
                     {link.label}
                   </a>
@@ -211,12 +211,12 @@ export function PortfolioFooter() {
           </div>
 
           <div className="md:col-span-2">
-            <div className="mb-5 text-[11px] tracking-[0.18em] text-[var(--port-muted)]">REACH US</div>
-            <ul className="space-y-3">
+            <div className="mb-3 text-[11px] tracking-[0.18em] text-[var(--port-muted)] md:mb-5">REACH US</div>
+            <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 md:block md:space-y-3">
               <li>
                 <a
                   href="tel:+919910820078"
-                  className="port-link-underline inline-block text-[14px] text-[var(--port-secondary)] no-underline"
+                  className="port-link-underline inline-block whitespace-nowrap text-[13px] text-[var(--port-secondary)] no-underline md:text-[14px]"
                 >
                   +91 99108 20078
                 </a>
@@ -224,7 +224,7 @@ export function PortfolioFooter() {
               <li>
                 <a
                   href="mailto:world@hagerstone.com"
-                  className="port-link-underline inline-block text-[14px] text-[var(--port-secondary)] no-underline"
+                  className="port-link-underline inline-block whitespace-nowrap text-[13px] text-[var(--port-secondary)] no-underline md:text-[14px]"
                 >
                   world@hagerstone.com
                 </a>
@@ -234,12 +234,12 @@ export function PortfolioFooter() {
                   href="https://hagerstone.com"
                   target="_blank"
                   rel="noreferrer"
-                  className="port-link-underline inline-block text-[14px] text-[var(--port-secondary)] no-underline"
+                  className="port-link-underline inline-block whitespace-nowrap text-[13px] text-[var(--port-secondary)] no-underline md:text-[14px]"
                 >
                   hagerstone.com
                 </a>
               </li>
-              <li className="text-[14px] leading-[1.6] text-[var(--port-muted)]">
+              <li className="w-full text-[13px] leading-[1.5] text-[var(--port-muted)] md:w-auto md:text-[14px] md:leading-[1.6]">
                 Noida · Delhi NCR
                 <br />
                 Pan India Operations
@@ -256,11 +256,11 @@ export function PortfolioFooter() {
           }}
         />
 
-        <div className="mt-8 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="text-[12px] text-[var(--port-muted)]">
+        <div className="mt-6 flex flex-col items-center gap-3 text-center md:mt-8 md:flex-row md:items-center md:justify-between md:text-left">
+          <div className="text-[11px] leading-relaxed text-[var(--port-muted)] md:text-[12px]">
             © 2025 Hagerstone International Pvt. Ltd. All rights reserved.
           </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-[var(--port-muted)]">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[11px] text-[var(--port-muted)] md:justify-end md:gap-x-4 md:text-[12px]">
             <span className="inline-flex items-center gap-1.5">
               <span className="h-1 w-1 rounded-full bg-[var(--port-accent)]" />
               ISO 9001:2015

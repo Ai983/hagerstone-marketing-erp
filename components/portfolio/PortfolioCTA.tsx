@@ -262,7 +262,7 @@ export function PortfolioCTA() {
           </a>
 
           <a
-            href="https://wa.me/917860650640"
+            href="https://wa.me/919910820078"
             target="_blank"
             rel="noopener noreferrer"
             style={{
