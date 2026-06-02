@@ -29,7 +29,9 @@ const CLIENT_LOGOS = [
   { name: "VST Core B", src: "/portfolio/clients/VSTcoreB.png" },
 ]
 
-// Compact logo cell used inside the two mobile marquee rows.
+// Compact white logo card used inside the two mobile marquee rows.
+// Visually echoes the desktop logo card but scaled down for the 2-row mobile
+// strip — white background, soft border, gentle shadow, rounded corners.
 function MobileLogoItem({ logo }: { logo: { name: string; src: string } }) {
   return (
     <div
@@ -37,10 +39,16 @@ function MobileLogoItem({ logo }: { logo: { name: string; src: string } }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "0 22px",
-        borderRight: "1px solid rgba(201,168,76,0.06)",
-        height: 64,
         flexShrink: 0,
+        width: 130,
+        height: 64,
+        marginRight: 10,
+        padding: "10px 14px",
+        background: "#FFFFFF",
+        borderRadius: 12,
+        border: "1px solid #EAE4D2",
+        boxShadow:
+          "0 2px 6px rgba(26,22,18,0.04), 0 1px 2px rgba(26,22,18,0.03)",
       }}
     >
       <img
@@ -48,12 +56,12 @@ function MobileLogoItem({ logo }: { logo: { name: string; src: string } }) {
         alt={logo.name}
         loading="lazy"
         style={{
-          height: 32,
+          maxHeight: 38,
+          maxWidth: "100%",
           width: "auto",
-          maxWidth: 110,
+          height: "auto",
           objectFit: "contain",
-          opacity: 0.7,
-          transition: "opacity 200ms ease",
+          display: "block",
         }}
         onError={(event) => {
           const parent = event.currentTarget.parentElement
