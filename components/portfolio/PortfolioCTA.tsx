@@ -62,14 +62,6 @@ const CONTACT_METHODS: ContactMethod[] = [
     iconPath:
       "M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6",
   },
-  {
-    label: "VISIT US",
-    value: "Noida · Delhi NCR",
-    helper: "Operations across India",
-    href: null,
-    iconPath: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z",
-    secondaryPath: "M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
-  },
 ]
 
 export function PortfolioCTA() {
@@ -80,7 +72,7 @@ export function PortfolioCTA() {
     <section
       id="contact"
       ref={sectionRef}
-      className="port-section relative overflow-hidden px-6 md:px-12 lg:px-[8vw]"
+      className="port-section port-cta-section relative overflow-hidden px-6 md:px-12 lg:px-[8vw]"
       style={{
         background:
           "linear-gradient(135deg, #161310 0%, #1E1814 50%, #241D15 100%)",
@@ -164,7 +156,7 @@ export function PortfolioCTA() {
           initial={{ opacity: 0, y: 12 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="mb-7 inline-flex items-center gap-2 rounded-full border border-[rgba(232,213,168,0.30)] bg-[rgba(232,213,168,0.08)] px-4 py-1.5 text-[11px] font-medium tracking-[0.18em] text-[#E8D5A8] backdrop-blur-sm"
+          className="mb-7 inline-flex items-center gap-2 rounded-full border border-[rgba(232,213,168,0.30)] bg-[rgba(232,213,168,0.08)] px-8 py-2 text-[11px] font-medium tracking-[0.18em] text-[#E8D5A8] backdrop-blur-sm"
         >
           <span
             className="h-1.5 w-1.5 rounded-full bg-[#E8D5A8]"
@@ -205,6 +197,7 @@ export function PortfolioCTA() {
         </motion.p>
 
         <motion.div
+          className="port-cta-buttons"
           initial={{ opacity: 0, y: 16 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.6 }}
@@ -226,7 +219,7 @@ export function PortfolioCTA() {
               display: "inline-flex",
               alignItems: "center",
               gap: 10,
-              padding: "16px 36px",
+              padding: "16px 48px",
               background: "#E8D5A8",
               color: "var(--port-ink)",
               borderRadius: 50,
@@ -269,7 +262,7 @@ export function PortfolioCTA() {
               display: "inline-flex",
               alignItems: "center",
               gap: 10,
-              padding: "16px 36px",
+              padding: "16px 48px",
               background: "rgba(255,255,255,0.08)",
               color: "#ffffff",
               borderRadius: 50,
@@ -303,11 +296,256 @@ export function PortfolioCTA() {
           </a>
         </motion.div>
 
+        {/* Desktop 3-column row — CALL | EMAIL | FOLLOW THE JOURNEY */}
+        <motion.div
+          className="cta-contact-desktop"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.8 }}
+          style={{
+            marginTop: 96,
+            maxWidth: 800,
+            marginLeft: "auto",
+            marginRight: "auto",
+            alignItems: "stretch",
+            justifyContent: "center",
+          }}
+        >
+          {/* CALL US */}
+          <a
+            href="tel:+919910820078"
+            className="cta-contact-box"
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              textDecoration: "none",
+              color: "inherit",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                width: 44,
+                height: 44,
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "50%",
+                border: "1px solid rgba(232,213,168,0.35)",
+                background: "rgba(232,213,168,0.10)",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.33 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"
+                  stroke="#E8D5A8"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <div
+              style={{
+                fontSize: 9,
+                letterSpacing: "0.18em",
+                color: "rgba(251,249,244,0.55)",
+                textTransform: "uppercase",
+              }}
+            >
+              CALL US
+            </div>
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 500,
+                color: "#ffffff",
+                fontFamily: "'DM Sans', sans-serif",
+                whiteSpace: "nowrap",
+              }}
+            >
+              +91 99108 20078
+            </div>
+          </a>
+
+          {/* Divider */}
+          <div
+            aria-hidden="true"
+            style={{
+              width: 1,
+              alignSelf: "stretch",
+              background: "rgba(255,255,255,0.1)",
+              margin: "0 32px",
+            }}
+          />
+
+          {/* EMAIL US */}
+          <a
+            href="mailto:world@hagerstone.com"
+            className="cta-contact-box"
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              textDecoration: "none",
+              color: "inherit",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                width: 44,
+                height: 44,
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "50%",
+                border: "1px solid rgba(232,213,168,0.35)",
+                background: "rgba(232,213,168,0.10)",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6"
+                  stroke="#E8D5A8"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <div
+              style={{
+                fontSize: 9,
+                letterSpacing: "0.18em",
+                color: "rgba(251,249,244,0.55)",
+                textTransform: "uppercase",
+              }}
+            >
+              EMAIL US
+            </div>
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 500,
+                color: "#ffffff",
+                fontFamily: "'DM Sans', sans-serif",
+                whiteSpace: "nowrap",
+              }}
+            >
+              world@hagerstone.com
+            </div>
+          </a>
+
+          {/* Divider */}
+          <div
+            aria-hidden="true"
+            style={{
+              width: 1,
+              alignSelf: "stretch",
+              background: "rgba(255,255,255,0.1)",
+              margin: "0 32px",
+            }}
+          />
+
+          {/* FOLLOW THE JOURNEY + icons */}
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 9,
+                letterSpacing: "0.18em",
+                color: "rgba(251,249,244,0.55)",
+                textTransform: "uppercase",
+              }}
+            >
+              FOLLOW THE JOURNEY
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {SOCIAL_LINKS.map((social) => (
+                <a
+                  key={social.label}
+                  href={social.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`${social.label} — ${social.handle}`}
+                  title={`${social.label} · ${social.handle}`}
+                  className="group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[rgba(232,213,168,0.28)] bg-[rgba(251,249,244,0.05)] text-[#E8D5A8] no-underline backdrop-blur-sm transition-colors duration-300 hover:border-transparent hover:text-white"
+                >
+                  <span
+                    className="pointer-events-none absolute inset-0 scale-0 rounded-full transition-transform duration-400 ease-out group-hover:scale-100"
+                    style={{ background: social.brandBg }}
+                  />
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="relative z-[1]"
+                  >
+                    <path
+                      d={social.iconPath}
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </a>
+              ))}
+              <a
+                href="https://www.hagerstone.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Hagerstone website"
+                title="Visit hagerstone.com"
+                className="group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[rgba(232,213,168,0.28)] bg-[rgba(251,249,244,0.05)] text-[#E8D5A8] no-underline backdrop-blur-sm transition-colors duration-300 hover:border-transparent hover:text-white"
+              >
+                <span
+                  className="pointer-events-none absolute inset-0 scale-0 rounded-full transition-transform duration-400 ease-out group-hover:scale-100"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #A57F3F 0%, #C9A876 100%)",
+                  }}
+                />
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="relative z-[1]"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+              </a>
+            </div>
+          </div>
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.8 }}
-          className="mt-28 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-5 md:mt-32"
+          className="port-contact-row cta-contact-mobile mt-28 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-5 md:mt-32"
           style={{
             textAlign: "left",
             maxWidth: "960px",
@@ -329,6 +567,7 @@ export function PortfolioCTA() {
             return (
               <motion.div
                 key={method.label}
+                className="port-contact-item"
                 initial={{ opacity: 0, y: 16 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.5, delay: 0.85 + idx * 0.08 }}
@@ -382,7 +621,7 @@ export function PortfolioCTA() {
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 1.05 }}
-          className="mx-auto mt-16 flex flex-col items-center justify-center gap-4 border-t border-[rgba(232,213,168,0.18)] pt-12 sm:flex-row sm:gap-6"
+          className="cta-contact-mobile mx-auto mt-16 flex flex-col items-center justify-center gap-4 border-t border-[rgba(232,213,168,0.18)] pt-12 sm:flex-row sm:gap-6"
           style={{ maxWidth: "960px" }}
         >
           <div className="inline-flex items-center gap-2.5 text-[11px] font-medium tracking-[0.22em] text-[#E8D5A8]">
@@ -475,18 +714,41 @@ export function PortfolioCTA() {
               </svg>
             </motion.a>
           </div>
-          <span className="hidden text-[12px] text-[rgba(251,249,244,0.55)] sm:inline">
-            @hagerstone_international
-            <span className="mx-2 text-[rgba(251,249,244,0.35)]">·</span>
-            <a
-              href="https://www.hagerstone.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[rgba(251,249,244,0.55)] no-underline transition-colors duration-200 hover:text-[#E8D5A8]"
-            >
-              hagerstone.com →
-            </a>
-          </span>
+        </motion.div>
+
+        {/* Shared centered handle row — visible on all widths */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5, delay: 1.2 }}
+          style={{
+            marginTop: 16,
+            textAlign: "center",
+            fontSize: 12,
+            color: "rgba(251,249,244,0.55)",
+            letterSpacing: "0.02em",
+          }}
+        >
+          @hagerstone_international
+          <span style={{ margin: "0 8px", color: "rgba(251,249,244,0.35)" }}>·</span>
+          <a
+            href="https://www.hagerstone.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: "rgba(251,249,244,0.55)",
+              textDecoration: "none",
+              transition: "color 200ms ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "#E8D5A8"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "rgba(251,249,244,0.55)"
+            }}
+          >
+            hagerstone.com →
+          </a>
         </motion.div>
       </div>
     </section>

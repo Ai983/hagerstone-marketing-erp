@@ -16,7 +16,7 @@ export function WhyUs() {
 
   return (
     <section
-      id="why"
+      id="whyus"
       ref={ref}
       className="port-section relative overflow-hidden px-6 md:px-10 lg:px-[3vw]"
       style={{

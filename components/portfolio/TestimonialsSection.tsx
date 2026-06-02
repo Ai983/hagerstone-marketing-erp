@@ -1,23 +1,256 @@
-"use client"
+'use client'
 
-/* eslint-disable @next/next/no-img-element */
-
-import { motion, useInView, type Variants } from "framer-motion"
+import { motion, useInView } from "framer-motion"
 import { useRef } from "react"
 
-import { SECTORS, TESTIMONIALS } from "@/lib/portfolio-data"
-import { portfolioImage } from "@/lib/utils/portfolio-media"
+const TESTIMONIALS = [
+  {
+    text: "Throughout the project, Hagerstone International demonstrated remarkable project management skills. They kept Statkraft informed at every step, followed timelines, and stayed within budget. Their commitment to quality and client satisfaction is truly commendable.",
+    name: "Statkraft",
+    role: "Client",
+    logo: "https://mvhtbqkgnkbhinethfor.supabase.co/storage/v1/object/public/portfolio/clients/Statkraft.png",
+    sector: "Office Interiors",
+  },
+  {
+    text: "Your team managed the project professionally, delivering exceptional quality. Completing the entire building construction within 60 days was impressive and satisfying. Your quick response time consistently enabled Imperial Malts to make informed decisions efficiently throughout the process.",
+    name: "Imperial Malts",
+    role: "Client",
+    logo: "https://mvhtbqkgnkbhinethfor.supabase.co/storage/v1/object/public/portfolio/clients/Imperial Malts.png",
+    sector: "Construction",
+  },
+  {
+    text: "We loved your team’s positivity and professionalism. Before working with Hagerstone, Hashtag Orange never imagined office interiors could be done so smoothly. The project was hassle-free, completed with top-notch quality, and delivered within our 45-day timeline. Truly impressive!",
+    name: "Hashtag Orange",
+    role: "Client",
+    logo: "https://mvhtbqkgnkbhinethfor.supabase.co/storage/v1/object/public/portfolio/clients/Hashtag Orange.png",
+    sector: "Office Interiors",
+  },
+  {
+    text: "EDF France is satisfied with the office delivered and with the quality of work. The project was completed within the timeline, and we look forward to collaborating with Hagerstone International on future projects. Best wishes for their endeavors.",
+    name: "EDF France",
+    role: "Client",
+    logo: "https://mvhtbqkgnkbhinethfor.supabase.co/storage/v1/object/public/portfolio/clients/EDF France.png",
+    sector: "Office Interiors",
+  },
+  {
+    text: "TAJ Hotels had a unique gym lounge design challenge, and Hagerstone exceeded our expectations. They understood our vision, incorporated ideas beautifully, and ensured flawless execution. The result is a stunning, functional space perfect for our needs. Highly recommended!",
+    name: "TAJ Hotels",
+    role: "Client",
+    logo: "https://mvhtbqkgnkbhinethfor.supabase.co/storage/v1/object/public/portfolio/clients/Taj.png",
+    sector: "Hospitality",
+  },
+  {
+    text: "Inshorts Media hired Hagerstone International to design and build our new office space interiors. Their expertise and experience truly stood out. We are extremely satisfied with their work and look forward to working with them again in the future.",
+    name: "Inshorts Media",
+    role: "Client",
+    logo: "https://mvhtbqkgnkbhinethfor.supabase.co/storage/v1/object/public/portfolio/clients/Inshorts.png",
+    sector: "Office Interiors",
+  },
+]
 
-const EASE: [number, number, number, number] = [0.4, 0, 0.2, 1]
+const col1 = TESTIMONIALS.slice(0, 2)
+const col2 = TESTIMONIALS.slice(2, 4)
+const col3 = TESTIMONIALS.slice(4, 6)
 
-const container: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.1, delayChildren: 0.15 } },
+type Testimonial = (typeof TESTIMONIALS)[number]
+
+function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
+  return (
+    <div
+      style={{
+        background: "#FFFFFF",
+        border: "1px solid #EAE4D8",
+        borderRadius: 20,
+        padding: 28,
+        width: "100%",
+        maxWidth: 340,
+        boxShadow: "0 4px 20px rgba(28,26,20,0.06)",
+        transition: "border-color 200ms",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "rgba(184,134,11,0.3)"
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "#EAE4D8"
+      }}
+    >
+      {/* Top row: stars + sector pill */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 16,
+        }}
+      >
+        <div
+          style={{
+            color: "#C9A84C",
+            fontSize: 14,
+            letterSpacing: 2,
+          }}
+        >
+          {"★★★★★"}
+        </div>
+        <div
+          style={{
+            background: "rgba(184,134,11,0.08)",
+            border: "1px solid rgba(184,134,11,0.15)",
+            color: "#B8860B",
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            padding: "3px 10px",
+            borderRadius: 20,
+          }}
+        >
+          {testimonial.sector}
+        </div>
+      </div>
+
+      {/* Quote text */}
+      <p
+        style={{
+          fontFamily: "DM Sans, sans-serif",
+          fontSize: 14,
+          lineHeight: 1.75,
+          color: "#4A4235",
+          fontStyle: "italic",
+          marginBottom: 20,
+        }}
+      >
+        <span
+          style={{
+            color: "rgba(201,168,76,0.2)",
+            fontSize: 24,
+            marginRight: 4,
+            lineHeight: 1,
+          }}
+        >
+          {"“"}
+        </span>
+        {testimonial.text}
+      </p>
+
+      {/* Divider */}
+      <div
+        style={{
+          height: 1,
+          background: "#EAE4D8",
+          marginBottom: 16,
+        }}
+      />
+
+      {/* Client row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={testimonial.logo}
+          alt={testimonial.name}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 8,
+            objectFit: "contain",
+            background: "#FAF8F4",
+            border: "1px solid #EAE4D8",
+            padding: 4,
+          }}
+          onError={(e) => {
+            const img = e.currentTarget
+            img.style.display = "none"
+            const parent = img.parentNode
+            if (!parent) return
+            // Avoid inserting fallback twice
+            if (
+              (parent as HTMLElement).querySelector(
+                "[data-logo-fallback='true']"
+              )
+            ) {
+              return
+            }
+            const initials = testimonial.name
+              .split(" ")
+              .map((word) => word.charAt(0))
+              .slice(0, 2)
+              .join("")
+              .toUpperCase()
+            const fallback = document.createElement("span")
+            fallback.setAttribute("data-logo-fallback", "true")
+            fallback.textContent = initials
+            fallback.style.width = "40px"
+            fallback.style.height = "40px"
+            fallback.style.borderRadius = "8px"
+            fallback.style.display = "flex"
+            fallback.style.alignItems = "center"
+            fallback.style.justifyContent = "center"
+            fallback.style.background = "#FAF8F4"
+            fallback.style.color = "#B8860B"
+            fallback.style.fontFamily = "Syne, sans-serif"
+            fallback.style.fontSize = "14px"
+            fallback.style.fontWeight = "700"
+            fallback.style.border = "1px solid #EAE4D8"
+            parent.insertBefore(fallback, img)
+          }}
+        />
+        <div>
+          <div
+            style={{
+              fontFamily: "Syne, sans-serif",
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#1C1A14",
+              lineHeight: 1.2,
+            }}
+          >
+            {testimonial.name}
+          </div>
+          <div
+            style={{
+              fontSize: 12,
+              color: "#9A8E78",
+              marginTop: 2,
+            }}
+          >
+            {testimonial.role}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
-const item: Variants = {
-  hidden: { opacity: 0, y: 32 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } },
+function TestimonialsColumn({
+  testimonials,
+  duration = 18,
+  className,
+}: {
+  testimonials: Testimonial[]
+  duration?: number
+  className?: string
+}) {
+  return (
+    <div className={className} style={{ overflow: "hidden" }}>
+      <motion.div
+        animate={{ translateY: "-50%" }}
+        transition={{
+          duration,
+          repeat: Infinity,
+          ease: "linear",
+          repeatType: "loop",
+        }}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+          paddingBottom: 20,
+        }}
+      >
+        {[...testimonials, ...testimonials].map((t, i) => (
+          <TestimonialCard testimonial={t} key={i} />
+        ))}
+      </motion.div>
+    </div>
+  )
 }
 
 export function TestimonialsSection() {
@@ -27,160 +260,178 @@ export function TestimonialsSection() {
   return (
     <section
       id="testimonials"
-      className="port-section relative overflow-hidden px-6 md:px-12 lg:px-[8vw]"
+      className="port-section"
       style={{
-        background:
-          "linear-gradient(180deg, #FCFAF5 0%, var(--port-bg) 100%)",
-        borderTop: "1px solid var(--port-border-soft)",
-        borderBottom: "1px solid var(--port-border-soft)",
+        padding: "110px 10vw",
+        background: "#FFFFFF",
+        borderTop: "1px solid #EAE4D8",
+        borderBottom: "1px solid #EAE4D8",
       }}
     >
-      <div
-        className="pointer-events-none absolute -right-32 top-20 h-96 w-96 rounded-full opacity-30"
-        style={{
-          background:
-            "radial-gradient(circle, var(--port-accent-warm), transparent 70%)",
-          filter: "blur(80px)",
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @media (max-width: 768px) { .hidden-mobile { display: none; } }
+            @media (max-width: 1024px) { .hidden-tablet { display: none; } }
+          `,
         }}
       />
 
+      {/* Section header */}
       <motion.div
         ref={ref}
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={isInView ? { opacity: 1, y: 0 } : {}}
-        transition={{ duration: 0.6 }}
-        className="relative mb-16 flex flex-col gap-8 md:flex-row md:items-end md:justify-between"
+        transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+        style={{ textAlign: "center", marginBottom: 56 }}
       >
-        <div className="max-w-2xl">
-          <div className="port-eyebrow mb-5">Client Voices</div>
-          <h2 className="font-syne text-[40px] font-bold leading-[1.05] tracking-[-0.02em] text-[var(--port-ink)] md:text-[52px]">
+        {/* Small label row */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            justifyContent: "center",
+          }}
+        >
+          <span
+            style={{
+              width: 32,
+              height: 1,
+              background: "#C9A84C",
+              display: "inline-block",
+            }}
+          />
+          <span
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.3em",
+              color: "#B8860B",
+              textTransform: "uppercase",
+              fontFamily: "DM Sans, sans-serif",
+            }}
+          >
+            Client Voices
+          </span>
+        </div>
+
+        {/* Heading */}
+        <h2 style={{ marginTop: 16, lineHeight: 1.15 }}>
+          <span
+            style={{
+              fontFamily: "Syne, sans-serif",
+              fontSize: "clamp(28px, 7vw, 42px)",
+              fontWeight: 700,
+              color: "#1C1A14",
+            }}
+          >
             What clients{" "}
-            <span className="port-serif italic font-medium text-[var(--port-accent-deep)]">say</span>{" "}
+          </span>
+          <span
+            style={{
+              fontFamily: "Georgia, serif",
+              fontStyle: "italic",
+              fontSize: "clamp(28px, 7vw, 42px)",
+              fontWeight: 700,
+              color: "#C9A84C",
+            }}
+          >
+            say
+          </span>
+          <span
+            style={{
+              fontFamily: "Syne, sans-serif",
+              fontSize: "clamp(28px, 7vw, 42px)",
+              fontWeight: 700,
+              color: "#1C1A14",
+            }}
+          >
+            {" "}
             about us
-          </h2>
-        </div>
-        <div className="flex items-center gap-3 rounded-2xl border border-[var(--port-border)] bg-[var(--port-surface)] px-5 py-4 shadow-sm">
-          <div className="flex">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <svg key={star} width="18" height="18" viewBox="0 0 24 24" fill="var(--port-accent)">
-                <path d="M12 2l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 15.3 6.8 18l1-5.8L3.6 8.1l5.8-.8L12 2z" />
-              </svg>
-            ))}
-          </div>
-          <div>
-            <div className="font-syne text-[18px] font-bold leading-none text-[var(--port-ink)]">4.9 / 5.0</div>
-            <div className="mt-1 text-[11px] tracking-[0.1em] text-[var(--port-muted)]">FROM 200+ CLIENTS</div>
-          </div>
+          </span>
+        </h2>
+
+        {/* Sub */}
+        <p
+          style={{
+            marginTop: 12,
+            fontFamily: "DM Sans, sans-serif",
+            fontSize: 15,
+            color: "#9A8E78",
+            textAlign: "center",
+          }}
+        >
+          Real feedback from the companies we have built for.
+        </p>
+
+        {/* Rating row */}
+        <div
+          style={{
+            marginTop: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          <span
+            style={{
+              color: "#C9A84C",
+              fontSize: 16,
+              letterSpacing: 2,
+            }}
+          >
+            {"★★★★★"}
+          </span>
+          <span
+            style={{
+              fontFamily: "Syne, sans-serif",
+              fontWeight: 600,
+              color: "#1C1A14",
+              fontSize: 16,
+            }}
+          >
+            4.9 / 5.0
+          </span>
+          <span
+            style={{
+              fontFamily: "DM Sans, sans-serif",
+              fontSize: 13,
+              color: "#9A8E78",
+            }}
+          >
+            from 200+ clients
+          </span>
         </div>
       </motion.div>
 
-      <motion.div
-        variants={container}
-        initial="hidden"
-        animate={isInView ? "show" : "hidden"}
-        className="relative grid grid-cols-1 gap-6 md:grid-cols-3"
+      {/* Columns wrapper */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          gap: 20,
+          marginTop: 0,
+          maskImage:
+            "linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)",
+          maxHeight: 740,
+          overflow: "hidden",
+        }}
       >
-        {TESTIMONIALS.map((testimonial, index) => {
-          const accentColor =
-            SECTORS.find((sector) => sector.id === testimonial.sectorId)?.accentColor ?? "var(--port-accent)"
-
-          return (
-            <motion.article
-              key={testimonial.name}
-              variants={item}
-              whileHover={{ y: -6, transition: { duration: 0.3, ease: EASE } }}
-              className="group relative flex flex-col overflow-hidden rounded-[20px] border bg-[var(--port-card)] p-8 transition-all duration-500"
-              style={{
-                borderColor: "var(--port-border)",
-                boxShadow: "var(--port-shadow-sm)",
-                minHeight: 320,
-              }}
-              onMouseEnter={(event) => {
-                event.currentTarget.style.borderColor = "var(--port-border-hover)"
-                event.currentTarget.style.boxShadow = "var(--port-shadow-lg)"
-              }}
-              onMouseLeave={(event) => {
-                event.currentTarget.style.borderColor = "var(--port-border)"
-                event.currentTarget.style.boxShadow = "var(--port-shadow-sm)"
-              }}
-            >
-              <div
-                className="pointer-events-none absolute -right-4 -top-2 font-syne text-[140px] font-extrabold leading-none opacity-[0.06] transition-all duration-500 group-hover:opacity-[0.12] group-hover:scale-110"
-                style={{ color: "var(--port-accent-deep)" }}
-              >
-                &ldquo;
-              </div>
-
-              <div className="mb-6 flex items-center justify-between">
-                <div className="flex gap-0.5">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <svg key={star} width="14" height="14" viewBox="0 0 24 24" fill="var(--port-accent)">
-                      <path d="M12 2l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 15.3 6.8 18l1-5.8L3.6 8.1l5.8-.8L12 2z" />
-                    </svg>
-                  ))}
-                </div>
-                <span className="text-[10px] tracking-[0.18em] text-[var(--port-muted)]">
-                  0{index + 1} / 0{TESTIMONIALS.length}
-                </span>
-              </div>
-
-              <p className="relative z-[1] flex-1 text-[15px] leading-[1.75] text-[var(--port-secondary)]">
-                &ldquo;{testimonial.quote}&rdquo;
-              </p>
-
-              <div className="relative mt-7 flex items-center gap-4 border-t border-[var(--port-border-soft)] pt-6">
-                {testimonial.logo ? (
-                  <div
-                    className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-[var(--port-surface)] p-2"
-                    style={{
-                      borderColor: "var(--port-border)",
-                      boxShadow: "0 2px 8px rgba(26,22,18,0.06)",
-                    }}
-                  >
-                    <img
-                      src={portfolioImage(testimonial.logo, { width: 200, quality: 85 })}
-                      alt={`${testimonial.company} logo`}
-                      loading="lazy"
-                      style={{
-                        maxHeight: "100%",
-                        maxWidth: "100%",
-                        width: "auto",
-                        height: "auto",
-                        objectFit: "contain",
-                        display: "block",
-                      }}
-                      onError={(event) => {
-                        // If the logo file is missing, hide the box gracefully
-                        // and let the text-only client name carry the card.
-                        const wrapper = event.currentTarget.parentElement
-                        if (wrapper) wrapper.style.display = "none"
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div
-                    className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl font-syne text-[18px] font-bold text-white"
-                    style={{
-                      background: `linear-gradient(135deg, ${accentColor}, var(--port-accent-deep))`,
-                      boxShadow: "0 4px 12px rgba(126,93,41,0.20)",
-                    }}
-                  >
-                    {testimonial.name.charAt(0)}
-                  </div>
-                )}
-                <div>
-                  <div className="font-syne text-[15px] font-bold uppercase tracking-[0.06em] text-[var(--port-ink)]">
-                    {testimonial.company}
-                  </div>
-                  <div className="mt-1 text-[12px] leading-[1.5] text-[var(--port-muted)]">
-                    {testimonial.designation}
-                  </div>
-                </div>
-              </div>
-            </motion.article>
-          )
-        })}
-      </motion.div>
+        <TestimonialsColumn testimonials={col1} duration={18} />
+        <TestimonialsColumn
+          testimonials={col2}
+          duration={22}
+          className="hidden-mobile"
+        />
+        <TestimonialsColumn
+          testimonials={col3}
+          duration={20}
+          className="hidden-tablet"
+        />
+      </div>
     </section>
   )
 }

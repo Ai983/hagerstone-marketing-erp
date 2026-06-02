@@ -252,7 +252,7 @@ export function PortfolioHero({ leadName }: PortfolioHeroProps) {
         </motion.div>
       ) : null}
 
-      <div className="relative z-[2] flex h-full items-center px-6 pt-24 md:px-12 lg:px-[8vw]">
+      <div className="port-hero-content relative z-[2] flex h-full items-center px-6 pt-24 md:px-12 lg:px-[8vw]">
         <div className="mx-auto grid w-full max-w-[1320px] grid-cols-1 lg:grid-cols-12">
           <div className="lg:col-span-7 lg:col-start-6">
             <AnimatePresence mode="wait">
@@ -405,7 +405,7 @@ export function PortfolioHero({ leadName }: PortfolioHeroProps) {
         type="button"
         onClick={prev}
         aria-label="Previous slide"
-        className="group absolute left-3 top-1/2 z-[5] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-white backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-white/40 hover:bg-white/[0.18] md:left-6 md:h-14 md:w-14 lg:left-[2.5vw]"
+        className="hero-arrow hero-arrow-left group absolute left-3 top-1/2 z-[5] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-white backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-white/40 hover:bg-white/[0.18] md:left-6 md:h-14 md:w-14 lg:left-[2.5vw]"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
           <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -416,7 +416,7 @@ export function PortfolioHero({ leadName }: PortfolioHeroProps) {
         type="button"
         onClick={next}
         aria-label="Next slide"
-        className="group absolute right-3 top-1/2 z-[5] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-white backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-white/40 hover:bg-white/[0.18] md:right-6 md:h-14 md:w-14 lg:right-[2.5vw]"
+        className="hero-arrow hero-arrow-right group absolute right-3 top-1/2 z-[5] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-white backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-white/40 hover:bg-white/[0.18] md:right-6 md:h-14 md:w-14 lg:right-[2.5vw]"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
           <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />

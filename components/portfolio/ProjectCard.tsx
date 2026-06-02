@@ -114,7 +114,7 @@ export function ProjectCard({ project, accentColor }: ProjectCardProps) {
 
         {project.sectorId !== "mep" ? (
           <div
-            className="absolute right-3 top-3 z-[3] flex items-center gap-1.5 rounded-full border bg-[rgba(255,255,255,0.92)] px-3 py-1.5 text-[10px] font-semibold tracking-[0.1em] text-[var(--port-ink)] backdrop-blur-md"
+            className="absolute right-3 top-3 z-[3] flex items-center gap-1.5 rounded-full border bg-[rgba(255,255,255,0.92)] px-4 py-1.5 text-[10px] font-semibold tracking-[0.1em] text-[var(--port-ink)] backdrop-blur-md"
             style={{ borderColor: "rgba(255,255,255,0.6)" }}
           >
             <span
@@ -127,7 +127,7 @@ export function ProjectCard({ project, accentColor }: ProjectCardProps) {
 
         {hasMultipleImages ? (
           <div
-            className="absolute left-3 top-3 z-[3] rounded-full border bg-[rgba(26,22,18,0.65)] px-3 py-1 text-[10px] font-semibold tracking-[0.1em] text-white backdrop-blur-md"
+            className="absolute left-3 top-3 z-[3] rounded-full border bg-[rgba(26,22,18,0.65)] px-4 py-1.5 text-[10px] font-semibold tracking-[0.1em] text-white backdrop-blur-md"
             style={{ borderColor: "rgba(255,255,255,0.15)" }}
           >
             {String(currentIndex + 1).padStart(2, "0")} / {String(project.images.length).padStart(2, "0")}
@@ -136,22 +136,6 @@ export function ProjectCard({ project, accentColor }: ProjectCardProps) {
 
         {hasMultipleImages ? (
           <>
-            <div className="absolute bottom-3 left-1/2 z-[3] flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-[rgba(255,255,255,0.85)] px-2.5 py-1.5 backdrop-blur-md">
-              {project.images.map((image, index) => (
-                <button
-                  key={`${image}-dot`}
-                  type="button"
-                  aria-label={`Show photo ${index + 1}`}
-                  onClick={() => pauseAndSetIndex(index)}
-                  className="rounded-full border-0 p-0 transition-all duration-300"
-                  style={{
-                    background: index === currentIndex ? "var(--port-ink)" : "rgba(26,22,18,0.25)",
-                    width: index === currentIndex ? 18 : 6,
-                    height: 6,
-                  }}
-                />
-              ))}
-            </div>
             <button
               type="button"
               aria-label="Previous photo"
@@ -188,14 +172,47 @@ export function ProjectCard({ project, accentColor }: ProjectCardProps) {
           {project.title}
         </h3>
 
-        <div className="mb-5 flex flex-wrap justify-center gap-1.5">
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            gap: "8px",
+            marginTop: "12px",
+            marginBottom: "12px",
+          }}
+        >
           {[project.city, project.areaSqft, project.scope]
             .filter((tag) => tag && tag !== "TBD")
             .map((tag) => (
               <span
                 key={tag}
-                className="rounded-full border border-[var(--port-border-soft)] bg-[var(--port-bg-soft)] px-3 py-1 text-[10px] font-medium tracking-[0.04em] text-[var(--port-secondary)]"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "5px 14px",
+                  borderRadius: "20px",
+                  border: "1px solid #EAE4D8",
+                  background: "#FAF8F4",
+                  fontSize: "12px",
+                  color: "#4A4235",
+                  letterSpacing: "0.04em",
+                  fontFamily: "'DM Sans', sans-serif",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
               >
+                <span
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: "50%",
+                    background: "#C9A84C",
+                    display: "inline-block",
+                    flexShrink: 0,
+                  }}
+                />
                 {tag}
               </span>
             ))}

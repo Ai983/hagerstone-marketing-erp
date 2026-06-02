@@ -12,7 +12,7 @@ export function PdfBanner({ sector }: { sector: Sector }) {
   const portfolioPdfUrl = portfolioMedia(sector.portfolioPdf)
 
   return (
-    <div className="bg-[var(--port-bg)] px-6 pb-24 pt-4 md:px-12 lg:px-[8vw]">
+    <div className="port-pdf-banner bg-[var(--port-bg)] px-6 pb-24 pt-4 md:px-12 lg:px-[8vw]">
       <div ref={ref} className="relative">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -50,7 +50,7 @@ export function PdfBanner({ sector }: { sector: Sector }) {
             }}
           />
 
-          <div className="relative flex flex-col items-start gap-10 px-8 py-12 md:flex-row md:items-center md:px-14 md:py-14">
+          <div className="port-pdf-inner relative flex flex-col items-start gap-10 px-8 py-12 md:flex-row md:items-center md:px-14 md:py-14">
             <div className="flex flex-1 items-start gap-6 md:items-center">
               <motion.div
                 initial={{ opacity: 0, scale: 0.8, rotate: -8 }}
@@ -117,7 +117,7 @@ export function PdfBanner({ sector }: { sector: Sector }) {
               initial={{ opacity: 0, x: 20 }}
               animate={isInView ? { opacity: 1, x: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.55, ease: [0.4, 0, 0.2, 1] }}
-              className="flex flex-shrink-0 flex-wrap gap-3"
+              className="port-pdf-buttons flex flex-shrink-0 flex-wrap gap-3"
             >
               <a
                 href={portfolioPdfUrl}

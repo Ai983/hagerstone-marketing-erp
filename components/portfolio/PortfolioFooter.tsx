@@ -34,7 +34,7 @@ export function PortfolioFooter() {
 
   return (
     <footer
-      className="relative overflow-hidden border-t border-[var(--port-border)] px-4 pt-12 pb-8 sm:px-6 md:px-12 md:pt-20 md:pb-10 lg:px-[8vw]"
+      className="port-footer-inner relative overflow-hidden border-t border-[var(--port-border)] px-4 pt-12 pb-8 sm:px-6 md:px-12 md:pt-20 md:pb-10 lg:px-[8vw]"
       style={{
         background:
           "linear-gradient(180deg, var(--port-bg-soft) 0%, #F0EBDE 100%)",

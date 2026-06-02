@@ -41,15 +41,20 @@ export function ProjectGrid({ sector }: ProjectGridProps) {
       initial={{ opacity: 0, y: 40 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.6, ease: EASE }}
-      className="port-section relative bg-[var(--port-bg)] px-6 md:px-12 lg:px-[8vw]"
+      className="port-section port-projects-grid relative bg-[var(--port-bg)] px-6 md:px-12 lg:px-[8vw]"
     >
       <div className="mb-12" style={{ textAlign: "center" }}>
         <div className="port-eyebrow mb-5" style={{ justifyContent: "center" }}>
           Our Work · Featured Projects
         </div>
         <h2
-          className="font-syne text-[40px] font-bold leading-[1.05] tracking-[-0.02em] text-[var(--port-ink)] md:text-[52px]"
-          style={{ marginLeft: "auto", marginRight: "auto", textAlign: "center" }}
+          className="font-syne font-bold leading-[1.05] tracking-[-0.02em] text-[var(--port-ink)]"
+          style={{
+            fontSize: "clamp(24px, 7vw, 52px)",
+            marginLeft: "auto",
+            marginRight: "auto",
+            textAlign: "center",
+          }}
         >
           <AnimatePresence mode="wait">
             <motion.span

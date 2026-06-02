@@ -65,7 +65,7 @@ function StatTile({ value, label, index, isInView }: StatTileProps) {
       <motion.div
         className="font-syne font-bold leading-[0.95] tracking-[-0.02em] text-[var(--port-ink)]"
         style={{
-          fontSize: "clamp(48px, 6vw, 72px)",
+          fontSize: "clamp(36px, 10vw, 72px)",
           minWidth: "120px",
         }}
         initial={{ scale: 0.85 }}
@@ -132,10 +132,15 @@ export function TrustBar() {
       initial={{ opacity: 0, y: 40 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
-      className="relative px-6 py-24 md:px-12 md:py-28 lg:px-[6vw]"
+      className="port-trust-bar relative px-6 py-24 md:px-12 md:py-28 lg:px-[6vw]"
       style={{
         background: "linear-gradient(180deg, #FBF9F4 0%, #F5F1E8 100%)",
         textAlign: "center",
+        overflow: "hidden",
+        overflowX: "hidden",
+        width: "100%",
+        maxWidth: "100vw",
+        boxSizing: "border-box",
       }}
     >
       <div
@@ -158,7 +163,10 @@ export function TrustBar() {
           marginLeft: "auto",
           marginRight: "auto",
           width: "100%",
+          paddingLeft: "20px",
+          paddingRight: "20px",
           textAlign: "center",
+          boxSizing: "border-box",
         }}
       >
         <div className="mb-16 md:mb-20" style={{ textAlign: "center" }}>
@@ -188,8 +196,18 @@ export function TrustBar() {
         </div>
 
         <div
-          className="grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-4 md:gap-x-8 lg:gap-x-12"
-          style={{ marginLeft: "auto", marginRight: "auto" }}
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "32px 40px",
+            width: "100%",
+            padding: "0 16px",
+            marginLeft: "auto",
+            marginRight: "auto",
+            boxSizing: "border-box",
+          }}
         >
           {TRUST_STATS.map((stat, index) => (
             <StatTile
@@ -225,7 +243,10 @@ export function TrustBar() {
               flexWrap: "wrap",
               justifyContent: "center",
               gap: "8px",
-              marginLeft: "4px",
+              width: "100%",
+              paddingLeft: "16px",
+              paddingRight: "16px",
+              boxSizing: "border-box",
             }}
           >
             {["ISO 9001:2015", "GST Registered", "MSME Certified", "PAN India Operations"].map(
@@ -241,7 +262,14 @@ export function TrustBar() {
                     delay: 1.3 + idx * 0.08,
                     ease: [0.4, 0, 0.2, 1],
                   }}
-                  className="inline-flex items-center gap-2 rounded-full border border-[var(--port-border)] bg-[var(--port-surface)] px-3 py-1.5 text-[11px] font-medium tracking-[0.03em] text-[var(--port-secondary)] shadow-sm"
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--port-border)] bg-[var(--port-surface)] py-1.5 text-[11px] font-medium tracking-[0.03em] text-[var(--port-secondary)] shadow-sm"
+                  style={{
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                    maxWidth: "calc(100vw - 40px)",
+                    paddingLeft: "18px",
+                    paddingRight: "18px",
+                  }}
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-[var(--port-accent)]" />
                   {badge}

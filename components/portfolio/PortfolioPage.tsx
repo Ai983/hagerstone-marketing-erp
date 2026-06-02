@@ -99,8 +99,6 @@ const portfolioStyles = `
     .port-section { padding: 72px 24px !important; }
   }
 
-  .port-page .sector-tabs-scroll { scrollbar-width: none; }
-  .port-page .sector-tabs-scroll::-webkit-scrollbar { display: none; }
   .port-page .project-card .arrow-btn { opacity: 0; transform: translateY(-50%) scale(0.92); }
   .port-page .project-card:hover .arrow-btn { opacity: 1; transform: translateY(-50%) scale(1); }
   /* Touch devices have no hover — keep carousel arrows visible so users can navigate */
@@ -288,6 +286,205 @@ const portfolioStyles = `
   }
   .port-play-pulse-delay {
     animation-delay: 0.9s;
+  }
+
+  /* ───────── Mobile responsive overrides ───────── */
+  @media (max-width: 768px) {
+    .port-section {
+      padding-left: 20px !important;
+      padding-right: 20px !important;
+      padding-top: 72px !important;
+      padding-bottom: 72px !important;
+    }
+
+    .port-section-header {
+      margin-bottom: 40px !important;
+    }
+
+    .port-hero-content {
+      padding-left: 20px !important;
+      padding-right: 20px !important;
+    }
+
+    .port-nav-inner {
+      padding-left: 20px !important;
+      padding-right: 20px !important;
+    }
+
+    .port-tabs-inner {
+      padding-left: 16px !important;
+      padding-right: 16px !important;
+    }
+
+    .port-cta-section {
+      padding-left: 24px !important;
+      padding-right: 24px !important;
+    }
+
+    .port-footer-inner {
+      padding-left: 20px !important;
+      padding-right: 20px !important;
+    }
+
+    .port-pdf-banner {
+      margin-left: 20px !important;
+      margin-right: 20px !important;
+    }
+
+    .port-trust-bar {
+      padding-left: 20px !important;
+      padding-right: 20px !important;
+    }
+
+    .port-projects-grid {
+      padding-left: 20px !important;
+      padding-right: 20px !important;
+    }
+
+    /* Hide hero decorative right-pane elements on phones */
+    .port-hero-decor {
+      display: none !important;
+    }
+
+    /* Hide hero prev/next arrow buttons on phones (swipe is more natural) */
+    .hero-arrow {
+      display: none !important;
+    }
+
+    /* CTA contact section: hide desktop layout on mobile */
+    .cta-contact-desktop {
+      display: none !important;
+    }
+    .cta-contact-mobile {
+      display: flex !important;
+    }
+
+    /* Mobile nav: hide the website link, show hamburger */
+    .port-nav-website-link {
+      display: none !important;
+    }
+    .port-hamburger {
+      display: flex !important;
+    }
+
+    /* TrustBar — 2x2 stat grid + wrapping cert pills */
+    .trust-stats-grid {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 32px 16px !important;
+      width: 100% !important;
+    }
+    .trust-cert-row {
+      flex-wrap: wrap !important;
+      justify-content: center !important;
+      padding: 0 8px !important;
+      gap: 8px !important;
+    }
+    .trust-cert-pill {
+      white-space: nowrap !important;
+      flex-shrink: 0 !important;
+    }
+    .trust-iso-divider {
+      display: none !important;
+    }
+
+    /* Long Syne headings: allow break to avoid horizontal scroll */
+    .port-syne {
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+
+    /* ClientLogos carousel: tighter padding on phones */
+    .logo-track > div {
+      padding: 0 16px !important;
+    }
+
+    /* PdfBanner: stack inner content + buttons full width */
+    .port-pdf-inner {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 24px !important;
+    }
+    .port-pdf-buttons {
+      width: 100% !important;
+      flex-direction: column !important;
+    }
+    .port-pdf-buttons a {
+      width: 100% !important;
+      text-align: center !important;
+      justify-content: center !important;
+    }
+
+    /* CTA contact info row: force single column (works for both flex + grid) */
+    .port-contact-row {
+      grid-template-columns: 1fr !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      gap: 12px !important;
+    }
+    .port-contact-item {
+      width: 100% !important;
+      max-width: 320px !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }
+  }
+
+  /* Below 1024px hide hero right-side decorative elements (large watermark etc.) */
+  @media (max-width: 1024px) {
+    .port-hero-right {
+      display: none !important;
+    }
+  }
+
+  /* Desktop: hamburger button must NEVER show */
+  @media (min-width: 769px) {
+    .port-hamburger {
+      display: none !important;
+    }
+    .cta-contact-mobile {
+      display: none !important;
+    }
+    .cta-contact-desktop {
+      display: flex !important;
+    }
+    .cta-contact-box {
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+    }
+  }
+
+  /* CTA buttons stack on small mobile only (<= 640px) */
+  @media (max-width: 640px) {
+    .port-cta-buttons {
+      flex-direction: column !important;
+      align-items: center !important;
+      width: 100% !important;
+    }
+    .port-cta-buttons a {
+      width: 100% !important;
+      max-width: 320px !important;
+      justify-content: center !important;
+    }
+  }
+
+  /* ───────── Global overflow prevention ───────── */
+  @media (max-width: 768px) {
+    .port-page {
+      overflow-x: hidden !important;
+    }
+    .port-page * {
+      max-width: 100vw;
+    }
+    /* Exception: the auto-scrolling logo carousel relies on width: max-content
+       to seamlessly loop — capping it to 100vw would break the animation. */
+    .port-page .logo-track {
+      max-width: none !important;
+    }
+    .port-page section {
+      overflow-x: hidden;
+    }
   }
 `
 
