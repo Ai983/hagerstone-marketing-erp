@@ -2,6 +2,8 @@
 
 /* eslint-disable @next/next/no-img-element */
 
+import { motion } from "framer-motion"
+
 import { portfolioImage } from "@/lib/utils/portfolio-media"
 
 const CLIENT_LOGOS = [
@@ -27,11 +29,62 @@ const CLIENT_LOGOS = [
   { name: "VST Core B", src: "/portfolio/clients/VSTcoreB.png" },
 ]
 
+// Compact logo cell used inside the two mobile marquee rows.
+function MobileLogoItem({ logo }: { logo: { name: string; src: string } }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "0 22px",
+        borderRight: "1px solid rgba(201,168,76,0.06)",
+        height: 64,
+        flexShrink: 0,
+      }}
+    >
+      <img
+        src={portfolioImage(logo.src, { width: 280, quality: 80 })}
+        alt={logo.name}
+        loading="lazy"
+        style={{
+          height: 32,
+          width: "auto",
+          maxWidth: 110,
+          objectFit: "contain",
+          opacity: 0.7,
+          transition: "opacity 200ms ease",
+        }}
+        onError={(event) => {
+          const parent = event.currentTarget.parentElement
+          if (!parent || parent.querySelector("[data-logo-fallback='true']")) return
+          event.currentTarget.style.display = "none"
+          const span = document.createElement("span")
+          span.dataset.logoFallback = "true"
+          span.textContent = logo.name.toUpperCase()
+          span.style.cssText =
+            "font-family:'DM Sans',sans-serif;font-size:9px;font-weight:600;letter-spacing:0.12em;color:#9A8E78;white-space:nowrap;"
+          parent.appendChild(span)
+        }}
+      />
+    </div>
+  )
+}
+
 export function ClientLogos() {
-  const logos = [...CLIENT_LOGOS, ...CLIENT_LOGOS, ...CLIENT_LOGOS]
+  // Desktop track — same 3× duplication for the existing CSS keyframe animation.
+  const desktopLogos = [...CLIENT_LOGOS, ...CLIENT_LOGOS, ...CLIENT_LOGOS]
+
+  // Mobile rows — 2× duplication so framer-motion -50% translateX loops seamlessly.
+  const row1Logos = [...CLIENT_LOGOS, ...CLIENT_LOGOS]
+  const row2Logos = [
+    ...[...CLIENT_LOGOS].reverse(),
+    ...[...CLIENT_LOGOS].reverse(),
+  ]
 
   return (
     <section
+      className="logos-section"
       style={{
         background: "linear-gradient(180deg, #F5F1E8 0%, #EFEADB 100%)",
         borderBottom: "1px solid var(--port-border-soft)",
@@ -88,7 +141,9 @@ export function ClientLogos() {
       </div>
 
       <div style={{ position: "relative" }}>
+        {/* Left + right fade masks — shared by desktop track and mobile rows */}
         <div
+          className="logos-fade-left"
           style={{
             position: "absolute",
             left: 0,
@@ -102,6 +157,7 @@ export function ClientLogos() {
           }}
         />
         <div
+          className="logos-fade-right"
           style={{
             position: "absolute",
             right: 0,
@@ -115,8 +171,9 @@ export function ClientLogos() {
           }}
         />
 
+        {/* Desktop single row — existing CSS keyframe animation */}
         <div
-          className="logo-track"
+          className="logos-desktop-row logo-track"
           style={{
             display: "flex",
             gap: 24,
@@ -125,7 +182,7 @@ export function ClientLogos() {
             padding: "12px 0",
           }}
         >
-          {logos.map((logo, index) => (
+          {desktopLogos.map((logo, index) => (
             <div
               key={`${logo.name}-${index}`}
               className="logo-card"
@@ -178,6 +235,61 @@ export function ClientLogos() {
               />
             </div>
           ))}
+        </div>
+
+        {/* Mobile two rows — opposite directions, faster pace */}
+        <div
+          className="logos-mobile-rows"
+          style={{
+            flexDirection: "column",
+            gap: 12,
+            display: "none",
+          }}
+        >
+          {/* Row 1 — right to left */}
+          <div style={{ overflow: "hidden", position: "relative" }}>
+            <motion.div
+              animate={{ translateX: "-50%" }}
+              transition={{
+                duration: 15,
+                repeat: Infinity,
+                ease: "linear",
+                repeatType: "loop",
+              }}
+              style={{
+                display: "flex",
+                width: "max-content",
+                gap: 0,
+              }}
+            >
+              {row1Logos.map((logo, i) => (
+                <MobileLogoItem key={`r1-${logo.name}-${i}`} logo={logo} />
+              ))}
+            </motion.div>
+          </div>
+
+          {/* Row 2 — left to right (animates -50% → 0%) */}
+          <div style={{ overflow: "hidden", position: "relative" }}>
+            <motion.div
+              initial={{ translateX: "-50%" }}
+              animate={{ translateX: "0%" }}
+              transition={{
+                duration: 15,
+                repeat: Infinity,
+                ease: "linear",
+                repeatType: "loop",
+              }}
+              style={{
+                display: "flex",
+                width: "max-content",
+                gap: 0,
+              }}
+            >
+              {row2Logos.map((logo, i) => (
+                <MobileLogoItem key={`r2-${logo.name}-${i}`} logo={logo} />
+              ))}
+            </motion.div>
+          </div>
         </div>
       </div>
 

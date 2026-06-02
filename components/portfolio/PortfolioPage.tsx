@@ -359,6 +359,21 @@ const portfolioStyles = `
       display: flex !important;
     }
 
+    /* ClientLogos mobile: hide desktop track, show 2-row mobile marquee */
+    .logos-desktop-row {
+      display: none !important;
+    }
+    .logos-mobile-rows {
+      display: flex !important;
+    }
+    .logos-fade-left,
+    .logos-fade-right {
+      width: 40px !important;
+    }
+    .logos-section {
+      padding: 28px 0 !important;
+    }
+
     /* Mobile nav: hide the website link, show hamburger */
     .port-nav-website-link {
       display: none !important;
@@ -452,6 +467,13 @@ const portfolioStyles = `
       background: transparent !important;
       border: none !important;
       padding: 0 !important;
+    }
+    /* ClientLogos: desktop shows single track, mobile rows hidden */
+    .logos-mobile-rows {
+      display: none !important;
+    }
+    .logos-desktop-row {
+      display: flex !important;
     }
   }
 
