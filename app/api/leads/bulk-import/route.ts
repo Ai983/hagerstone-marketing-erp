@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       )
     }
-    const service = createServiceClient(url, serviceKey)
+    const service = createServiceClient(url, serviceKey, { db: { schema: "marketing" } })
 
     // ── Resolve new_lead stage ─────────────────────────────────
     const { data: stage, error: stageError } = await service

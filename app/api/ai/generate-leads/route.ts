@@ -250,7 +250,7 @@ export async function POST(request: Request) {
       console.warn("generate-leads: service role missing, skipping DB persist")
       return NextResponse.json({ leads: contactableLeads })
     }
-    const admin = createServiceClient(serviceUrl, serviceKey)
+    const admin = createServiceClient(serviceUrl, serviceKey, { db: { schema: "marketing" } })
 
     const enriched: Array<
       RawLead & {

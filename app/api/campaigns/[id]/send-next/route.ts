@@ -47,12 +47,14 @@ function getMediaType(raw: unknown): MaytapiMediaType {
 }
 
 function getEmailVariables(lead: {
+  id: string
   full_name?: string | null
   company_name?: string | null
   service_line?: string | null
   city?: string | null
 }) {
   return {
+    lead_id: lead.id,
     lead_name: lead.full_name ?? "",
     company_name: lead.company_name ?? "",
     service_line: (lead.service_line ?? "").replaceAll("_", " "),
@@ -227,7 +229,7 @@ export async function POST(
         variables
       )
       const emailHtml = renderTemplate(message.message_template ?? "", variables)
-      const finalHtml = emailHtml.includes("mvhtbqkgnkbhinethfor") || 
+      const finalHtml = emailHtml.includes("tpfvnerrjhqwipyonngf") || 
                     emailHtml.includes("unsubscribe_url") ||
                     emailHtml.includes("instagram")
         ? emailHtml

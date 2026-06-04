@@ -30,7 +30,7 @@ const HERO_SLIDES: HeroSlide[] = [
     eyebrow: "Hagerstone International · Est. 2015",
     titleStart: "500+ Workspaces Delivered Across",
     titleAccent: "India",
-    sub: "From concept to handover — turnkey office interiors for corporates, MNCs, and startups, delivered on time and on brief.",
+    sub: "From concept to handover — turnkey office interiors delivered on time, every time. And if we're late? We pay the penalty.",
     metric: "500+",
     metricLabel: "PROJECTS DELIVERED",
     image: "/portfolio/office-interiors/theon/1.jpg",
@@ -80,7 +80,8 @@ const HERO_VIDEOS: string[] = [
 // (or its video errored) and is showing a static image instead.
 const IMAGE_FALLBACK_MS = 8000
 
-export function PortfolioHero({ leadName }: PortfolioHeroProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function PortfolioHero(_props: PortfolioHeroProps) {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [imgErrors, setImgErrors] = useState<Record<number, boolean>>({})
   const [videoErrors, setVideoErrors] = useState<Record<number, boolean>>({})
@@ -232,25 +233,6 @@ export function PortfolioHero({ leadName }: PortfolioHeroProps) {
         }}
       />
 
-      {leadName ? (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="absolute left-6 top-[110px] z-[5] md:left-12 md:top-[120px] lg:left-[8vw]"
-        >
-          <div className="inline-flex items-center gap-2.5 rounded-full border border-[rgba(232,213,168,0.35)] bg-[rgba(15,12,8,0.55)] px-4 py-2 text-[11px] font-medium tracking-[0.06em] text-[#E8D5A8] backdrop-blur-md">
-            <span className="relative flex h-2 w-2">
-              <span
-                className="absolute inline-flex h-full w-full rounded-full bg-[var(--port-accent-bright)] opacity-75"
-                style={{ animation: "port-pulse-soft 1.6s ease-in-out infinite" }}
-              />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--port-accent-bright)]" />
-            </span>
-            Hi {leadName}, here&apos;s what we&apos;ve built for companies like yours
-          </div>
-        </motion.div>
-      ) : null}
 
       <div className="port-hero-content relative z-[2] flex h-full items-center px-6 pt-24 md:px-12 lg:px-[8vw]">
         <div className="mx-auto grid w-full max-w-[1320px] grid-cols-1 lg:grid-cols-12">

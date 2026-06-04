@@ -130,7 +130,7 @@ export async function PUT(
         { status: 503 }
       )
     }
-    const supabase = createServiceClient(url, serviceKey)
+    const supabase = createServiceClient(url, serviceKey, { db: { schema: "marketing" } })
 
     // ── 4. DELETE existing messages for this campaign ───────────
     const { error: deleteError } = await supabase

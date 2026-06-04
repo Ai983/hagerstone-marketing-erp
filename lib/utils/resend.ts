@@ -40,7 +40,17 @@ export function renderTemplate(
 ): string {
   let rendered = html
   Object.entries(variables).forEach(([key, value]) => {
-    rendered = rendered.replaceAll(`{{${key}}}`, value || "")
+    const safeValue = value || ""
+    // Plain placeholder — used in body text and unencoded contexts
+    rendered = rendered.replaceAll(`{{${key}}}`, safeValue)
+    // Rich-text editors (Tiptap, contenteditable) URL-encode curly braces
+    // when they appear inside an <a href="..."> attribute. The encoded forms
+    // never matched the plain replaceAll above, so the literal placeholder
+    // ended up in click URLs. Substitute those too — with the value
+    // URL-encoded so it remains a valid querystring.
+    const encodedValue = encodeURIComponent(safeValue)
+    rendered = rendered.replaceAll(`%7B%7B${key}%7D%7D`, encodedValue)
+    rendered = rendered.replaceAll(`%7b%7b${key}%7d%7d`, encodedValue)
   })
   return rendered
 }

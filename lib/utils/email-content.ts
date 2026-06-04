@@ -23,7 +23,7 @@ export function wrapInEmailTemplate(bodyContent: string): string {
   
   <!-- Logo Header -->
   <div style="background-color: #1a1a1a; padding: 20px 32px; border-bottom: 3px solid #B8860B; text-align: center;">
-    <img src="https://mvhtbqkgnkbhinethfor.supabase.co/storage/v1/object/public/campaign-media/logo.png" 
+    <img src="https://tpfvnerrjhqwipyonngf.supabase.co/storage/v1/object/public/campaign-media/logo.png" 
          alt="Hagerstone International" 
          width="160" 
          style="display:inline-block; max-width:160px; height:auto;">

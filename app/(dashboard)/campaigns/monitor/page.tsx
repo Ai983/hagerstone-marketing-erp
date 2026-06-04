@@ -246,7 +246,7 @@ export default function CampaignSendMonitorPage() {
         "postgres_changes",
         {
           event: "INSERT",
-          schema: "public",
+          schema: "marketing",
           table: "campaign_send_log",
         },
         () => {

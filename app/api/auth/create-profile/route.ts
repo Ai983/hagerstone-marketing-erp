@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const supabase = createClient(url, serviceKey)
+    const supabase = createClient(url, serviceKey, { db: { schema: "marketing" } })
 
     const { error } = await supabase.from("profiles").insert({
       id,

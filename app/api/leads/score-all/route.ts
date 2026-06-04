@@ -33,7 +33,7 @@ export async function POST() {
     )
   }
 
-  const serviceClient = createServiceClient(url, key)
+  const serviceClient = createServiceClient(url, key, { db: { schema: "marketing" } })
 
   // Fetch all leads with active stages (exclude terminal for the batch)
   const { data: leads, error: leadsError } = await serviceClient

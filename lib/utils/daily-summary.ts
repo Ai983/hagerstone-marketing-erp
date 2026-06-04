@@ -79,7 +79,8 @@ async function callClaudeText(system: string, userMessage: string, maxTokens = 6
 
 // ── Data gather ─────────────────────────────────────────────────────
 
-async function gatherPipelineContext(supabase: SupabaseClient) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function gatherPipelineContext(supabase: SupabaseClient<any, any, any>) {
   const now = new Date()
   const yesterdayStart = new Date(now)
   yesterdayStart.setDate(yesterdayStart.getDate() - 1)
@@ -274,7 +275,7 @@ export async function generateAndSendDailySummary(
       error: "Service role credentials not configured",
     }
   }
-  const supabase = createServiceClient(url, serviceKey)
+  const supabase = createServiceClient(url, serviceKey, { db: { schema: "marketing" } })
 
   // Resolve target phone: override > admin_settings config > env var
   let targetPhone = options.overridePhone?.trim() || null
@@ -382,7 +383,8 @@ export async function generateAndSendDailySummary(
 }
 
 async function updateLastSent(
-  supabase: SupabaseClient,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
   phone: string | null,
   dryRun: boolean
 ) {

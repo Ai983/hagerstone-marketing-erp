@@ -89,7 +89,7 @@ export function WhatsAppChatView({ lead }: Props) {
         "postgres_changes",
         {
           event: "INSERT",
-          schema: "public",
+          schema: "marketing",
           table: "interactions",
           filter: `lead_id=eq.${lead.id}`,
         },

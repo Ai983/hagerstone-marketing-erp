@@ -10,7 +10,7 @@ function getServiceClient() {
   if (!url || !key) {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
   }
-  return createClient(url, key)
+  return createClient(url, key, { db: { schema: "marketing" } })
 }
 
 export async function POST(req: NextRequest) {
@@ -237,7 +237,8 @@ export async function POST(req: NextRequest) {
       if (senderPhone) {
         const supabaseAdmin = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
+          process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          { db: { schema: "marketing" } }
         )
         // Find the lead by phone
         const { data: leadForOptOut } = await supabaseAdmin

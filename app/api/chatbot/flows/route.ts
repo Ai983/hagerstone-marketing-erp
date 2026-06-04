@@ -28,7 +28,8 @@ export async function GET() {
 
   const supabase = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { db: { schema: "marketing" } }
   )
 
   const { data: flows, error } = await supabase
@@ -80,7 +81,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const supabase = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { db: { schema: "marketing" } }
   )
 
   const { data: flow, error } = await supabase

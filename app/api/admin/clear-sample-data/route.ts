@@ -27,7 +27,7 @@ export async function POST() {
     )
   }
 
-  const serviceClient = createServiceClient(url, key)
+  const serviceClient = createServiceClient(url, key, { db: { schema: "marketing" } })
   const { error, count } = await serviceClient
     .from("leads")
     .delete({ count: "exact" })

@@ -10,7 +10,8 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     const supabaseAdmin = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { db: { schema: "marketing" } }
     )
     const {
       data: { user },
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     const variables = {
+      lead_id: lead.id,
       lead_name: lead.full_name ?? "",
       rep_name: profile?.full_name ?? user.email ?? "",
       company_name: lead.company_name ?? "",

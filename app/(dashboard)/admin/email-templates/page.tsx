@@ -11,6 +11,19 @@ import { RichTextEditor } from "@/components/email/RichTextEditor"
 import { VideoInsertPanel } from "@/components/email/VideoInsertPanel"
 import { cn } from "@/lib/utils"
 import { plainTextToEmailHtml, type EmailEditorMode } from "@/lib/utils/email-content"
+import { renderTemplate } from "@/lib/utils/resend"
+
+// Dummy values used when rendering the live Preview pane — gives the user
+// a feel for what a real send will look like instead of literal {{ ... }}.
+const PREVIEW_VARIABLES: Record<string, string> = {
+  lead_id: "00000000-0000-0000-0000-000000000000",
+  lead_name: "Harsh Shukla",
+  rep_name: "Hagerstone Team",
+  company_name: "Acme Corp",
+  service_line: "office interiors",
+  city: "Noida",
+  visit_date: "—",
+}
 
 type Category =
   | "general"
@@ -503,12 +516,21 @@ function TemplateForm({
 
             <section className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-4">
               <h2 className="mb-3 text-sm font-semibold text-[#F0F0FA]">Preview</h2>
-              <p className="mb-3 text-xs font-medium text-[#F0F0FA]">{subject || "No subject"}</p>
+              <p className="mb-3 text-xs font-medium text-[#F0F0FA]">
+                {subject ? renderTemplate(subject, PREVIEW_VARIABLES) : "No subject"}
+              </p>
               <div
                 className="rounded-lg bg-white p-4 text-sm leading-relaxed text-gray-900"
-                dangerouslySetInnerHTML={{ __html: bodyHtml || "<p>No body yet.</p>" }}
+                dangerouslySetInnerHTML={{
+                  __html: bodyHtml
+                    ? renderTemplate(bodyHtml, PREVIEW_VARIABLES)
+                    : "<p>No body yet.</p>",
+                }}
               />
               {!bodyHtml && <p className="mt-2 text-xs text-[#9090A8]">{bodySnippet}</p>}
+              <p className="mt-3 text-[10px] text-[#9090A8]">
+                Preview uses sample values — real lead data is substituted on send.
+              </p>
             </section>
           </aside>
         </div>

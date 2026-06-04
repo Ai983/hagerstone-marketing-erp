@@ -113,7 +113,7 @@ export function useRealtime(callbacks: RealtimeCallbacks) {
       // ── Leads channel ──────────────────────────────────────────
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "leads" },
+        { event: "INSERT", schema: "marketing", table: "leads" },
         async (payload) => {
           const newLead = payload.new as LeadPayload
           const fullLead = await fetchSingleLead(newLead.id)
@@ -125,7 +125,7 @@ export function useRealtime(callbacks: RealtimeCallbacks) {
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "leads" },
+        { event: "UPDATE", schema: "marketing", table: "leads" },
         async (payload) => {
           const updated = payload.new as LeadPayload
           const old = payload.old as LeadPayload
@@ -176,7 +176,7 @@ export function useRealtime(callbacks: RealtimeCallbacks) {
       )
       .on(
         "postgres_changes",
-        { event: "DELETE", schema: "public", table: "leads" },
+        { event: "DELETE", schema: "marketing", table: "leads" },
         (payload) => {
           const deleted = payload.old as LeadPayload
           callbacks.onLeadDeleted(deleted.id)
@@ -189,7 +189,7 @@ export function useRealtime(callbacks: RealtimeCallbacks) {
       // ── Tasks channel ──────────────────────────────────────────
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "tasks" },
+        { event: "*", schema: "marketing", table: "tasks" },
         (payload) => {
           const task = (payload.new ?? payload.old) as TaskPayload
           const leadId = task?.lead_id

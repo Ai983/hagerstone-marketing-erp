@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (url && serviceKey) {
-    const supabase = createServiceClient(url, serviceKey)
+    const supabase = createServiceClient(url, serviceKey, { db: { schema: "marketing" } })
     const { data: cfg } = await supabase
       .from("admin_settings")
       .select("value")

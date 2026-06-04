@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       { status: 503 }
     )
   }
-  const supabase = createServiceClient(url, serviceKey)
+  const supabase = createServiceClient(url, serviceKey, { db: { schema: "marketing" } })
 
   // 1. Cache check: latest lead_recap within last 24 hours
   if (!forceRefresh) {

@@ -152,7 +152,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
         { status: 503 }
       )
     }
-    const admin = createServiceClient(url, serviceKey)
+    const admin = createServiceClient(url, serviceKey, { db: { schema: "marketing" } })
 
     // Step 1: clear campaign reference from interactions (FK is not CASCADE)
     const { error: interactionsError } = await admin

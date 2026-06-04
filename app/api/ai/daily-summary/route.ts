@@ -5,7 +5,8 @@ import { generateAndSendDailySummary } from "@/lib/utils/daily-summary"
 import { sendWhatsAppMessage } from "@/lib/utils/maytapi"
 
 // ── Fallback: basic stats-only briefing when Claude is unavailable ─
-async function buildFallbackMessage(supabase: SupabaseClient): Promise<string> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function buildFallbackMessage(supabase: SupabaseClient<any, any, any>): Promise<string> {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
@@ -58,7 +59,8 @@ async function buildFallbackMessage(supabase: SupabaseClient): Promise<string> {
 }
 
 async function resolveTargetPhone(
-  supabase: SupabaseClient,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
   overridePhone?: string
 ): Promise<string | null> {
   if (overridePhone?.trim()) return overridePhone.trim()
@@ -123,7 +125,7 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       )
     }
-    const supabase = createServiceClient(url, serviceKey)
+    const supabase = createServiceClient(url, serviceKey, { db: { schema: "marketing" } })
 
     // ── Build the message ──────────────────────────────────────
     const hasAnthropicKey = Boolean(process.env.ANTHROPIC_API_KEY)

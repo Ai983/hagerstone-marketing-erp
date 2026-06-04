@@ -27,7 +27,7 @@ export async function POST() {
     )
   }
 
-  const serviceClient = createServiceClient(url, key)
+  const serviceClient = createServiceClient(url, key, { db: { schema: "marketing" } })
   const { data, error } = await serviceClient.rpc("reseed_sample_data")
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

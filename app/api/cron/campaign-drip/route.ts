@@ -100,7 +100,8 @@ export async function GET(request: NextRequest) {
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { db: { schema: "marketing" } }
   )
 
   console.log("Campaign drip engine running...")
@@ -231,7 +232,7 @@ export async function GET(request: NextRequest) {
         message.message_template ?? "",
         variables
       )
-      const finalHtml = emailHtml.includes("mvhtbqkgnkbhinethfor") || 
+      const finalHtml = emailHtml.includes("tpfvnerrjhqwipyonngf") || 
                     emailHtml.includes("unsubscribe_url") ||
                     emailHtml.includes("instagram")
         ? emailHtml

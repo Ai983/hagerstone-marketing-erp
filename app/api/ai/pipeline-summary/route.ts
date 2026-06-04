@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   if (!url || !serviceKey) {
     return NextResponse.json({ error: "Service role not configured" }, { status: 503 })
   }
-  const supabase = createServiceClient(url, serviceKey)
+  const supabase = createServiceClient(url, serviceKey, { db: { schema: "marketing" } })
 
   // 1. Cache check (30 mins)
   if (!force) {
