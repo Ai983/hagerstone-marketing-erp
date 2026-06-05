@@ -204,26 +204,45 @@ export function LeadTimeline({ interactions, isLoading, onAddNote, isAddingNote 
                 const Icon = getIcon(interaction.type)
 
                 if (isStageChange && interaction.stage_from && interaction.stage_to) {
+                  const actorName =
+                    interaction.user?.full_name ??
+                    (interaction.is_automated ? "System" : null)
                   return (
-                    <div key={interaction.id} className="relative mb-4 flex items-center gap-3 pl-0">
-                      <div className="z-10 flex size-8 shrink-0 items-center justify-center rounded-full border border-[#2A2A3C] bg-[#1A1A24]">
+                    <div key={interaction.id} className="relative mb-4 flex gap-3 pl-0">
+                      <div className="z-10 mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border border-[#2A2A3C] bg-[#1A1A24]">
                         <ArrowRightLeft className="size-3.5 text-[#9090A8]" />
                       </div>
-                      <div className="flex flex-1 flex-wrap items-center gap-2 rounded-lg border border-[#2A2A3C] bg-[#0F0F15] px-3 py-2">
-                        <StagePill
-                          name={interaction.stage_from.name}
-                          color={interaction.stage_from.color}
-                        />
-                        <ArrowRightLeft className="size-3 text-[#9090A8]" />
-                        <StagePill
-                          name={interaction.stage_to.name}
-                          color={interaction.stage_to.color}
-                        />
-                        <span className="ml-auto text-[11px] text-[#9090A8]">
-                          {formatDistanceToNow(new Date(interaction.created_at), {
-                            addSuffix: true,
-                          })}
-                        </span>
+                      <div className="flex-1 space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#2A2A3C] bg-[#0F0F15] px-3 py-2">
+                          <StagePill
+                            name={interaction.stage_from.name}
+                            color={interaction.stage_from.color}
+                          />
+                          <ArrowRightLeft className="size-3 text-[#9090A8]" />
+                          <StagePill
+                            name={interaction.stage_to.name}
+                            color={interaction.stage_to.color}
+                          />
+                          <span className="ml-auto text-[11px] text-[#9090A8]">
+                            {formatDistanceToNow(new Date(interaction.created_at), {
+                              addSuffix: true,
+                            })}
+                          </span>
+                        </div>
+                        {(actorName || interaction.notes) && (
+                          <div className="px-1">
+                            {actorName && (
+                              <p className="text-[11px] text-[#9090A8]">
+                                by <span className="text-[#F0F0FA]">{actorName}</span>
+                              </p>
+                            )}
+                            {interaction.notes && (
+                              <p className="mt-1 text-xs leading-relaxed text-[#F0F0FA]">
+                                {interaction.notes}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )

@@ -1601,8 +1601,21 @@ function OverviewTab({
                   <span style={{ color: "#F0F0FA", fontSize: 13, flex: 1 }}>
                     Proposed BOQ Document
                   </span>
-                  <a href={proposalData.boq_document_url} target="_blank" rel="noreferrer" style={{ color: "#3B82F6" }}>
+                  <a
+                    href={proposalData.boq_document_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      color: "#3B82F6",
+                      fontSize: 12,
+                      textDecoration: "none",
+                    }}
+                  >
                     <Download size={14} />
+                    View
                   </a>
                   <button
                     onClick={() => setProposalData((p) => ({ ...p, boq_document_url: null }))}
