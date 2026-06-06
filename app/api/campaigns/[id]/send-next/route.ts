@@ -109,7 +109,7 @@ export async function POST(
       )
     }
 
-    const supabase = createServiceClient(url, serviceKey)
+    const supabase = createServiceClient(url, serviceKey, { db: { schema: "marketing" } })
     const campaignId = params.id
 
     const { data: enrollment, error: enrollmentError } = await supabase
