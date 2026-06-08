@@ -29,13 +29,17 @@ export function portfolioMedia(path: string) {
 
 const CLOUDINARY_CLOUD = 'dv9znt7kq'
 const SUPABASE_BASE = 'https://tpfvnerrjhqwipyonngf.supabase.co/storage/v1/object/public'
+// Bump CACHE_VERSION whenever a source image is re-uploaded to Supabase, so
+// Cloudinary refetches the new file instead of serving its stale (or negative)
+// cache for the old URL.
+const CACHE_VERSION = '2'
 
 export function portfolioImage(
   path: string,
   options: { width?: number; quality?: number } = {}
 ): string {
   const { width = 800 } = options
-  const supabaseUrl = `${SUPABASE_BASE}/${path}`
+  const supabaseUrl = `${SUPABASE_BASE}/${path}?v=${CACHE_VERSION}`
   const encoded = encodeURIComponent(supabaseUrl)
   const transforms = `w_${width},q_auto,f_auto`
   return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/fetch/${transforms}/${encoded}`
