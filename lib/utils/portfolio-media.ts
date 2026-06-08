@@ -27,34 +27,16 @@ export function portfolioMedia(path: string) {
   return `${base.replace(/\/$/, "")}${objectPath}`
 }
 
-type ImageTransform = { width?: number; quality?: number }
+const CLOUDINARY_CLOUD = 'dv9znt7kq'
+const SUPABASE_CDN = 'https://tpfvnerrjhqwipyonngf.supabase.co/storage/v1/object/public/portfolio'
 
-/**
- * Like portfolioMedia(), but for images: routes through Supabase Storage's
- * on-the-fly image transform endpoint to serve a resized/compressed version.
- * The originals are full-resolution (10+ MB each), so always pass a width that
- * matches the rendered size. Falls back to the plain URL when a custom media
- * base is configured (we can't assume it supports transforms) or off Supabase.
- */
-export function portfolioImage(path: string, transform: ImageTransform = {}) {
-  if (!path || path.startsWith("http")) return path
-
-  const configuredBase = process.env.NEXT_PUBLIC_PORTFOLIO_MEDIA_BASE_URL
-  const supabaseUrl = supabaseBaseUrl()
-
-  if (configuredBase || !supabaseUrl || !path.startsWith(PORTFOLIO_PUBLIC_PREFIX)) {
-    return portfolioMedia(path)
-  }
-
-  const objectPath = path.slice(PORTFOLIO_PUBLIC_PREFIX.length)
-  const params = new URLSearchParams()
-  if (transform.width) params.set("width", String(transform.width))
-  params.set("quality", String(transform.quality ?? 72))
-  // resize=contain scales proportionally to fit the given width while
-  // preserving aspect ratio. Without this, Supabase's transform leaves the
-  // original height intact and produces a tall sliver that gets badly
-  // cropped by object-fit:cover downstream.
-  params.set("resize", "contain")
-
-  return `${supabaseUrl}/storage/v1/render/image/public/${PORTFOLIO_BUCKET}${objectPath}?${params.toString()}`
+export function portfolioImage(
+  path: string,
+  options: { width?: number; quality?: number } = {}
+): string {
+  const { width = 800 } = options
+  const supabaseUrl = `${SUPABASE_CDN}/${path}`
+  const encoded = encodeURIComponent(supabaseUrl)
+  const transforms = `w_${width},q_auto,f_auto`
+  return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/fetch/${transforms}/${encoded}`
 }
