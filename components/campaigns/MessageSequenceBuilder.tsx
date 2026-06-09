@@ -927,8 +927,16 @@ export function MessageSequenceBuilder({
       toast.error("Every message needs a body or an attachment")
       return
     }
-    if (messages.some((m) => m.message_template.length > MAX_MESSAGE_CHARACTERS)) {
-      toast.error(`One or more messages exceed ${MAX_MESSAGE_CHARACTERS} characters`)
+    if (
+      messages.some(
+        (m) =>
+          m.channel !== "email" &&
+          m.message_template.length > MAX_MESSAGE_CHARACTERS
+      )
+    ) {
+      toast.error(
+        `WhatsApp messages cannot exceed ${MAX_MESSAGE_CHARACTERS} characters`
+      )
       return
     }
     if (messages.some((m) => m.channel === "email" && !m.email_subject.trim())) {

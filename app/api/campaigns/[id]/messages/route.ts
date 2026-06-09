@@ -82,9 +82,15 @@ export async function PUT(
           { status: 400 }
         )
       }
-      if (m.message_template && m.message_template.length > MAX_MESSAGE_CHARACTERS) {
+      if (
+        m.channel !== "email" &&
+        m.message_template &&
+        m.message_template.length > MAX_MESSAGE_CHARACTERS
+      ) {
         return NextResponse.json(
-          { error: `Message body cannot exceed ${MAX_MESSAGE_CHARACTERS} characters` },
+          {
+            error: `WhatsApp message body cannot exceed ${MAX_MESSAGE_CHARACTERS} characters`,
+          },
           { status: 400 }
         )
       }
