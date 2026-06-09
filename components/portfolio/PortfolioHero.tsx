@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { useEffect, useRef, useState, type MouseEvent } from "react"
 
 import type { Sector } from "@/lib/portfolio-data"
-import { portfolioImage, portfolioMedia } from "@/lib/utils/portfolio-media"
+import { portfolioImage, portfolioVideo } from "@/lib/utils/portfolio-media"
 
 type PortfolioHeroProps = {
   sector: Sector
@@ -176,7 +176,7 @@ export function PortfolioHero(_props: PortfolioHeroProps) {
                 ref={(el) => {
                   videoRefs.current[idx] = el
                 }}
-                src={videoSrc ? portfolioMedia(videoSrc) : undefined}
+                src={videoSrc ? portfolioVideo(videoSrc, { width: 1920 }) : undefined}
                 poster={portfolioImage(s.image, { width: 1280, quality: 60 })}
                 muted
                 playsInline

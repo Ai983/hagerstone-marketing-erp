@@ -44,3 +44,22 @@ export function portfolioImage(
   const transforms = `w_${width},q_auto,f_auto`
   return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/fetch/${transforms}/${encoded}`
 }
+
+const VIDEO_CACHE_VERSION = '1'
+
+/**
+ * Builds a Cloudinary video fetch URL for a portfolio video path. Routes the
+ * compressed Supabase original through Cloudinary's video CDN, which caches
+ * + serves it globally so we don't burn Supabase bandwidth on every visit.
+ */
+export function portfolioVideo(
+  path: string,
+  options: { width?: number } = {}
+): string {
+  const { width = 1920 } = options
+  const supabaseUrl = `${SUPABASE_BASE}/${path}?v=${VIDEO_CACHE_VERSION}`
+  const encoded = encodeURIComponent(supabaseUrl)
+  // q_auto picks bitrate by content; f_auto serves webm/h264 per browser
+  const transforms = `w_${width},q_auto,f_auto`
+  return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/video/fetch/${transforms}/${encoded}`
+}
