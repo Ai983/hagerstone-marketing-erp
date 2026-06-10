@@ -8,11 +8,13 @@ import {
   Activity,
   BarChart2,
   Bot,
+  Building2,
   ClipboardList,
   CheckSquare,
   ChevronLeft,
   ChevronRight,
   Database,
+  ExternalLink,
   Inbox,
   Kanban,
   Loader2,
@@ -45,6 +47,8 @@ interface NavItem {
   icon: typeof Kanban
   badgeKey?: BadgeKey
   roles: Role[]
+  /** Opens in a new browser tab instead of navigating within the ERP shell. */
+  external?: boolean
 }
 
 const primaryNavigation: ReadonlyArray<NavItem> = [
@@ -58,6 +62,7 @@ const primaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/ai-agent", label: "AI Agent", icon: Sparkles, roles: ["admin", "manager", "founder"] },
   { href: "/ai-leads", label: "AI Lead Gen", icon: Sparkles, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/ai-leads/database", label: "Lead Database", icon: Database, roles: ["admin", "manager", "founder", "marketing"] },
+  { href: "/portfolio", label: "Portfolio", icon: Building2, roles: ["admin", "founder"], external: true },
   { href: "/profile", label: "My Profile", icon: UserIcon, roles: ALL_ROLES },
 ]
 
@@ -274,8 +279,9 @@ function SidebarBody({
         {visiblePrimary.map((item) => {
           const Icon = item.icon
           const isActive =
-            pathname === item.href ||
-            (item.href !== "/campaigns" && pathname.startsWith(`${item.href}/`))
+            !item.external &&
+            (pathname === item.href ||
+              (item.href !== "/campaigns" && pathname.startsWith(`${item.href}/`)))
           const badgeCount = getBadge(item.badgeKey)
           const isOverdueBadge = item.badgeKey === "activities"
 
@@ -284,6 +290,8 @@ function SidebarBody({
               key={item.href}
               href={item.href}
               onClick={onItemClick}
+              target={item.external ? "_blank" : undefined}
+              rel={item.external ? "noopener noreferrer" : undefined}
               className={cn(
                 "relative flex h-11 items-center rounded-xl border-l-2 text-sm transition-colors duration-200",
                 collapsed ? "justify-center px-0" : "gap-3 px-3",
@@ -309,6 +317,9 @@ function SidebarBody({
               {!collapsed ? (
                 <>
                   <span>{item.label}</span>
+                  {item.external && (
+                    <ExternalLink className="ml-auto size-3.5 shrink-0 text-[#5A5A72]" aria-hidden />
+                  )}
                   {badgeCount != null && (
                     <span
                       className={cn(
