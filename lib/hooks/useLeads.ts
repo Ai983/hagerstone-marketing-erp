@@ -123,7 +123,18 @@ export function useLeads() {
       throw error
     }
 
-    return data as PipelineStage | null
+    if (data) return data as PipelineStage
+
+    // Stage slug not found (e.g. it was renamed in Pipeline Config). Fall back
+    // to the first stage by position so lead creation never dead-ends.
+    const { data: firstStage } = await supabase
+      .from("pipeline_stages")
+      .select("*")
+      .order("position", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    return (firstStage as PipelineStage | null) ?? null
   }
 
   const getStages = async (): Promise<PipelineStage[]> => {

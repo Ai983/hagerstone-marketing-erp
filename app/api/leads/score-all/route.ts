@@ -39,7 +39,7 @@ export async function POST() {
   const { data: leads, error: leadsError } = await serviceClient
     .from("leads")
     .select(
-      "id, email, company_name, city, service_line, whatsapp_opted_in, estimated_budget, source, stage:stage_id(slug, stage_type)"
+      "id, email, company_name, city, service_line, whatsapp_opted_in, estimated_budget, source, stage:stage_id(slug, position, stage_type, is_terminal)"
     )
 
   if (leadsError) {
@@ -64,7 +64,9 @@ export async function POST() {
 
   let sumScore = 0
   const updates = leads.map((lead) => {
-    const stage = Array.isArray(lead.stage) ? lead.stage[0] : lead.stage
+    const stage = (Array.isArray(lead.stage) ? lead.stage[0] : lead.stage) as
+      | { slug?: string; position?: number; stage_type?: string; is_terminal?: boolean }
+      | null
     const result = scoreLead(
       {
         email: lead.email,
@@ -74,7 +76,10 @@ export async function POST() {
         whatsapp_opted_in: lead.whatsapp_opted_in,
         estimated_budget: lead.estimated_budget,
         source: lead.source,
-        stage_slug: (stage as { slug?: string } | null)?.slug ?? null,
+        stage_slug: stage?.slug ?? null,
+        stage_position: stage?.position ?? null,
+        stage_type: stage?.stage_type ?? null,
+        stage_is_terminal: stage?.is_terminal ?? null,
       },
       countByLead.get(lead.id) ?? 0
     )

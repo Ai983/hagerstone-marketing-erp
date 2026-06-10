@@ -10,7 +10,13 @@ export interface ScorableLead {
   whatsapp_opted_in?: boolean | null
   estimated_budget?: string | null
   source?: LeadSource | string | null
+  // Stage context. `stage_slug` alone still works (legacy path); when the
+  // position/type are supplied, scoring adapts to any pipeline config so
+  // renaming or adding stages never silently zeroes the stage score.
   stage_slug?: string | null
+  stage_position?: number | null
+  stage_type?: string | null
+  stage_is_terminal?: boolean | null
 }
 
 export interface ScoreBreakdown {
@@ -108,30 +114,51 @@ export function scoreActivity(interactionCountLast30Days: number): number {
   return 25
 }
 
+// Legacy slug → points map. Retained as a fallback for callers that only
+// know the stage slug and have no position/type context.
+const LEGACY_STAGE_POINTS: Record<string, number> = {
+  new_lead: 5,
+  contacted: 8,
+  qualified: 11,
+  site_visit_scheduled: 14,
+  proposal_sent: 17,
+  negotiation: 20,
+  won: 0,
+  lost: 0,
+  on_hold: 3,
+  reengagement: 6,
+}
+
 export function scoreStage(stageSlug?: string | null): number {
-  switch (stageSlug) {
-    case "new_lead":
-      return 5
-    case "contacted":
-      return 8
-    case "qualified":
-      return 11
-    case "site_visit_scheduled":
-      return 14
-    case "proposal_sent":
-      return 17
-    case "negotiation":
-      return 20
-    case "won":
-    case "lost":
-      return 0
-    case "on_hold":
-      return 3
-    case "reengagement":
-      return 6
-    default:
-      return 0
-  }
+  if (!stageSlug) return 0
+  return LEGACY_STAGE_POINTS[stageSlug] ?? 0
+}
+
+export interface StageScoreInfo {
+  slug?: string | null
+  position?: number | null
+  stage_type?: string | null
+  is_terminal?: boolean | null
+}
+
+/**
+ * Stage score that adapts to ANY pipeline configuration.
+ *
+ * Terminal / hold / re-engagement stages are recognised by `stage_type`,
+ * so renaming them in Pipeline Config never breaks scoring. Active stages
+ * are scored by their pipeline `position`. For the standard pipeline this
+ * yields the same numbers as before — positions 1-6 → 5, 8, 11, 14, 17, 20 —
+ * and a newly added/renamed active stage (e.g. "BOQ Received") is scored by
+ * where it sits rather than dropping to 0.
+ */
+export function scoreStageFromStage(stage?: StageScoreInfo | null): number {
+  if (!stage) return 0
+  const type = stage.stage_type
+  if (stage.is_terminal || type === "won" || type === "lost") return 0
+  if (type === "on_hold") return 3
+  if (type === "reengagement") return 6
+  const pos = stage.position && stage.position > 0 ? stage.position : 1
+  return Math.max(5, Math.min(5 + (pos - 1) * 3, MAX_POINTS.stage))
 }
 
 // ── Label / color mapping ───────────────────────────────────────────
@@ -153,7 +180,20 @@ export function scoreLead(
   const source = scoreSource(lead.source)
   const profile = scoreProfile(lead)
   const activity = scoreActivity(interactionCountLast30Days)
-  const stage = scoreStage(lead.stage_slug)
+  // Prefer the config-agnostic scorer when position/type context is present;
+  // fall back to the legacy slug map when only a slug is known.
+  const hasStageContext =
+    lead.stage_position != null ||
+    lead.stage_type != null ||
+    lead.stage_is_terminal != null
+  const stage = hasStageContext
+    ? scoreStageFromStage({
+        slug: lead.stage_slug,
+        position: lead.stage_position,
+        stage_type: lead.stage_type,
+        is_terminal: lead.stage_is_terminal,
+      })
+    : scoreStage(lead.stage_slug)
   const total = Math.min(budget + source + profile + activity + stage, MAX_POINTS.total)
   const { label, color } = getScoreLabel(total)
 

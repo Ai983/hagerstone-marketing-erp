@@ -475,6 +475,9 @@ function OverviewTab({
       estimated_budget: lead.estimated_budget,
       source: lead.source,
       stage_slug: lead.stage?.slug ?? null,
+      stage_position: lead.stage?.position ?? null,
+      stage_type: lead.stage?.stage_type ?? null,
+      stage_is_terminal: lead.stage?.is_terminal ?? null,
     },
     recentInteractionCount
   )
@@ -3124,7 +3127,7 @@ function CacheStatusBadge({
   )
 }
 
-function AITab({ lead }: { lead: Lead }) {
+function AITab({ lead, onSendDraft }: { lead: Lead; onSendDraft: (message: string) => void }) {
   const [recapLoading, setRecapLoading] = useState(false)
   const [recapData, setRecapData] = useState<{
     summary: string
@@ -3272,16 +3275,25 @@ function AITab({ lead }: { lead: Lead }) {
                     loading={draftLoading}
                   />
                 </div>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(draftData.message)
-                    toast.success("Message copied to clipboard")
-                  }}
-                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-[#3B82F6] transition hover:bg-[#1E3A5F]"
-                >
-                  <Copy className="size-3" />
-                  Copy
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(draftData.message)
+                      toast.success("Message copied to clipboard")
+                    }}
+                    className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-[#3B82F6] transition hover:bg-[#1E3A5F]"
+                  >
+                    <Copy className="size-3" />
+                    Copy
+                  </button>
+                  <button
+                    onClick={() => onSendDraft(draftData.message)}
+                    className="inline-flex items-center gap-1 rounded bg-[#25D366]/10 px-1.5 py-0.5 text-[11px] font-medium text-[#25D366] transition hover:bg-[#25D366]/20"
+                  >
+                    <MessageSquare className="size-3" />
+                    Send via WhatsApp
+                  </button>
+                </div>
               </div>
               <p className="mt-2 whitespace-pre-wrap rounded-lg bg-[#0A0A0F] p-2.5 text-xs leading-relaxed text-[#F0F0FA]">
                 {draftData.message}
@@ -3315,6 +3327,9 @@ export function LeadDrawer() {
   const [showLogCall, setShowLogCall] = useState(false)
   const [showFollowUp, setShowFollowUp] = useState(false)
   const [showWhatsApp, setShowWhatsApp] = useState(false)
+  // Pre-filled WhatsApp body — set when sending an AI-drafted message so the
+  // send modal opens ready-to-send; cleared for the plain "Send WhatsApp" flow.
+  const [whatsappPrefill, setWhatsappPrefill] = useState<string | undefined>(undefined)
 
   // Stage-change flow
   const [pendingToStage, setPendingToStage] = useState<PipelineStage | null>(null)
@@ -3820,7 +3835,10 @@ export function LeadDrawer() {
                           onLogCall={() => setShowLogCall(true)}
                           onScheduleFollowUp={() => setShowFollowUp(true)}
                           onAddNote={() => setActiveTab("Timeline")}
-                          onSendWhatsApp={() => setShowWhatsApp(true)}
+                          onSendWhatsApp={() => {
+                            setWhatsappPrefill(undefined)
+                            setShowWhatsApp(true)
+                          }}
                           onMoveStage={(toStage) => setPendingToStage(toStage)}
                           onReassign={handleReassign}
                           onCategoryChange={handleCategoryChange}
@@ -3888,7 +3906,13 @@ export function LeadDrawer() {
 
                     {activeTab === "AI" &&
                       (lead ? (
-                        <AITab lead={lead} />
+                        <AITab
+                          lead={lead}
+                          onSendDraft={(message) => {
+                            setWhatsappPrefill(message)
+                            setShowWhatsApp(true)
+                          }}
+                        />
                       ) : (
                         <div className="flex flex-1 items-center justify-center">
                           <Loader2 className="size-6 animate-spin text-[#9090A8]" />
@@ -3935,7 +3959,11 @@ export function LeadDrawer() {
             leadPhone={lead.phone ?? ""}
             whatsappOptedIn={lead.whatsapp_opted_in}
             currentUserId={currentUserId}
-            onClose={() => setShowWhatsApp(false)}
+            prefillMessage={whatsappPrefill}
+            onClose={() => {
+              setShowWhatsApp(false)
+              setWhatsappPrefill(undefined)
+            }}
             onSent={refreshInteractions}
           />
 

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   const { data: lead, error: leadError } = await supabase
     .from("leads")
     .select(
-      "id, email, company_name, city, service_line, whatsapp_opted_in, estimated_budget, source, stage:stage_id(slug)"
+      "id, email, company_name, city, service_line, whatsapp_opted_in, estimated_budget, source, stage:stage_id(slug, position, stage_type, is_terminal)"
     )
     .eq("id", leadId)
     .maybeSingle()
@@ -36,7 +36,9 @@ export async function POST(request: NextRequest) {
     .eq("lead_id", leadId)
     .gte("created_at", thirtyDaysAgo)
 
-  const stage = Array.isArray(lead.stage) ? lead.stage[0] : lead.stage
+  const stage = (Array.isArray(lead.stage) ? lead.stage[0] : lead.stage) as
+    | { slug?: string; position?: number; stage_type?: string; is_terminal?: boolean }
+    | null
   const result = scoreLead(
     {
       email: lead.email,
@@ -46,7 +48,10 @@ export async function POST(request: NextRequest) {
       whatsapp_opted_in: lead.whatsapp_opted_in,
       estimated_budget: lead.estimated_budget,
       source: lead.source,
-      stage_slug: (stage as { slug?: string } | null)?.slug ?? null,
+      stage_slug: stage?.slug ?? null,
+      stage_position: stage?.position ?? null,
+      stage_type: stage?.stage_type ?? null,
+      stage_is_terminal: stage?.is_terminal ?? null,
     },
     count ?? 0
   )

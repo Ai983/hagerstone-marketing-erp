@@ -136,7 +136,7 @@ async function gatherPipelineContext(supabase: SupabaseClient<any, any, any>) {
     // 5. Won deals this month
     supabase
       .from("leads")
-      .select("closure_value, stage:stage_id(slug)")
+      .select("closure_value, stage:stage_id(slug, stage_type)")
       .gte("closed_at", startOfMonth),
 
     // 6. Total active leads count
@@ -156,10 +156,12 @@ async function gatherPipelineContext(supabase: SupabaseClient<any, any, any>) {
     return (stage as { slug?: string } | null)?.slug === "negotiation"
   })
 
-  // Filter won for the month
+  // Filter won for the month. Detect by stage_type (robust to renames) and
+  // keep the legacy slug check as a fallback.
   const won = (wonRes.data ?? []).filter((l) => {
     const stage = Array.isArray(l.stage) ? l.stage[0] : l.stage
-    return (stage as { slug?: string } | null)?.slug === "won"
+    const s = stage as { slug?: string; stage_type?: string } | null
+    return s?.stage_type === "won" || s?.slug === "won"
   })
   const wonValue = won.reduce((sum, l) => sum + (l.closure_value ?? 0), 0)
 

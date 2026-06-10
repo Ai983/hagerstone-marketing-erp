@@ -89,16 +89,23 @@ export async function POST(request: NextRequest) {
     }
     const service = createServiceClient(url, serviceKey, { db: { schema: "marketing" } })
 
-    // ── Resolve new_lead stage ─────────────────────────────────
-    const { data: stage, error: stageError } = await service
+    // ── Resolve entry stage ────────────────────────────────────
+    // Prefer the canonical "new_lead" slug; fall back to the first stage by
+    // position so a renamed first stage never blocks bulk import.
+    const { data: stages, error: stageError } = await service
       .from("pipeline_stages")
-      .select("id")
-      .eq("slug", "new_lead")
-      .maybeSingle()
+      .select("id, slug, position, stage_type, is_terminal")
+      .order("position", { ascending: true })
+
+    const stage =
+      stages?.find((s) => s.slug === "new_lead") ??
+      stages?.find((s) => !s.is_terminal && (s.stage_type ?? "active") === "active") ??
+      stages?.[0] ??
+      null
 
     if (stageError || !stage) {
       return NextResponse.json(
-        { error: "Pipeline stage 'new_lead' not found. Run the base schema seed." },
+        { error: "No pipeline stages configured." },
         { status: 500 }
       )
     }

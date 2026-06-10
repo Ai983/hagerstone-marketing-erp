@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
 import { X, MessageSquare, Loader2, AlertTriangle } from "lucide-react"
@@ -41,6 +41,18 @@ export function SendWhatsAppModal({
     { id: "btn_not_now", title: "Not Now ❌", label: "Not Now" },
     { id: "btn_call_me", title: "Call Me 📞", label: "Call Me" },
   ]
+
+  // The modal stays mounted (only its inner content animates in/out), so the
+  // useState initialisers above don't re-run on reopen. Sync the editable
+  // fields from the latest props each time the modal opens — this is what
+  // makes `prefillMessage` (e.g. an AI-drafted message) actually populate.
+  useEffect(() => {
+    if (open) {
+      setMessage(prefillMessage ?? "")
+      setPhone(leadPhone || "")
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   // Reset local state when opening with new values
   const handleClose = () => {
