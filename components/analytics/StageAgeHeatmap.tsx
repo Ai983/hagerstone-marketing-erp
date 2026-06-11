@@ -27,7 +27,7 @@ async function fetchStagesAndLeads() {
 
   const [stagesRes, leadsRes] = await Promise.all([
     supabase.from("pipeline_stages").select("*").order("position", { ascending: true }),
-    supabase.from("leads").select("id, stage_id, stage_entered_at"),
+    supabase.from("leads").select("id, stage_id, stage_entered_at").eq("is_archived", false),
   ])
 
   if (stagesRes.error) throw stagesRes.error

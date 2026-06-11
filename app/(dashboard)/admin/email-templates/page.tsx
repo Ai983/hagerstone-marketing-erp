@@ -10,8 +10,7 @@ import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { RichTextEditor } from "@/components/email/RichTextEditor"
 import { VideoInsertPanel } from "@/components/email/VideoInsertPanel"
 import { cn } from "@/lib/utils"
-import { plainTextToEmailHtml, type EmailEditorMode } from "@/lib/utils/email-content"
-import { renderTemplate } from "@/lib/utils/resend"
+import { plainTextToEmailHtml, renderTemplate, type EmailEditorMode } from "@/lib/utils/email-content"
 
 // Dummy values used when rendering the live Preview pane — gives the user
 // a feel for what a real send will look like instead of literal {{ ... }}.

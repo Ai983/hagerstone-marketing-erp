@@ -115,6 +115,7 @@ async function fetchKanbanLeads() {
     .select(
       "id, full_name, company_name, phone, city, service_line, source, stage_id, stage_entered_at, assigned_to, estimated_budget, closure_value, score, category, category_remarks, category_updated_at, category_updated_by, boq_deadline, created_at, stage:stage_id(*), assignee:assigned_to(id, full_name, avatar_url, role), tasks:tasks!left(id, lead_id, title, type, due_at, completed_at, assigned_to)"
     )
+    .eq("is_archived", false)
     .order("created_at", { ascending: false })
 
   if (error) {

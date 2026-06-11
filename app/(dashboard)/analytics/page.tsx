@@ -68,22 +68,25 @@ async function fetchKpis(from: Date, to: Date) {
   const supabase = createClient()
 
   const [activeLeadsRes, newLeadsRes, wonRes, lostRes, tasksRes] = await Promise.all([
-    supabase.from("leads").select("id, stage:stage_id(stage_type)"),
+    supabase.from("leads").select("id, stage:stage_id(stage_type)").eq("is_archived", false),
     supabase
       .from("leads")
       .select("id", { count: "exact", head: true })
+      .eq("is_archived", false)
       .gte("created_at", from.toISOString())
       .lte("created_at", to.toISOString()),
     supabase
       .from("leads")
       .select("id, closure_value, stage:stage_id(slug)")
       .eq("stage.slug", "won")
+      .eq("is_archived", false)
       .gte("closed_at", from.toISOString())
       .lte("closed_at", to.toISOString()),
     supabase
       .from("leads")
       .select("id, closure_reason, stage:stage_id(slug)")
       .eq("stage.slug", "lost")
+      .eq("is_archived", false)
       .gte("closed_at", from.toISOString())
       .lte("closed_at", to.toISOString()),
     supabase

@@ -43,7 +43,7 @@ async function fetchStagesWithCounts(): Promise<StageRow[]> {
   const supabase = createClient()
   const [stagesRes, leadsRes] = await Promise.all([
     supabase.from("pipeline_stages").select("*").order("position", { ascending: true }),
-    supabase.from("leads").select("stage_id"),
+    supabase.from("leads").select("stage_id").eq("is_archived", false),
   ])
 
   if (stagesRes.error) throw stagesRes.error

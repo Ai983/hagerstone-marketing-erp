@@ -106,6 +106,9 @@ export interface Lead {
   closed_at?: string
   initial_notes?: string
   is_sample_data: boolean
+  is_archived?: boolean
+  archived_at?: string | null
+  archived_by?: string | null
   created_at: string
   updated_at: string
   // Computed

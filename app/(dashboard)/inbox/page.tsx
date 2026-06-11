@@ -33,6 +33,7 @@ async function fetchInboxData() {
       .from("leads")
       .select("id, full_name, company_name, source, city, service_line, created_at")
       .is("assigned_to", null)
+      .eq("is_archived", false)
       .order("created_at", { ascending: false }),
     supabase
       .from("profiles")

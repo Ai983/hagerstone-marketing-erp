@@ -1,5 +1,11 @@
 import { Resend } from "resend"
 
+// Re-exported so existing server-side importers (`import { renderTemplate } from
+// "@/lib/utils/resend"`) keep working. The implementation lives in
+// email-content.ts so client components can use it without bundling this
+// server-only module (which imports the Resend SDK).
+export { renderTemplate } from "./email-content"
+
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export interface SendEmailOptions {
@@ -34,23 +40,3 @@ export async function sendEmail(options: SendEmailOptions) {
   return data
 }
 
-export function renderTemplate(
-  html: string,
-  variables: Record<string, string>
-): string {
-  let rendered = html
-  Object.entries(variables).forEach(([key, value]) => {
-    const safeValue = value || ""
-    // Plain placeholder — used in body text and unencoded contexts
-    rendered = rendered.replaceAll(`{{${key}}}`, safeValue)
-    // Rich-text editors (Tiptap, contenteditable) URL-encode curly braces
-    // when they appear inside an <a href="..."> attribute. The encoded forms
-    // never matched the plain replaceAll above, so the literal placeholder
-    // ended up in click URLs. Substitute those too — with the value
-    // URL-encoded so it remains a valid querystring.
-    const encodedValue = encodeURIComponent(safeValue)
-    rendered = rendered.replaceAll(`%7B%7B${key}%7D%7D`, encodedValue)
-    rendered = rendered.replaceAll(`%7b%7b${key}%7d%7d`, encodedValue)
-  })
-  return rendered
-}

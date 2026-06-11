@@ -57,6 +57,7 @@ export function useLeads() {
     const { data, error } = await supabase
       .from("leads")
       .select("*, stage:stage_id(id, name, slug, color), assignee:assigned_to(id, full_name, avatar_url, role)")
+      .eq("is_archived", false)
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -250,6 +251,51 @@ export function useLeads() {
     return Array.from(new Set((data ?? []).map((task) => task.lead_id).filter(Boolean)))
   }
 
+  // ── Archive / restore / permanent delete ──────────────────────────
+
+  const archiveLead = async (id: string): Promise<void> => {
+    const supabase = createClient()
+    const { user } = await getCachedUserAndProfile()
+    const { error } = await supabase
+      .from("leads")
+      .update({
+        is_archived: true,
+        archived_at: new Date().toISOString(),
+        archived_by: user?.id ?? null,
+      })
+      .eq("id", id)
+    if (error) throw error
+  }
+
+  const restoreLead = async (id: string): Promise<void> => {
+    const supabase = createClient()
+    const { error } = await supabase
+      .from("leads")
+      .update({ is_archived: false, archived_at: null, archived_by: null })
+      .eq("id", id)
+    if (error) throw error
+  }
+
+  const getArchivedLeads = async (): Promise<LeadListItem[]> => {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from("leads")
+      .select(
+        "*, stage:stage_id(id, name, slug, color), assignee:assigned_to(id, full_name, avatar_url, role)"
+      )
+      .eq("is_archived", true)
+      .order("archived_at", { ascending: false })
+    if (error) throw error
+    return (data ?? []) as LeadListItem[]
+  }
+
+  // Permanent delete goes through the admin-only server route (service role).
+  const deleteLeadPermanently = async (id: string): Promise<void> => {
+    const res = await fetch(`/api/leads/${id}`, { method: "DELETE" })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || "Failed to delete lead")
+  }
+
   return {
     getLeads,
     createLead,
@@ -260,5 +306,9 @@ export function useLeads() {
     getCurrentProfile,
     getTeamMembers,
     getOverdueLeadIds,
+    archiveLead,
+    restoreLead,
+    getArchivedLeads,
+    deleteLeadPermanently,
   }
 }

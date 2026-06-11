@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   Activity,
+  Archive,
   BarChart2,
   Bot,
   Building2,
@@ -55,6 +56,7 @@ const primaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/pipeline", label: "Pipeline", icon: Kanban, roles: ALL_ROLES },
   { href: "/inbox", label: "Lead Inbox", icon: Inbox, badgeKey: "inbox", roles: ["admin", "manager"] },
   { href: "/leads", label: "All Leads", icon: Users, roles: ["admin", "manager", "founder", "marketing"] },
+  { href: "/leads/archive", label: "Archive", icon: Archive, roles: ALL_ROLES },
   { href: "/activities", label: "My Tasks", icon: CheckSquare, badgeKey: "activities", roles: ALL_ROLES },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone, roles: ["admin", "manager", "marketing", "founder"] },
   { href: "/campaigns/monitor", label: "Send Monitor", icon: Activity, roles: ["admin", "manager", "founder", "marketing"] },

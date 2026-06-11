@@ -74,3 +74,29 @@ export function wrapInEmailTemplate(bodyContent: string): string {
 
 </div>`
 }
+
+/**
+ * Substitutes {{variable}} placeholders in a string. Pure string work — safe to
+ * import from client components (it lives here rather than in resend.ts so the
+ * browser bundle never pulls in the server-only Resend SDK).
+ */
+export function renderTemplate(
+  html: string,
+  variables: Record<string, string>
+): string {
+  let rendered = html
+  Object.entries(variables).forEach(([key, value]) => {
+    const safeValue = value || ""
+    // Plain placeholder — used in body text and unencoded contexts
+    rendered = rendered.replaceAll(`{{${key}}}`, safeValue)
+    // Rich-text editors (Tiptap, contenteditable) URL-encode curly braces
+    // when they appear inside an <a href="..."> attribute. The encoded forms
+    // never matched the plain replaceAll above, so the literal placeholder
+    // ended up in click URLs. Substitute those too — with the value
+    // URL-encoded so it remains a valid querystring.
+    const encodedValue = encodeURIComponent(safeValue)
+    rendered = rendered.replaceAll(`%7B%7B${key}%7D%7D`, encodedValue)
+    rendered = rendered.replaceAll(`%7b%7b${key}%7d%7d`, encodedValue)
+  })
+  return rendered
+}

@@ -37,6 +37,7 @@ import {
   Download,
   Code2,
   CaseSensitive,
+  Archive,
 } from "lucide-react"
 
 import { useUIStore } from "@/lib/stores/uiStore"
@@ -3404,6 +3405,44 @@ export function LeadDrawer() {
   const close = () => setLeadDrawerId(null)
 
   const lead = leadQuery.data
+
+  // ── Archive (soft-delete) handler ────────────────────────────
+  const [archiving, setArchiving] = useState(false)
+  const handleArchive = async () => {
+    if (!lead || archiving) return
+    if (
+      !window.confirm(
+        `Archive "${lead.full_name}"? It will be moved to the Archive and hidden from your active lists. You can restore it anytime.`
+      )
+    ) {
+      return
+    }
+    setArchiving(true)
+    try {
+      const { user } = await getCachedUserAndProfile()
+      const supabase = createClient()
+      const { error } = await supabase
+        .from("leads")
+        .update({
+          is_archived: true,
+          archived_at: new Date().toISOString(),
+          archived_by: user?.id ?? null,
+        })
+        .eq("id", lead.id)
+      if (error) throw error
+      toast.success("Lead archived")
+      queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
+      queryClient.invalidateQueries({ queryKey: ["leads"] })
+      queryClient.invalidateQueries({ queryKey: ["inbox-leads"] })
+      queryClient.invalidateQueries({ queryKey: ["sidebar-counts"] })
+      queryClient.invalidateQueries({ queryKey: ["archived-leads"] })
+      close()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to archive lead")
+    } finally {
+      setArchiving(false)
+    }
+  }
   const unreadWhatsAppCount = interactions.filter((interaction) => {
     if (interaction.type !== "whatsapp_received") return false
     if (!lastWhatsAppViewedAt) return true
@@ -3763,6 +3802,19 @@ export function LeadDrawer() {
                     {lead.stage.name}
                   </div>
                 )}
+                <button
+                  onClick={handleArchive}
+                  disabled={archiving || !lead}
+                  title="Archive lead"
+                  aria-label="Archive lead"
+                  className="shrink-0 rounded-lg p-2 text-[#9090A8] transition hover:bg-[#3F2A12] hover:text-[#F59E0B] disabled:opacity-50"
+                >
+                  {archiving ? (
+                    <Loader2 className="size-[18px] animate-spin" />
+                  ) : (
+                    <Archive size={18} />
+                  )}
+                </button>
                 <button
                   onClick={close}
                   className="shrink-0 rounded-lg p-2 text-[#9090A8] transition hover:bg-[#1A1A24] hover:text-[#F0F0FA]"

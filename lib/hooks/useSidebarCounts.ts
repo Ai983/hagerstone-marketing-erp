@@ -10,7 +10,8 @@ async function fetchSidebarCounts(currentUserId: string | null) {
     supabase
       .from("leads")
       .select("id", { count: "exact", head: true })
-      .is("assigned_to", null),
+      .is("assigned_to", null)
+      .eq("is_archived", false),
     // `is_overdue` lives on the overdue_tasks VIEW, not the tasks table
     // (PRD §5). Querying tasks.is_overdue returns PostgREST 42703 → 400.
     currentUserId
