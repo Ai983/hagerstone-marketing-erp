@@ -51,6 +51,7 @@ const HEADER_ROW = [
   "Estimated Budget",
   "Source",
   "WhatsApp Opted In",
+  "Email Opted In",
   "Initial Notes",
 ]
 
@@ -63,6 +64,7 @@ const EXAMPLE_ROW = [
   "office_interiors",
   "₹50L - ₹1Cr",
   "referral",
+  "yes",
   "yes",
   "Interested in open plan layout",
 ]
@@ -88,6 +90,7 @@ function generateTemplate() {
     { wch: 18 }, // Budget
     { wch: 14 }, // Source
     { wch: 18 }, // WhatsApp Opted In
+    { wch: 16 }, // Email Opted In
     { wch: 40 }, // Notes
   ]
 
@@ -111,12 +114,16 @@ function cleanPhoneValue(raw: string): string {
   return value
 }
 
-function parseYesNo(value: unknown): boolean {
+// Consent columns default to opted-IN. Only an explicit "no"/"false"/"0"
+// opts the lead out — matching the manual-entry form where both consents
+// are checked by default. A blank cell therefore means "opted in".
+function parseOptIn(value: unknown): boolean {
   if (typeof value === "boolean") return value
-  if (typeof value === "number") return value === 1
-  if (typeof value !== "string") return false
+  if (typeof value === "number") return value !== 0
+  if (typeof value !== "string") return true
   const v = value.trim().toLowerCase()
-  return v === "yes" || v === "true" || v === "1" || v === "y"
+  if (v === "no" || v === "false" || v === "0" || v === "n") return false
+  return true
 }
 
 // ── Parsed row type ─────────────────────────────────────────────────
@@ -134,6 +141,7 @@ interface ParsedRow {
   estimated_budget: string | null
   source: string
   whatsapp_opted_in: boolean
+  email_opted_in: boolean
   initial_notes: string | null
   status: RowStatus
   error?: string
@@ -203,7 +211,8 @@ async function validateRows(raw: Record<string, unknown>[]): Promise<ParsedRow[]
     const serviceLine = getField(row, "Service Line")
     const estimatedBudget = getField(row, "Estimated Budget")
     const source = getField(row, "Source") || "manual_sales"
-    const whatsappOptedIn = parseYesNo(getField(row, "WhatsApp Opted In"))
+    const whatsappOptedIn = parseOptIn(getField(row, "WhatsApp Opted In"))
+    const emailOptedIn = parseOptIn(getField(row, "Email Opted In"))
     const initialNotes = getField(row, "Initial Notes")
 
     // Skip the template example row exactly as shipped
@@ -263,6 +272,7 @@ async function validateRows(raw: Record<string, unknown>[]): Promise<ParsedRow[]
       estimated_budget: estimatedBudget || null,
       source,
       whatsapp_opted_in: whatsappOptedIn,
+      email_opted_in: emailOptedIn,
       initial_notes: initialNotes || null,
       status,
       error,
@@ -368,6 +378,7 @@ export function BulkImportModal() {
             estimated_budget: r.estimated_budget,
             source: r.source,
             whatsapp_opted_in: r.whatsapp_opted_in,
+            email_opted_in: r.email_opted_in,
             initial_notes: r.initial_notes,
           })),
         }),
@@ -471,6 +482,8 @@ export function BulkImportModal() {
                       <p className="mt-1 text-xs leading-relaxed text-[#9090A8]">
                         Fill in your leads below row 2 (row 2 is an example — it&apos;s
                         skipped automatically). Columns marked * are required.
+                        WhatsApp / Email opt-in default to <strong>yes</strong> — enter
+                        &quot;no&quot; in those columns only to opt a lead out.
                       </p>
                     </div>
                     <button

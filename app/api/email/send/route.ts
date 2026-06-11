@@ -53,9 +53,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 })
     }
 
-    if (lead.email_opted_in === false && lead.email_unsubscribed_at) {
+    // Block when the lead has explicitly opted out (email_opted_in === false),
+    // whether via the new-lead form (unchecked) or an unsubscribe link.
+    // Leads with a null value (legacy, never set) are still allowed to send.
+    if (lead.email_opted_in === false) {
       return NextResponse.json(
-        { error: "This lead has unsubscribed from emails. Cannot send." },
+        {
+          error: lead.email_unsubscribed_at
+            ? "This lead has unsubscribed from emails. Cannot send."
+            : "This lead has not opted in to emails. Cannot send.",
+        },
         { status: 400 }
       )
     }

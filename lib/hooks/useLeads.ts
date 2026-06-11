@@ -33,6 +33,7 @@ export interface CreateLeadInput {
   source: string
   referral_name?: string
   whatsapp_opted_in: boolean
+  email_opted_in: boolean
   initial_notes?: string
   stage_id: string
   created_by: string
@@ -175,6 +176,7 @@ export function useLeads() {
       referral_name: normalizeOptionalString(data.referral_name),
       whatsapp_opted_in: data.whatsapp_opted_in,
       whatsapp_opted_in_at: data.whatsapp_opted_in ? new Date().toISOString() : null,
+      email_opted_in: data.email_opted_in,
       initial_notes: normalizeOptionalString(data.initial_notes),
     }
 

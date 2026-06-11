@@ -33,6 +33,7 @@ interface IncomingLead {
   estimated_budget?: string | null
   source?: string | null
   whatsapp_opted_in?: boolean
+  email_opted_in?: boolean
   initial_notes?: string | null
   /** 1-based row number in the user's spreadsheet (for error messages) */
   row?: number
@@ -189,6 +190,9 @@ export async function POST(request: NextRequest) {
         source,
         whatsapp_opted_in: Boolean(raw.whatsapp_opted_in),
         whatsapp_opted_in_at: raw.whatsapp_opted_in ? now : null,
+        // Opt-in defaults to true when the column is omitted (consistent with
+        // the importer + manual form); only an explicit "no" opts the lead out.
+        email_opted_in: raw.email_opted_in ?? true,
         initial_notes: raw.initial_notes?.trim() || null,
         stage_id: stage.id,
         assigned_to: user.id,

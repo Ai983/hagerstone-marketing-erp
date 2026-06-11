@@ -74,6 +74,7 @@ const leadFormSchema = z.object({
   source: z.enum(sourceOptions.map((option) => option.value) as [string, ...string[]]),
   referral_name: z.preprocess(emptyToUndefined, z.string().optional()),
   whatsapp_opted_in: z.boolean(),
+  email_opted_in: z.boolean(),
   initial_notes: z.preprocess(emptyToUndefined, z.string().optional()),
 }).refine(
   (data) =>
@@ -148,7 +149,10 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
       expected_timeline: "",
       source: "manual_sales",
       referral_name: "",
-      whatsapp_opted_in: false,
+      // Opt-ins default to ON for manual entry — reps only uncheck them when a
+      // lead explicitly opts out, saving a click on every new lead.
+      whatsapp_opted_in: true,
+      email_opted_in: true,
       initial_notes: "",
     },
   })
@@ -481,7 +485,10 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
               <div />
             )}
 
-            <div className={cn("md:col-span-2", isReferral ? "" : "md:col-span-2")}>
+            <div className="space-y-2 md:col-span-2">
+              <p className="text-[11px] text-[#9090A8]">
+                Consent is on by default — uncheck if the lead has opted out.
+              </p>
               <label className="flex items-center gap-3 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 py-3 text-sm text-[#F0F0FA]">
                 <input
                   type="checkbox"
@@ -489,6 +496,14 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
                   className="size-4 rounded border-[#3A3A52] bg-[#1F1F2E] accent-[#3B82F6]"
                 />
                 <span>Lead has consented to WhatsApp messages</span>
+              </label>
+              <label className="flex items-center gap-3 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 py-3 text-sm text-[#F0F0FA]">
+                <input
+                  type="checkbox"
+                  {...register("email_opted_in")}
+                  className="size-4 rounded border-[#3A3A52] bg-[#1F1F2E] accent-[#3B82F6]"
+                />
+                <span>Lead has consented to email messages</span>
               </label>
             </div>
 
