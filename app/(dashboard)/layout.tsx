@@ -76,7 +76,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <TopBar fullName={fullName} role={role} />
         <DemoModeBanner />
 
-        <main className="flex-1 overflow-auto pb-16 md:pb-0">
+        <main className="relative flex-1 overflow-auto pb-16 md:pb-0">
           <div className="min-h-full">{children}</div>
         </main>
 
