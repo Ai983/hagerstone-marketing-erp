@@ -119,19 +119,30 @@ export function SendWhatsAppModal({
             className="fixed inset-0 z-[60] bg-black/60"
             onClick={handleClose}
           />
+          {/* Full-screen flex wrapper handles centring. Framer Motion writes
+              an inline `transform`, which would override Tailwind's
+              -translate-y-1/2 and drop the panel off the bottom of short
+              screens, so position must not depend on a transform. */}
           <motion.div
-            key="whatsapp-panel"
-            initial={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95 }}
-            animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1 }}
-            exit={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95 }}
+            key="whatsapp-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-x-0 bottom-0 z-[61] max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border-x border-t border-[#2A2A3C] bg-[#111118] shadow-2xl md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border"
+            className="pointer-events-none fixed inset-0 z-[61] flex items-end justify-center md:items-center md:p-6"
           >
-            <div className="flex justify-center pb-1 pt-3 md:hidden">
+            <motion.div
+              initial={isMobile ? { y: "100%" } : { scale: 0.96 }}
+              animate={isMobile ? { y: 0 } : { scale: 1 }}
+              exit={isMobile ? { y: "100%" } : { scale: 0.96 }}
+              transition={{ duration: 0.15 }}
+              className="pointer-events-auto flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-2xl border-x border-t border-[#2A2A3C] bg-[#111118] shadow-2xl md:max-h-[85vh] md:max-w-lg md:rounded-xl md:border"
+            >
+            <div className="flex shrink-0 justify-center pb-1 pt-3 md:hidden">
               <div className="h-1 w-10 rounded-full bg-[#3A3A52]" />
             </div>
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-[#2A2A3C] px-5 pb-3 pt-4">
+            <div className="flex shrink-0 items-center justify-between border-b border-[#2A2A3C] px-5 pb-3 pt-4">
               <div className="flex items-center gap-2">
                 <MessageSquare className="size-4 text-[#34D399]" />
                 <h3 className="text-sm font-semibold text-[#F0F0FA]">
@@ -143,8 +154,8 @@ export function SendWhatsAppModal({
               </button>
             </div>
 
-            {/* Body */}
-            <div className="px-5 py-4">
+            {/* Body — the only scrolling region; min-h-0 lets it shrink */}
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
               <div className="space-y-4">
                 {/* Opt-in warning */}
                 {!whatsappOptedIn && (
@@ -261,7 +272,7 @@ export function SendWhatsAppModal({
             </div>
 
             {/* Footer */}
-            <div className="sticky bottom-0 flex gap-3 border-t border-[#2A2A3C] bg-[#111118] px-5 py-4">
+            <div className="flex shrink-0 gap-3 border-t border-[#2A2A3C] bg-[#111118] px-5 py-4">
               <button
                 onClick={handleClose}
                 className="flex-1 rounded-xl border border-[#2A2A3C] py-3 text-sm font-medium text-[#9090A8] transition hover:text-[#F0F0FA]"
@@ -278,6 +289,7 @@ export function SendWhatsAppModal({
                 Send via WhatsApp
               </button>
             </div>
+            </motion.div>
           </motion.div>
         </>
       )}
