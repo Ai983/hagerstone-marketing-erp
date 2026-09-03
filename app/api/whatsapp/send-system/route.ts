@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { sendWhatsAppMessage } from "@/lib/utils/maytapi"
+import { sendWhatsAppMessage } from "@/lib/utils/whatsapp"
 
 export async function POST(req: NextRequest) {
   try {

@@ -21,8 +21,8 @@ export async function GET() {
     webhook: {
       secret_set: Boolean(process.env.WEBHOOK_SECRET),
     },
-    maytapi: {
-      token_set: Boolean(process.env.MAYTAPI_API_TOKEN),
+    whatsapp: {
+      token_set: Boolean(process.env.WHATSAPP_GATEWAY_SECRET),
     },
     anthropic: {
       key_set: Boolean(process.env.ANTHROPIC_API_KEY),

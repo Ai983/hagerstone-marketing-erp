@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import {
   sendWhatsAppMessage,
   sendWhatsAppWithButtons,
-} from "@/lib/utils/maytapi"
+} from "@/lib/utils/whatsapp"
 
 export const dynamic = "force-dynamic"
 type WhatsAppButton = { id: string; title: string }

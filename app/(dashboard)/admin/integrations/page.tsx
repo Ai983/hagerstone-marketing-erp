@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils"
 
 interface IntegrationsStatus {
   webhook: { secret_set: boolean }
-  maytapi: { token_set: boolean }
+  whatsapp: { token_set: boolean }
   anthropic: { key_set: boolean }
   app_url: string | null
 }
@@ -158,7 +158,7 @@ export default function IntegrationsPage() {
   }
 
   const webhookActive = Boolean(status?.webhook.secret_set)
-  const maytapiActive = Boolean(status?.maytapi.token_set)
+  const whatsappActive = Boolean(status?.whatsapp.token_set)
   const claudeActive = Boolean(status?.anthropic.key_set)
 
   if (isLoading) {
@@ -252,25 +252,25 @@ export default function IntegrationsPage() {
             </button>
           </IntegrationCard>
 
-          {/* Maytapi */}
+          {/* WhatsApp Gateway */}
           <IntegrationCard
             icon={MessageSquare}
             accent="#34D399"
-            title="Maytapi WhatsApp"
-            description="Maytapi Business API"
-            status={<StatusDot active={maytapiActive} label={maytapiActive ? "Connected" : "Not configured"} />}
+            title="WhatsApp Gateway"
+            description="Self-hosted WhatsApp gateway (Baileys)"
+            status={<StatusDot active={whatsappActive} label={whatsappActive ? "Connected" : "Not configured"} />}
           >
             <button
               onClick={handleTestWhatsApp}
-              disabled={testingWa || !maytapiActive}
+              disabled={testingWa || !whatsappActive}
               className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-2 text-xs font-medium text-white transition hover:bg-[#1da851] disabled:opacity-50"
             >
               {testingWa && <Loader2 className="size-3 animate-spin" />}
               Send Test Message
             </button>
-            {!maytapiActive && (
+            {!whatsappActive && (
               <p className="mt-2 text-[11px] text-[#F59E0B]">
-                Set <code className="rounded bg-[#1A1A24] px-1">MAYTAPI_API_TOKEN</code>.
+                Set <code className="rounded bg-[#1A1A24] px-1">WHATSAPP_GATEWAY_SECRET</code>.
               </p>
             )}
           </IntegrationCard>

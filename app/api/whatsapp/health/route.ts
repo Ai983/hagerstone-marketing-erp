@@ -1,28 +1,23 @@
 import { NextResponse } from "next/server"
+import { createClient as createServiceClient } from "@supabase/supabase-js"
 
 import { createClient } from "@/lib/supabase/server"
-
-const PRODUCT_ID = process.env.MAYTAPI_PRODUCT_ID!
-const PHONE_ID = process.env.MAYTAPI_PHONE_ID!
-const API_TOKEN = process.env.MAYTAPI_API_TOKEN!
+import {
+  getSessionStatus,
+  WHATSAPP_GATEWAY_URL,
+  WHATSAPP_SESSION_ID,
+} from "@/lib/utils/whatsapp"
 
 export const dynamic = "force-dynamic"
 
-type MaytapiLog = {
-  type: string
-  body?: unknown
-}
-
-type MaytapiPhone = {
-  id?: number | string
-  phone_id?: number | string
-  number?: string
-  phone?: string
-  wa_id?: string
-  status?: string
-  phone_status?: string
-}
-
+/**
+ * Health of the self-hosted WhatsApp gateway.
+ *
+ * The old MayTAPI vendor exposed a `/logs` endpoint; the gateway instead
+ * writes an audit row per message to `public.wa_messages` in the Hub database,
+ * so delivery stats are read from there. Note this table lives in the `public`
+ * schema, not `marketing`, hence the dedicated service client.
+ */
 export async function GET() {
   try {
     const supabase = await createClient()
@@ -42,94 +37,56 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    let phoneStatus = "unknown"
-    let isConnected = false
-    let phoneNumber = PHONE_ID
+    const session = await getSessionStatus()
+    const isConnected = session.status === "connected"
 
-    try {
-      const phonesRes = await fetch(
-        `https://api.maytapi.com/api/${PRODUCT_ID}/listPhones`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "x-maytapi-key": API_TOKEN,
-          },
-          cache: "no-store",
+    // ── Delivery stats from the gateway's own audit table (last 7 days) ──
+    let sent = 0
+    let delivered = 0
+    let read = 0
+    let failed = 0
+    let received = 0
+    let statsAvailable = false
+
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+
+    if (serviceKey && supabaseUrl) {
+      try {
+        const hub = createServiceClient(supabaseUrl, serviceKey, {
+          db: { schema: "public" },
+        })
+        const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        const { data: rows, error } = await hub
+          .from("wa_messages")
+          .select("direction, status")
+          .eq("session_id", WHATSAPP_SESSION_ID)
+          .gte("created_at", since)
+          .limit(10000)
+
+        if (!error && rows) {
+          statsAvailable = true
+          for (const r of rows) {
+            if (r.direction === "in") received++
+            else if (r.status === "failed") failed++
+            else if (r.status === "read") read++
+            else if (r.status === "delivered") delivered++
+            else if (r.status === "sent") sent++
+          }
         }
-      )
-      const phonesData = await phonesRes.json().catch(() => ([]))
-      console.log(
-        "Maytapi listPhones response:",
-        JSON.stringify(phonesData).slice(0, 300)
-      )
-
-      const phones: MaytapiPhone[] = Array.isArray(phonesData)
-        ? phonesData
-        : phonesData?.data ?? []
-      const thisPhone = phones.find(
-        (p) =>
-          String(p.id) === String(PHONE_ID) ||
-          String(p.phone_id) === String(PHONE_ID)
-      )
-
-      if (thisPhone) {
-        phoneStatus = thisPhone.status ?? thisPhone.phone_status ?? "unknown"
-        phoneNumber =
-          thisPhone.number ?? thisPhone.phone ?? thisPhone.wa_id ?? PHONE_ID
-        isConnected =
-          phoneStatus === "active" ||
-          phoneStatus === "connected" ||
-          phoneStatus === "CONNECTED" ||
-          phoneStatus === "Active"
+      } catch (err) {
+        console.error("wa_messages stats query failed:", err)
       }
-    } catch (err) {
-      console.error("Failed to fetch Maytapi phone list:", err)
     }
 
-    // Logs
-    let logs: MaytapiLog[] = []
-    try {
-      const logsRes = await fetch(
-        `https://api.maytapi.com/api/${PRODUCT_ID}/${PHONE_ID}/logs`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "x-maytapi-key": API_TOKEN,
-          },
-          cache: "no-store",
-        }
-      )
-      const logsData = await logsRes.json().catch(() => ({}))
-      console.log(
-        "Maytapi logs response:",
-        JSON.stringify(logsData).slice(0, 200)
-      )
-      logs = logsData?.data ?? logsData?.logs ?? logsData?.result ?? []
-      if (!Array.isArray(logs)) logs = []
-    } catch {
-      console.error("Failed to fetch Maytapi logs")
-    }
-
-    const errorCount = logs.filter((l) => l.type === "error").length
-    const logoutCount = logs.filter(
-      (l) => l.type === "status" && JSON.stringify(l).includes("logout")
-    ).length
-    const qrCount = logs.filter(
-      (l) => l.type === "status" && JSON.stringify(l).includes("qr-screen")
-    ).length
-    const dupeCount = logs.filter((l) =>
-      JSON.stringify(l).includes("Message Dupe")
-    ).length
-    const ackCount = logs.filter((l) => l.type === "ack").length
-    const messageCount = logs.filter((l) => l.type === "message").length
-    const noLidCount = logs.filter((l) => JSON.stringify(l).includes("No LID")).length
+    const outbound = sent + delivered + read + failed
+    const failureRate = outbound > 0 ? failed / outbound : 0
 
     let healthScore = 100
-    if (logoutCount > 0) healthScore -= 40
-    if (qrCount > 2) healthScore -= 20
-    if (dupeCount > 5) healthScore -= 15
-    if (noLidCount > 3) healthScore -= 10
-    if (errorCount > 10) healthScore -= 15
+    if (!session.reachable) healthScore -= 50
+    if (!isConnected) healthScore -= 40
+    if (failureRate > 0.2) healthScore -= 20
+    else if (failureRate > 0.1) healthScore -= 10
     healthScore = Math.max(0, healthScore)
 
     const warnings: {
@@ -137,59 +94,56 @@ export async function GET() {
       message: string
     }[] = []
 
-    if (logoutCount > 0) {
+    if (!session.reachable) {
       warnings.push({
         level: "critical",
-        message: `Phone was logged out ${logoutCount} time(s) recently - session instability detected. Rescan QR immediately.`,
+        message: `WhatsApp gateway is unreachable at ${WHATSAPP_GATEWAY_URL}. ${session.error ?? ""}`.trim(),
       })
-    }
-    if (qrCount > 2) {
+    } else if (!isConnected) {
       warnings.push({
         level: "critical",
-        message: `QR screen appeared ${qrCount} times - WhatsApp is disconnecting repeatedly. Risk of ban.`,
+        message: `Session "${WHATSAPP_SESSION_ID}" is "${session.status}", not connected. Re-pair by scanning the QR from the gateway.`,
       })
     }
-    if (dupeCount > 0) {
+
+    if (failureRate > 0.1) {
       warnings.push({
         level: "warning",
-        message: `${dupeCount} duplicate message error(s) - you are sending too fast. Increase delay between messages.`,
+        message: `${failed} of ${outbound} outbound messages failed in the last 7 days (${Math.round(failureRate * 100)}%). Check number validity and send pacing.`,
       })
     }
-    if (noLidCount > 0) {
+
+    if (!statsAvailable) {
       warnings.push({
-        level: "warning",
-        message: `${noLidCount} "No LID" error(s) - some contacts may not be on WhatsApp or have blocked you.`,
+        level: "info",
+        message:
+          "Delivery stats unavailable — SUPABASE_SERVICE_ROLE_KEY may not be set.",
       })
     }
-    if (errorCount > 10) {
-      warnings.push({
-        level: "warning",
-        message: `High error rate: ${errorCount} errors in recent logs. Monitor closely.`,
-      })
-    }
+
     if (warnings.length === 0) {
       warnings.push({
         level: "info",
-        message: "No issues detected. Phone is healthy.",
+        message: "No issues detected. Gateway is connected and healthy.",
       })
     }
 
     return NextResponse.json({
-      phone_id: PHONE_ID,
-      phone_number: phoneNumber,
-      status: phoneStatus,
+      gateway_url: WHATSAPP_GATEWAY_URL,
+      session_id: WHATSAPP_SESSION_ID,
+      phone_number: session.phoneNumber,
+      status: session.status,
       is_connected: isConnected,
       health_score: healthScore,
       warnings,
       stats: {
-        total_logs: logs.length,
-        messages: messageCount,
-        acks: ackCount,
-        errors: errorCount,
-        logouts: logoutCount,
-        qr_screens: qrCount,
-        dupes: dupeCount,
-        no_lid: noLidCount,
+        window_days: 7,
+        outbound,
+        sent,
+        delivered,
+        read,
+        failed,
+        received,
       },
       tips: [
         "Keep daily sends under 50 messages on new numbers",

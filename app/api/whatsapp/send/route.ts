@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import {
   sendWhatsAppMessage,
   sendWhatsAppWithButtons,
-} from "@/lib/utils/maytapi"
+} from "@/lib/utils/whatsapp"
 
 type WhatsAppButton = { id: string; title: string }
 

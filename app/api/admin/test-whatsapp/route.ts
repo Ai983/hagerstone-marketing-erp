@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { createClient as createUserClient } from "@/lib/supabase/server"
-import { sendWhatsAppMessage } from "@/lib/utils/maytapi"
+import { sendWhatsAppMessage } from "@/lib/utils/whatsapp"
 
 // Default to MANAGER_WHATSAPP_NUMBER for the test send. Falls back to a
 // safe placeholder so the route never tries to spam an unspecified number.

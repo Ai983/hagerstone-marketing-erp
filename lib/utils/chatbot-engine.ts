@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
-import { sendWhatsAppMessage, sendWhatsAppWithButtons, sendWhatsAppMedia } from "@/lib/utils/maytapi"
+import { sendWhatsAppMessage, sendWhatsAppWithButtons, sendWhatsAppMedia } from "@/lib/utils/whatsapp"
 
 const SESSION_TIMEOUT_HOURS = 24
 

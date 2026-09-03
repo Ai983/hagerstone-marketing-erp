@@ -5,7 +5,7 @@ import {
   sendWhatsAppMedia,
   sendWhatsAppMessage,
   sendWhatsAppWithButtons,
-} from "@/lib/utils/maytapi"
+} from "@/lib/utils/whatsapp"
 import { renderTemplate, sendEmail } from "@/lib/utils/resend"
 import { wrapInEmailTemplate } from "@/lib/utils/email-content"
 

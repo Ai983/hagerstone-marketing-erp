@@ -265,7 +265,7 @@ export async function POST(req: NextRequest) {
           })
 
           // Send confirmation back
-          const { sendWhatsAppMessage } = await import("@/lib/utils/maytapi")
+          const { sendWhatsAppMessage } = await import("@/lib/utils/whatsapp")
           await sendWhatsAppMessage(
             senderPhone,
             "You have been unsubscribed from our campaigns. You will not receive further automated messages. Reply START if you wish to re-subscribe."

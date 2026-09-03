@@ -24,7 +24,7 @@
 | Framework | Next.js (App Router) | 14.2.33 |
 | Language | TypeScript | ^5 |
 | Styling | Tailwind CSS + shadcn/ui | ^3.4.1 |
-| Database / Auth | Supabase (PostgreSQL) | supabase-js ^2.103.2 |
+| Database / Auth | Supabase — Hub Project, `marketing` schema | supabase-js ^2.103.2 |
 | State — Server | TanStack React Query | ^5.99.0 |
 | State — Client | Zustand | ^5.0.12 |
 | Forms | React Hook Form + Zod | ^7 / ^4 |
@@ -36,7 +36,7 @@
 | Icons | Lucide React | ^1.8.0 |
 | Email sending | Resend | ^6.12.3 |
 | Email rendering | @react-email | ^1.0.12 |
-| WhatsApp | MayTAPI (REST) | — |
+| WhatsApp | Self-hosted gateway (Baileys, Railway) | — |
 | AI | Anthropic Claude API | claude-haiku-4-5-20251001 |
 | Spreadsheet import | xlsx | ^0.18.5 |
 | Toasts | Sonner | ^2.0.7 |
@@ -224,7 +224,7 @@ hagerstone-erp/
 │   │   ├── chatbot-flow.ts      # Flow definition + validation
 │   │   ├── daily-summary.ts     # AI daily briefing generation
 │   │   ├── email-content.ts     # Email template rendering
-│   │   ├── maytapi.ts           # WhatsApp (MayTAPI) API wrapper
+│   │   ├── whatsapp.ts          # WhatsApp gateway client (self-hosted)
 │   │   ├── resend.ts            # Email sending wrapper
 │   │   └── video-embed.ts       # YouTube/Vimeo embed helpers
 │   └── utils.ts                 # cn() (clsx + tailwind-merge)
@@ -435,16 +435,42 @@ The function:
 
 ---
 
-## 11. WhatsApp Integration (MayTAPI)
+## 11. WhatsApp Integration (self-hosted gateway)
 
-**Library:** `lib/utils/maytapi.ts`  
-**Provider:** MayTAPI (REST API)  
-**Env vars:** `MAYTAPI_PRODUCT_ID`, `MAYTAPI_PHONE_ID`, `MAYTAPI_API_TOKEN`, `MANAGER_WHATSAPP_NUMBER`
+**Library:** `lib/utils/whatsapp.ts`
+**Provider:** Hagerstone's own gateway — Node + Fastify + Baileys, deployed on Railway
+(project `hagerstone-wa-gateway`, service `wa-gateway`), with session state in the Hub
+Supabase **`public`** schema (`wa_sessions`, `wa_auth_store`, `wa_messages`, `wa_contacts`).
+Gateway source: `D:\hs\Plumbline\Plumbline\whatsapp-gateway`.
+
+**MayTAPI has been fully removed.** The gateway deliberately exposes a
+MayTAPI-compatible send route, so the migration was a URL + secret swap:
+
+```
+POST {WHATSAPP_GATEWAY_URL}/maytapi/:productId/:sessionId/sendMessage
+  header: x-maytapi-key: <WHATSAPP_GATEWAY_SECRET>
+  body:   { to_number, type: 'text'|'media'|'link', message, text?, filename? }
+  200:    { success: true, data: { msgId } }
+```
+`productId` is accepted and ignored; `sessionId` is the paired line (`hagerstone-biz`, +918448992377).
+
+**Env vars:** `WHATSAPP_GATEWAY_URL`, `WHATSAPP_SESSION_ID`, `WHATSAPP_GATEWAY_SECRET`, `MANAGER_WHATSAPP_NUMBER`
+
+**Two behavioural differences from MayTAPI:**
+1. **No interactive buttons.** Baileys/WhatsApp dropped them. `sendWhatsAppWithButtons()`
+   degrades to a numbered text list ("Reply with a number") instead of failing the send.
+2. **Media needs a filename.** The gateway infers MIME type from `filename` and falls back
+   to `application/pdf` for remote URLs — so an image sent without one would arrive as a
+   document. `sendWhatsAppMedia()` derives a filename from the URL and forces an image
+   extension when `type === 'image'`.
+
+All exported senders return `{ success, messageId?, error? }` and **never throw** — every
+caller branches on `result.success`.
 
 **API routes:**
 - `POST /api/whatsapp/send` — Send WhatsApp message to a lead
 - `POST /api/whatsapp/send-system` — Send system notifications
-- `GET /api/whatsapp/health` — Check MayTAPI connection status
+- `GET /api/whatsapp/health` — Gateway + session status, with 7-day delivery stats read from `public.wa_messages`
 - `POST /api/webhook/whatsapp-reply` — Inbound message handler (bypasses middleware auth)
 
 The webhook handler processes inbound WhatsApp messages, matches them to leads, creates interactions, and can trigger chatbot flows.
@@ -618,7 +644,7 @@ All imports use `@/` path alias (maps to project root).
 ## 19. Environment Variables
 
 ```bash
-# Supabase
+# Supabase — the "Hub Project" (ref tpfvnerrjhqwipyonngf); app reads the `marketing` schema
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
@@ -626,10 +652,10 @@ SUPABASE_SERVICE_ROLE_KEY=
 # AI
 ANTHROPIC_API_KEY=               # Claude API key (haiku model)
 
-# WhatsApp (MayTAPI)
-MAYTAPI_PRODUCT_ID=
-MAYTAPI_PHONE_ID=
-MAYTAPI_API_TOKEN=
+# WhatsApp (self-hosted gateway)
+WHATSAPP_GATEWAY_URL=            # e.g. https://wa-gateway-production-26c1.up.railway.app
+WHATSAPP_SESSION_ID=             # e.g. hagerstone-biz
+WHATSAPP_GATEWAY_SECRET=         # the gateway's GATEWAY_SECRET
 MANAGER_WHATSAPP_NUMBER=         # Receives system notifications
 
 # Email (Resend)
@@ -661,7 +687,7 @@ Located at `/admin/*`. Access requires role `admin` or `founder` (managers see o
 | Email Templates | `/admin/email-templates` | Create/edit email templates |
 | All Tasks | `/admin/tasks` | Team-wide task overview |
 | Audit Log | `/admin/audit-log` | Entity change history |
-| WhatsApp Health | `/admin/whatsapp-health` | MayTAPI connection status |
+| WhatsApp Health | `/admin/whatsapp-health` | Gateway session + delivery stats |
 
 **Admin quick actions (on `/admin` page):**
 - Clear sample data (`DELETE` flagged `is_sample_data=true` leads)
@@ -782,7 +808,7 @@ const result = await callClaudeJSON<{ message: string }>({
 
 1. **Claude model is Haiku** — cost-optimized. For complex reasoning tasks consider upgrading to Sonnet in `lib/utils/claude.ts`.
 2. **Webhook routes bypass middleware** — `/api/webhook/*` and `/api/cron/*` skip auth middleware. Each handler verifies its own secret.
-3. **MayTAPI phone number** — Only one phone ID is configured. Multi-line support not implemented.
+3. **WhatsApp line** — One session (`hagerstone-biz`) is wired via `WHATSAPP_SESSION_ID`. A second session `hagerstone-grp` exists in the gateway but is not used by this app.
 4. **Sample data flag** — `is_sample_data = true` on fake leads. Admin can clear/reseed these safely.
 5. **Supabase RPC** — `reseed_sample_data()` must exist as a PostgreSQL function in your Supabase project.
 6. **Auth token lock race** — Solved in `useUser.ts` with module-level promise deduplication. Do not call `supabase.auth.getUser()` directly in multiple components on the same page.

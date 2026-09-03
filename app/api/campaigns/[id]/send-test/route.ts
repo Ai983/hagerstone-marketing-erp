@@ -5,7 +5,7 @@ import {
   sendWhatsAppMedia,
   sendWhatsAppMessage,
   sendWhatsAppWithButtons,
-} from "@/lib/utils/maytapi"
+} from "@/lib/utils/whatsapp"
 
 const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
 
@@ -65,11 +65,11 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    if (!process.env.MAYTAPI_API_TOKEN) {
+    if (!process.env.WHATSAPP_GATEWAY_SECRET) {
       return NextResponse.json(
         {
           error:
-            "Maytapi credentials not configured. Set MAYTAPI_API_TOKEN.",
+            "WhatsApp gateway not configured. Set WHATSAPP_GATEWAY_SECRET.",
         },
         { status: 503 }
       )

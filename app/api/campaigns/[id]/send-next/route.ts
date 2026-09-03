@@ -6,7 +6,7 @@ import {
   sendWhatsAppMedia,
   sendWhatsAppMessage,
   sendWhatsAppWithButtons,
-} from "@/lib/utils/maytapi"
+} from "@/lib/utils/whatsapp"
 import { renderTemplate, sendEmail } from "@/lib/utils/resend"
 import { wrapInEmailTemplate } from "@/lib/utils/email-content"
 
@@ -308,11 +308,11 @@ export async function POST(
         )
       }
 
-      if (!process.env.MAYTAPI_API_TOKEN) {
+      if (!process.env.WHATSAPP_GATEWAY_SECRET) {
         return NextResponse.json(
           {
             error:
-              "Maytapi credentials not configured. Set MAYTAPI_API_TOKEN.",
+              "WhatsApp gateway not configured. Set WHATSAPP_GATEWAY_SECRET.",
           },
           { status: 503 }
         )

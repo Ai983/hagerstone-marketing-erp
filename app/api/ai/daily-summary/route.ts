@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient as createServiceClient, type SupabaseClient } from "@supabase/supabase-js"
 import { createClient as createUserClient } from "@/lib/supabase/server"
 import { generateAndSendDailySummary } from "@/lib/utils/daily-summary"
-import { sendWhatsAppMessage } from "@/lib/utils/maytapi"
+import { sendWhatsAppMessage } from "@/lib/utils/whatsapp"
 
 // ── Fallback: basic stats-only briefing when Claude is unavailable ─
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

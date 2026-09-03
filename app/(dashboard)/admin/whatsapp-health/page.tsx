@@ -22,21 +22,21 @@ import { toast } from "sonner"
 type WarningLevel = "critical" | "warning" | "info"
 
 interface HealthData {
-  phone_id: string
-  phone_number: string
+  gateway_url: string
+  session_id: string
+  phone_number: string | null
   status: string
   is_connected: boolean
   health_score: number
   warnings: { level: WarningLevel; message: string }[]
   stats: {
-    total_logs: number
-    messages: number
-    acks: number
-    errors: number
-    logouts: number
-    qr_screens: number
-    dupes: number
-    no_lid: number
+    window_days: number
+    outbound: number
+    sent: number
+    delivered: number
+    read: number
+    failed: number
+    received: number
   }
   tips: string[]
   checked_at: string
@@ -276,8 +276,8 @@ export default function WhatsAppHealthPage() {
               {data.is_connected ? "Phone Connected" : "Phone Disconnected"}
             </p>
             <p className="text-xs text-[#9090A8]">
-              +{data.phone_number} · Phone ID: {data.phone_id} · Status:{" "}
-              {data.status}
+              {data.phone_number ? `+${data.phone_number} · ` : ""}Session:{" "}
+              {data.session_id} · Status: {data.status}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
@@ -325,55 +325,43 @@ export default function WhatsAppHealthPage() {
           <div className="mb-3 flex items-center gap-2">
             <Activity size={16} className="text-[#9090A8]" />
             <h2 className="text-sm font-semibold text-[#F0F0FA]">
-              Log Statistics (Last 100 Events)
+              Message Statistics (Last {data.stats.window_days} Days)
             </h2>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <StatBox
-              label="Total Logs"
-              value={data.stats.total_logs}
+              label="Outbound"
+              value={data.stats.outbound}
               icon={Activity}
               color="#3B82F6"
             />
             <StatBox
-              label="Messages"
-              value={data.stats.messages}
+              label="Sent"
+              value={data.stats.sent}
               icon={MessageSquare}
               color="#8B5CF6"
             />
             <StatBox
               label="Delivered"
-              value={data.stats.acks}
+              value={data.stats.delivered}
               icon={CheckCircle}
               color="#10B981"
             />
             <StatBox
-              label="Errors"
-              value={data.stats.errors}
+              label="Read"
+              value={data.stats.read}
+              icon={Zap}
+              color="#06B6D4"
+            />
+            <StatBox
+              label="Failed"
+              value={data.stats.failed}
               icon={XCircle}
               color="#EF4444"
             />
             <StatBox
-              label="Logouts"
-              value={data.stats.logouts}
-              icon={WifiOff}
-              color="#EF4444"
-            />
-            <StatBox
-              label="QR Screens"
-              value={data.stats.qr_screens}
-              icon={Smartphone}
-              color="#F59E0B"
-            />
-            <StatBox
-              label="Dupes"
-              value={data.stats.dupes}
-              icon={Zap}
-              color="#F59E0B"
-            />
-            <StatBox
-              label="No LID"
-              value={data.stats.no_lid}
+              label="Received"
+              value={data.stats.received}
               icon={AlertTriangle}
               color="#F59E0B"
             />

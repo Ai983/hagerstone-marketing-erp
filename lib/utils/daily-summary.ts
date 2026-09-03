@@ -34,7 +34,7 @@ Structure the message as short sections covering:
 // Returns the same { ok, error } shape
 // the cron route expects.
 
-import { sendWhatsAppMessage } from "@/lib/utils/maytapi"
+import { sendWhatsAppMessage } from "@/lib/utils/whatsapp"
 
 async function sendViaMaytapi(
   toNumber: string,
