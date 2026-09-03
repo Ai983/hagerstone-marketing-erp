@@ -15,6 +15,7 @@ import {
   Clock,
   Send,
   Loader2,
+  Users,
 } from "lucide-react"
 import type { InteractionType } from "@/lib/types"
 import type { TimelineInteraction } from "@/lib/hooks/useActivities"
@@ -30,7 +31,7 @@ const typeIconMap: Record<string, typeof Phone> = {
   email_sent: Mail,
   email_received: Mail,
   site_visit: MapPin,
-  meeting: MapPin,
+  meeting: Users,
   note: Pencil,
   stage_change: ArrowRightLeft,
   assignment_change: UserPlus,
@@ -65,6 +66,13 @@ const outcomeStyles: Record<string, string> = {
   voicemail: "bg-[#1A1A24] text-[#9090A8]",
   follow_up_needed: "bg-[#3F2A12] text-[#F59E0B]",
   neutral: "bg-[#1A1A24] text-[#9090A8]",
+  // Meeting outcomes
+  positive: "bg-[#163322] text-[#34D399]",
+  boq_requested: "bg-[#163322] text-[#34D399]",
+  proposal_requested: "bg-[#163322] text-[#34D399]",
+  negotiating: "bg-[#1E2A4A] text-[#60A5FA]",
+  needs_follow_up: "bg-[#3F2A12] text-[#F59E0B]",
+  on_hold: "bg-[#3F2A12] text-[#F59E0B]",
 }
 
 function OutcomeBadge({ outcome }: { outcome: string }) {
@@ -269,9 +277,10 @@ export function LeadTimeline({ interactions, isLoading, onAddNote, isAddingNote 
                         </span>
                         <span>·</span>
                         <span>
-                          {formatDistanceToNow(new Date(interaction.created_at), {
-                            addSuffix: true,
-                          })}
+                          {formatDistanceToNow(
+                            new Date(interaction.occurred_at ?? interaction.created_at),
+                            { addSuffix: true }
+                          )}
                         </span>
                         {interaction.duration_minutes != null && interaction.duration_minutes > 0 && (
                           <>
@@ -280,8 +289,24 @@ export function LeadTimeline({ interactions, isLoading, onAddNote, isAddingNote 
                           </>
                         )}
                       </div>
+                      {(interaction.location || interaction.attendees) && (
+                        <div className="mt-1.5 space-y-0.5">
+                          {interaction.location && (
+                            <p className="flex items-start gap-1.5 text-[11px] text-[#9090A8]">
+                              <MapPin className="mt-0.5 size-3 shrink-0 text-[#5A5A72]" />
+                              <span>{interaction.location}</span>
+                            </p>
+                          )}
+                          {interaction.attendees && (
+                            <p className="flex items-start gap-1.5 text-[11px] text-[#9090A8]">
+                              <Users className="mt-0.5 size-3 shrink-0 text-[#5A5A72]" />
+                              <span>{interaction.attendees}</span>
+                            </p>
+                          )}
+                        </div>
+                      )}
                       {interaction.notes && (
-                        <p className="mt-1.5 text-xs leading-relaxed text-[#9090A8]">
+                        <p className="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-[#9090A8]">
                           {interaction.notes}
                         </p>
                       )}

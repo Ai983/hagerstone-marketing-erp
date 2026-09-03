@@ -38,6 +38,7 @@ import {
   Code2,
   CaseSensitive,
   Archive,
+  Users,
 } from "lucide-react"
 
 import { useUIStore } from "@/lib/stores/uiStore"
@@ -48,6 +49,7 @@ import { createClient } from "@/lib/supabase/client"
 import { LeadTimeline } from "@/components/leads/LeadTimeline"
 import { WhatsAppChatView } from "@/components/leads/WhatsAppChatView"
 import { LogCallModal } from "@/components/leads/LogCallModal"
+import { LogMeetingModal } from "@/components/leads/LogMeetingModal"
 import { ScheduleFollowUpModal } from "@/components/leads/ScheduleFollowUpModal"
 import { SendWhatsAppModal } from "@/components/leads/SendWhatsAppModal"
 import { RichTextEditor } from "@/components/email/RichTextEditor"
@@ -224,6 +226,7 @@ interface OverviewTabProps {
   interactions: TimelineInteraction[]
   currentUserRole: UserRole | null
   onLogCall: () => void
+  onLogMeeting: () => void
   onScheduleFollowUp: () => void
   onAddNote: () => void
   onSendWhatsApp: () => void
@@ -283,6 +286,7 @@ function OverviewTab({
   interactions,
   currentUserRole,
   onLogCall,
+  onLogMeeting,
   onScheduleFollowUp,
   onAddNote,
   onSendWhatsApp,
@@ -2265,6 +2269,7 @@ function OverviewTab({
         <div className="grid grid-cols-2 gap-2">
           {[
             { icon: Phone, label: "Log Call", action: onLogCall },
+            { icon: Users, label: "Log Meeting", action: onLogMeeting },
             { icon: CalendarPlus, label: "Schedule Follow-up", action: onScheduleFollowUp },
             { icon: Pencil, label: "Add Note", action: onAddNote },
             { icon: MessageSquare, label: "Send WhatsApp", action: onSendWhatsApp },
@@ -3326,6 +3331,7 @@ export function LeadDrawer() {
 
   // Modal state
   const [showLogCall, setShowLogCall] = useState(false)
+  const [showLogMeeting, setShowLogMeeting] = useState(false)
   const [showFollowUp, setShowFollowUp] = useState(false)
   const [showWhatsApp, setShowWhatsApp] = useState(false)
   // Pre-filled WhatsApp body — set when sending an AI-drafted message so the
@@ -3366,6 +3372,7 @@ export function LeadDrawer() {
     createTask,
     isCreatingTask,
     logCall,
+    logMeeting,
     scheduleFollowUp,
     refreshInteractions,
   } = useActivities(leadDrawerId)
@@ -3885,6 +3892,7 @@ export function LeadDrawer() {
                             (profileQuery.data?.role as UserRole | undefined) ?? null
                           }
                           onLogCall={() => setShowLogCall(true)}
+                          onLogMeeting={() => setShowLogMeeting(true)}
                           onScheduleFollowUp={() => setShowFollowUp(true)}
                           onAddNote={() => setActiveTab("Timeline")}
                           onSendWhatsApp={() => {
@@ -3989,6 +3997,13 @@ export function LeadDrawer() {
             currentUserId={currentUserId}
             onClose={() => setShowLogCall(false)}
             onSubmit={logCall}
+          />
+
+          <LogMeetingModal
+            open={showLogMeeting}
+            leadName={lead.full_name}
+            onClose={() => setShowLogMeeting(false)}
+            onSubmit={logMeeting}
           />
 
           <ScheduleFollowUpModal

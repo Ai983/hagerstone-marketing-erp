@@ -28,6 +28,7 @@ import {
   User as UserIcon,
   Users,
   X,
+  CalendarDays,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -58,6 +59,7 @@ const primaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/leads", label: "All Leads", icon: Users, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/leads/archive", label: "Archive", icon: Archive, roles: ALL_ROLES },
   { href: "/activities", label: "My Tasks", icon: CheckSquare, badgeKey: "activities", roles: ALL_ROLES },
+  { href: "/meetings", label: "Meetings", icon: CalendarDays, roles: ALL_ROLES },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone, roles: ["admin", "manager", "marketing", "founder"] },
   { href: "/campaigns/monitor", label: "Send Monitor", icon: Activity, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/analytics", label: "Analytics", icon: BarChart2, roles: ["admin", "manager", "founder", "marketing"] },

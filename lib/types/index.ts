@@ -144,6 +144,11 @@ export interface Interaction {
   media_type: string | null
   outcome?: string
   duration_minutes?: number
+  /** Meeting fields — where it happened, who was there, and when it took
+   *  place (which can predate `created_at` if written up afterwards). */
+  location?: string | null
+  attendees?: string | null
+  occurred_at?: string | null
   stage_from_id?: string
   stage_from?: PipelineStage
   stage_to_id?: string

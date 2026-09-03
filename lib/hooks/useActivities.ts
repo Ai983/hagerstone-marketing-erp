@@ -24,7 +24,15 @@ async function fetchInteractions(leadId: string): Promise<TimelineInteraction[]>
     .order("created_at", { ascending: false })
 
   if (error) throw error
-  return (data ?? []) as TimelineInteraction[]
+
+  // A meeting written up days later carries `occurred_at`, so sort on the
+  // date the thing actually happened rather than when the row was created.
+  // PostgREST can't order by a COALESCE expression, hence the client-side pass.
+  return ((data ?? []) as TimelineInteraction[]).sort(
+    (a, b) =>
+      new Date(b.occurred_at ?? b.created_at).getTime() -
+      new Date(a.occurred_at ?? a.created_at).getTime()
+  )
 }
 
 // ── Tasks ───────────────────────────────────────────────────────────
@@ -174,6 +182,40 @@ async function logCall(
     outcome: data.outcome,
     notes: data.notes || null,
     duration_minutes: data.duration_minutes,
+  })
+  if (error) throw error
+}
+
+export type MeetingInput = {
+  type: "meeting" | "site_visit"
+  title: string
+  notes: string
+  outcome: string
+  duration_minutes: number | null
+  location: string | null
+  attendees: string | null
+  /** When the meeting actually took place — may be backdated. */
+  occurred_at: string
+  follow_up?: { due_at: string; type: string }
+}
+
+async function logMeeting(
+  leadId: string,
+  userId: string | null,
+  data: MeetingInput
+) {
+  const supabase = createClient()
+  const { error } = await supabase.from("interactions").insert({
+    lead_id: leadId,
+    user_id: userId,
+    type: data.type,
+    title: data.title,
+    notes: data.notes,
+    outcome: data.outcome,
+    duration_minutes: data.duration_minutes,
+    location: data.location,
+    attendees: data.attendees,
+    occurred_at: data.occurred_at,
   })
   if (error) throw error
 }
@@ -335,6 +377,40 @@ export function useActivities(leadId: string | null) {
     },
   })
 
+  const logMeetingMutation = useMutation({
+    mutationFn: async (data: MeetingInput) => {
+      const currentUserId = currentUserQuery.data ?? null
+      await logMeeting(leadId!, currentUserId, data)
+      if (data.follow_up) {
+        const followUpTask = {
+          lead_id: leadId!,
+          title: "Follow up after meeting",
+          type: data.follow_up.type,
+          due_at: data.follow_up.due_at,
+          assigned_to: currentUserId ?? "",
+        }
+        await createTask({ ...followUpTask, created_by: currentUserId })
+        notifyTaskAssigned(followUpTask, currentUserId)
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["lead-interactions", leadId] })
+      queryClient.invalidateQueries({ queryKey: ["lead-tasks", leadId] })
+      queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
+      queryClient.invalidateQueries({ queryKey: ["meetings"] })
+      // A meeting is a strong activity signal — rescore like logCall does.
+      if (leadId) {
+        fetch("/api/leads/score", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lead_id: leadId }),
+        }).catch(() => {
+          // scoring failure shouldn't block the meeting-log UX
+        })
+      }
+    },
+  })
+
   const scheduleFollowUpMutation = useMutation({
     mutationFn: async (data: {
       type: string
@@ -378,6 +454,8 @@ export function useActivities(leadId: string | null) {
     createTask: createTaskMutation.mutateAsync,
     isCreatingTask: createTaskMutation.isPending,
     logCall: logCallMutation.mutateAsync,
+    logMeeting: logMeetingMutation.mutateAsync,
+    isLoggingMeeting: logMeetingMutation.isPending,
     scheduleFollowUp: scheduleFollowUpMutation.mutateAsync,
     refreshInteractions: () => queryClient.invalidateQueries({ queryKey: ["lead-interactions", leadId] }),
   }
