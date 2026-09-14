@@ -22,6 +22,7 @@ import {
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
+import { DataSetBadge, PriorityBadge } from "@/components/data/DataSetBadge"
 import type { LeadSource, ServiceLine } from "@/lib/types"
 import type { LeadListItem } from "@/lib/hooks/useLeads"
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
@@ -290,6 +291,13 @@ export function LeadTable({
                         <p className="mt-0.5 truncate text-xs text-[#9090A8]">
                           {lead.company_name || "No company"}
                         </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                          <PriorityBadge priority={lead.priority} note={lead.priority_note} />
+                          <DataSetBadge dataSetId={lead.data_set_id} />
+                          {lead.owner_name ? (
+                            <span className="text-[10px] text-[#9090A8]">Owner: {lead.owner_name}</span>
+                          ) : null}
+                        </div>
                       </div>
                       <span
                         className="flex-shrink-0 rounded-full px-2 py-1 text-[10px] font-medium text-white"
@@ -527,6 +535,13 @@ export function LeadTable({
                       <p className="mt-1 text-sm text-[#9090A8]">
                         {lead.company_name || "No company"}
                       </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                        <PriorityBadge priority={lead.priority} note={lead.priority_note} />
+                        <DataSetBadge dataSetId={lead.data_set_id} />
+                        {lead.owner_name ? (
+                          <span className="text-[10px] text-[#9090A8]">Owner: {lead.owner_name}</span>
+                        ) : null}
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-4">

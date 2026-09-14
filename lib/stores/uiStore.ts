@@ -10,6 +10,8 @@ interface UIState {
   leadDrawerId: string | null
   drawerActiveTab: string | null
   drawerOpenLogCall: boolean
+  /** Open the drawer straight into Log Meeting — the phone quick action. */
+  drawerOpenLogMeeting: boolean
   isNewLeadModalOpen: boolean
   isBulkImportModalOpen: boolean
   setSidebarCollapsed: (collapsed: boolean) => void
@@ -22,6 +24,7 @@ interface UIState {
   setLeadDrawerId: (id: string | null) => void
   setDrawerActiveTab: (tab: string | null) => void
   setDrawerOpenLogCall: (open: boolean) => void
+  setDrawerOpenLogMeeting: (open: boolean) => void
   openNewLeadModal: () => void
   closeNewLeadModal: () => void
   openBulkImportModal: () => void
@@ -36,6 +39,7 @@ export const useUIStore = create<UIState>((set) => ({
   leadDrawerId: null,
   drawerActiveTab: null,
   drawerOpenLogCall: false,
+  drawerOpenLogMeeting: false,
   isNewLeadModalOpen: false,
   isBulkImportModalOpen: false,
   setSidebarCollapsed: (collapsed) => set({ isSidebarCollapsed: collapsed }),
@@ -54,6 +58,7 @@ export const useUIStore = create<UIState>((set) => ({
     }),
   setDrawerActiveTab: (tab) => set({ drawerActiveTab: tab }),
   setDrawerOpenLogCall: (open) => set({ drawerOpenLogCall: open }),
+  setDrawerOpenLogMeeting: (open) => set({ drawerOpenLogMeeting: open }),
   openNewLeadModal: () => set({ isNewLeadModalOpen: true }),
   closeNewLeadModal: () => set({ isNewLeadModalOpen: false }),
   openBulkImportModal: () => set({ isBulkImportModalOpen: true }),

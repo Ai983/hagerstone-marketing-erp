@@ -48,7 +48,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const { data: counts } = useSidebarCounts(userId)
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0A0A0F] text-[#F0F0FA]">
+    // 100dvh, not h-screen: on phones 100vh includes the area under the
+    // browser's address bar, which pushed the bottom nav off-screen.
+    <div className="flex h-screen overflow-hidden bg-[#0A0A0F] text-[#F0F0FA] supports-[height:100dvh]:h-[100dvh]">
       <Sidebar
         fullName={fullName}
         role={role}
@@ -76,7 +78,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <TopBar fullName={fullName} role={role} />
         <DemoModeBanner />
 
-        <main className="relative flex-1 overflow-auto pb-16 md:pb-0">
+        <main className="relative flex-1 overflow-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
           <div className="min-h-full">{children}</div>
         </main>
 

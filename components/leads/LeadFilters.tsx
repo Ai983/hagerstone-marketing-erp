@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { ChevronDown, Filter, Search, X } from "lucide-react"
 
-import type { LeadSource, PipelineStage, Profile, ServiceLine } from "@/lib/types"
+import { PRIORITY_OPTIONS, priorityLabel } from "@/components/data/DataSetBadge"
+import type { DataSet, LeadSource, PipelineStage, Profile, ServiceLine } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 export type ProfileCategoryFilter =
@@ -23,7 +24,27 @@ export interface LeadsFilterState {
   assignedTo: string[]
   category: "all" | "hot" | "warm" | "lukewarm" | "cold" | "uncategorized"
   profile: ProfileCategoryFilter
+  /** Data set keys — "architect-meetings-dec-2025", "founder-pipeline"… */
+  dataSets: string[]
+  priorities: string[]
 }
+
+export const EMPTY_LEAD_FILTERS: LeadsFilterState = {
+  search: "",
+  stages: [],
+  sources: [],
+  serviceLines: [],
+  assignedTo: [],
+  category: "all",
+  profile: "all",
+  dataSets: [],
+  priorities: [],
+}
+
+const priorityOptions = PRIORITY_OPTIONS.map((p) => ({
+  value: p,
+  label: p === "dropped" ? "Dropped" : `${priorityLabel(p)} priority`,
+}))
 
 const profileFilterOptions: { value: ProfileCategoryFilter; label: string }[] = [
   { value: "all", label: "All Profiles" },
@@ -41,6 +62,10 @@ interface LeadFiltersProps {
   stages: Pick<PipelineStage, "id" | "name" | "slug" | "color">[]
   teamMembers: Pick<Profile, "id" | "full_name">[]
   canFilterAssignedTo: boolean
+  dataSets: DataSet[]
+  /** Lead count per data set key, for the tab labels. */
+  dataSetCounts: Record<string, number>
+  totalCount: number
 }
 
 interface MultiSelectOption {
@@ -167,6 +192,9 @@ export function LeadFilters({
   stages,
   teamMembers,
   canFilterAssignedTo,
+  dataSets,
+  dataSetCounts,
+  totalCount,
 }: LeadFiltersProps) {
   const [searchInput, setSearchInput] = useState(filters.search)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
@@ -211,6 +239,7 @@ export function LeadFilters({
     filters.assignedTo.length +
     (filters.category !== "all" ? 1 : 0) +
     (filters.profile !== "all" ? 1 : 0) +
+    filters.priorities.length +
     (filters.search ? 1 : 0)
 
   const hasActiveFilters = activeFilterCount > 0
@@ -220,6 +249,33 @@ export function LeadFilters({
   return (
     <section className="border-y border-[#2A2A3C] bg-[#111118] px-4 py-3 md:border-b md:border-t-0 md:px-6">
       <div className="flex flex-col gap-3">
+        {/* Which body of data — ERP, Architect Drive, Founder Pipeline. */}
+        {dataSets.length > 0 ? (
+          <div className="thin-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
+            {[{ key: "", name: "All data", color: "#9090A8" }, ...dataSets]
+              .filter((ds) => ds.key === "" || (dataSetCounts[ds.key] ?? 0) > 0)
+              .map((ds) => {
+                const active = ds.key === "" ? filters.dataSets.length === 0 : filters.dataSets.includes(ds.key)
+                const count = ds.key === "" ? totalCount : dataSetCounts[ds.key] ?? 0
+                return (
+                  <button
+                    key={ds.key || "all"}
+                    type="button"
+                    onClick={() => update({ dataSets: ds.key === "" ? [] : [ds.key] })}
+                    className={cn(
+                      "inline-flex h-9 shrink-0 touch-manipulation items-center gap-2 rounded-full border px-3 text-sm font-medium transition",
+                      active ? "text-[#F0F0FA]" : "border-[#2A2A3C] bg-[#1A1A24] text-[#9090A8] hover:text-[#F0F0FA]"
+                    )}
+                    style={active ? { borderColor: ds.color, backgroundColor: `${ds.color}22` } : undefined}
+                  >
+                    <span className="size-2 rounded-full" style={{ backgroundColor: ds.color }} />
+                    {ds.name}
+                    <span className="text-xs text-[#9090A8]">{count}</span>
+                  </button>
+                )
+              })}
+          </div>
+        ) : null}
         <div className="flex items-center justify-between gap-3 md:hidden">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#9090A8]" />
@@ -245,7 +301,7 @@ export function LeadFilters({
           </button>
         </div>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden flex-wrap items-center gap-3 md:flex">
           <div className="relative min-w-[280px] flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#9090A8]" />
             <input
@@ -272,6 +328,12 @@ export function LeadFilters({
             values={filters.serviceLines}
             options={serviceLineOptions}
             onChange={(values) => update({ serviceLines: values as ServiceLine[] })}
+          />
+          <MultiSelectDropdown
+            label="Priority"
+            values={filters.priorities}
+            options={priorityOptions}
+            onChange={(values) => update({ priorities: values })}
           />
           <select
             value={filters.category}
@@ -313,17 +375,7 @@ export function LeadFilters({
           {hasActiveFilters ? (
             <button
               type="button"
-              onClick={() =>
-                onFiltersChange({
-                  search: "",
-                  stages: [],
-                  sources: [],
-                  serviceLines: [],
-                  assignedTo: [],
-                  category: "all",
-                  profile: "all",
-                })
-              }
+              onClick={() => onFiltersChange({ ...EMPTY_LEAD_FILTERS, dataSets: filters.dataSets })}
               className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] transition hover:bg-[#1A1A24]"
             >
               <X className="size-4" />
@@ -351,6 +403,12 @@ export function LeadFilters({
               values={filters.serviceLines}
               options={serviceLineOptions}
               onChange={(values) => update({ serviceLines: values as ServiceLine[] })}
+            />
+            <MultiSelectDropdown
+              label="Priority"
+              values={filters.priorities}
+              options={priorityOptions}
+              onChange={(values) => update({ priorities: values })}
             />
             <select
               value={filters.category}
@@ -392,17 +450,7 @@ export function LeadFilters({
             {hasActiveFilters ? (
               <button
                 type="button"
-                onClick={() =>
-                  onFiltersChange({
-                    search: "",
-                    stages: [],
-                    sources: [],
-                    serviceLines: [],
-                    assignedTo: [],
-                    category: "all",
-                    profile: "all",
-                  })
-                }
+                onClick={() => onFiltersChange({ ...EMPTY_LEAD_FILTERS, dataSets: filters.dataSets })}
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA]"
               >
                 <X className="size-4" />

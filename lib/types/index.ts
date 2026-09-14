@@ -109,6 +109,17 @@ export interface Lead {
   is_archived?: boolean
   archived_at?: string | null
   archived_by?: string | null
+  /** Which body of data this lead came from — see `DataSet`. */
+  data_set_id?: string | null
+  data_set?: DataSet | null
+  /** Field rating from whoever met the client. Not touched by scoring. */
+  priority?: LeadPriority | null
+  priority_note?: string | null
+  priority_updated_at?: string | null
+  /** Deal owner by name, for owners who have no ERP login yet. */
+  owner_name?: string | null
+  /** Identity in the source system, e.g. the founder's pipeline serial. */
+  external_ref?: string | null
   created_at: string
   updated_at: string
   // Computed
@@ -157,6 +168,7 @@ export interface Interaction {
   follow_up_type?: string
   follow_up_completed: boolean
   is_automated: boolean
+  data_set_id?: string | null
   created_at: string
 }
 
@@ -231,4 +243,87 @@ export interface LeadFilters {
   searchQuery?: string
   staleOnly?: boolean
   overdueOnly?: boolean
+}
+
+// ------------------------------------------------------------------
+// Data provenance, contact universe, document library
+// ------------------------------------------------------------------
+
+export type LeadPriority = 'P1' | 'P2' | 'P3' | 'P4' | 'dropped'
+
+export type DataSetKind =
+  | 'erp_native' | 'field_meetings' | 'founder_pipeline'
+  | 'founder_universe' | 'import' | 'other'
+
+/** A body of data with one origin — "Architect Drive", "Founder Pipeline"… */
+export interface DataSet {
+  id: string
+  key: string
+  name: string
+  description: string | null
+  kind: DataSetKind
+  color: string
+  icon: string | null
+  source_file: string | null
+  source_note: string | null
+  record_count: number
+  imported_at: string | null
+  is_active: boolean
+  position: number
+}
+
+export type FunnelStage =
+  | '1-AUDIENCE' | '2-CONTACTED' | '3-ENGAGED' | '4-OPPORTUNITY' | '5-CLIENT'
+
+export interface UniverseContact {
+  id: string
+  serial: string | null
+  name: string | null
+  company: string | null
+  role: string | null
+  phone: string | null
+  email: string | null
+  city: string | null
+  funnel_stage: FunnelStage
+  persona: string | null
+  field: string | null
+  region: string | null
+  recency: string | null
+  project: string | null
+  suggested_action: string | null
+  source_tag: string | null
+  notes: string | null
+  data_set_id: string | null
+  converted_lead_id: string | null
+  converted_at: string | null
+  is_lead: boolean
+  created_at: string
+}
+
+export type DocumentCategory =
+  | 'company_profile' | 'sales_pitch' | 'case_study' | 'brochure'
+  | 'presentation' | 'rate_card' | 'certificate' | 'project_photos' | 'other'
+
+export interface CompanyDocument {
+  id: string
+  title: string
+  description: string | null
+  category: DocumentCategory
+  service_line: ServiceLine | 'all'
+  file_name: string
+  file_path: string
+  file_url: string
+  file_size: number | null
+  mime_type: string | null
+  version: string
+  is_current: boolean
+  tags: string[]
+  visible_to_roles: UserRole[]
+  download_count: number
+  share_count: number
+  is_active: boolean
+  uploaded_by: string | null
+  uploader?: { full_name: string } | null
+  created_at: string
+  updated_at: string
 }

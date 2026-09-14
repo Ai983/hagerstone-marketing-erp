@@ -817,4 +817,26 @@ const result = await callClaudeJSON<{ message: string }>({
 
 ---
 
+---
+
+## 27. Data Sets, Contact Universe, Document Library, Sales Engine
+
+Added Sep 2026 to absorb the founder's standalone Sales Engine (`docs/founder-sales-engine/`) and the Delhi team's architect meeting drive. Migrations `003`–`006` in `supabase/migrations/` — all `marketing`-schema only. Full mapping and runbook: `docs/founder-sales-engine/ERP_INTEGRATION.md`.
+
+**Data sets** (`marketing.data_sets`): provenance, separate from `leads.source`. Keys: `erp-native`, `architect-meetings-dec-2025`, `founder-pipeline`, `founder-universe`. `leads.data_set_id` and `interactions.data_set_id` point at one. UI: `DataSetBadge`, `useDataSets()`; tab strips on All Leads, Meetings, Sales Engine.
+
+**New lead columns:** `priority` (`P1`–`P4` / `dropped` — a human field rating, never written by scoring), `priority_note`, `priority_updated_at`, `owner_name` (deal owner who may have no login), `external_ref` (source-system id, unique per data set).
+
+**Contact Universe** (`marketing.universe_contacts`, ~98k rows, `/universe`): the founder's funnel contacts. Stages `1-AUDIENCE` … `5-CLIENT`; `is_lead` = anything but audience. Never merged into `leads` — "Add to pipeline" creates a lead and sets `converted_lead_id`. Counts via `marketing.universe_summary()` RPC.
+
+**Profiles & Pitches** (`marketing.documents`, `marketing.document_shares`, `/documents`): company profile / pitch library. Files in the existing `boq-documents` bucket under `company-documents/`, uploaded browser-direct. Sharing opens WhatsApp/email pre-filled — nothing auto-sends — and logs a share + interaction on the lead.
+
+**Sales Engine** (`/sales-engine`, not for `sales_rep`): ₹20 Cr/month target, weighted pipeline (Negotiation×50%, Proposal Sent/BOQ×30%, other active×15%, target ₹40 Cr), critical list, deals by owner, team activity, universe funnel.
+
+**Mobile:** `MobileBottomNav` centre ＋ opens quick actions (Log meeting, Add lead, Log call, Share profile) via `LeadPickerModal`; `uiStore.drawerOpenLogMeeting` opens the drawer straight into Log Meeting.
+
+**Imports** (`scripts/imports/*.mjs`, `--dry-run`, idempotent): `import-architect-meetings` → `import-founder-pipeline` → `import-founder-universe`, in that order.
+
+---
+
 *Generated from full codebase scan — covers all 130+ TypeScript files.*

@@ -59,6 +59,7 @@ import { StagePickerPopover } from "@/components/leads/StagePickerPopover"
 import { StageChangeModal } from "@/components/kanban/StageChangeModal"
 import { scoreLead, getScoreLabel, MAX_POINTS } from "@/lib/utils/lead-scoring"
 import { categoryConfig, type LeadCategory } from "@/lib/utils/lead-category"
+import { LeadProvenancePanel } from "@/components/leads/LeadProvenancePanel"
 import type { Lead, PipelineStage, PriceRevision, Profile, UserRole } from "@/lib/types"
 import type { KanbanLead } from "@/lib/hooks/useKanban"
 import type { TimelineInteraction } from "@/lib/hooks/useActivities"
@@ -1159,6 +1160,8 @@ function OverviewTab({
           <dd className="mt-1 text-xs leading-relaxed text-[#F0F0FA]">{lead.initial_notes}</dd>
         </div>
       )}
+
+      <LeadProvenancePanel lead={lead} />
 
       <div className="px-4 pb-3">
         <div
@@ -3322,6 +3325,8 @@ export function LeadDrawer() {
     setDrawerActiveTab,
     drawerOpenLogCall,
     setDrawerOpenLogCall,
+    drawerOpenLogMeeting,
+    setDrawerOpenLogMeeting,
   } = useUIStore()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<TabName>("Overview")
@@ -3383,6 +3388,7 @@ export function LeadDrawer() {
       setActiveTab("Overview")
       setLastWhatsAppViewedAt(null)
       setShowLogCall(false)
+      setShowLogMeeting(false)
       setShowFollowUp(false)
       setShowWhatsApp(false)
       setPendingToStage(null)
@@ -3402,6 +3408,13 @@ export function LeadDrawer() {
     setShowLogCall(true)
     setDrawerOpenLogCall(false)
   }, [drawerOpenLogCall, leadDrawerId, setDrawerOpenLogCall])
+
+  // Declared after the reset effect above so it wins in the same commit.
+  useEffect(() => {
+    if (!drawerOpenLogMeeting || !leadDrawerId) return
+    setShowLogMeeting(true)
+    setDrawerOpenLogMeeting(false)
+  }, [drawerOpenLogMeeting, leadDrawerId, setDrawerOpenLogMeeting])
 
   useEffect(() => {
     if (activeTab === "WhatsApp") {

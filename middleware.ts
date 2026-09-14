@@ -94,6 +94,11 @@ export async function middleware(request: NextRequest) {
       )
     }
 
+    // Company-wide targets and pipeline value are for heads, not reps.
+    if (hasProfile && request.nextUrl.pathname.startsWith("/sales-engine") && profile?.role === "sales_rep") {
+      return NextResponse.redirect(new URL("/pipeline", request.url))
+    }
+
     if (hasProfile && request.nextUrl.pathname.startsWith("/admin")) {
       const role = profile?.role
       const isAdminRole = role === "admin" || role === "founder"

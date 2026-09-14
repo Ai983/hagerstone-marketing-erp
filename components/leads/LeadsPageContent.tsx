@@ -13,6 +13,7 @@ import {
   type ProfileCategoryFilter,
 } from "@/components/leads/LeadFilters"
 import { LeadTable, type SortDirection, type SortKey } from "@/components/leads/LeadTable"
+import { useDataSets } from "@/lib/hooks/useDataSets"
 import { useLeads } from "@/lib/hooks/useLeads"
 import type { LeadSource, ServiceLine, UserRole } from "@/lib/types"
 
@@ -63,6 +64,10 @@ export function LeadsPageContent() {
     queryFn: getOverdueLeadIds,
   })
 
+  // Not part of the loading gate: before migration 003 there is no
+  // data_sets table, and the leads page must still work without tabs.
+  const { dataSets, byId: dataSetById } = useDataSets()
+
   const filters = useMemo<LeadsFilterState>(
     () => ({
       search: searchParams.get("q") ?? "",
@@ -75,6 +80,8 @@ export function LeadsPageContent() {
         "all",
       profile:
         (searchParams.get("profile") as ProfileCategoryFilter | null) ?? "all",
+      dataSets: searchParams.getAll("ds"),
+      priorities: searchParams.getAll("priority"),
     }),
     [searchParams]
   )
@@ -98,20 +105,29 @@ export function LeadsPageContent() {
     if (nextFilters.profile !== "all") {
       nextParams.set("profile", nextFilters.profile)
     }
+    nextFilters.dataSets.forEach((value) => nextParams.append("ds", value))
+    nextFilters.priorities.forEach((value) => nextParams.append("priority", value))
 
     const queryString = nextParams.toString()
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false })
     setCurrentPage(1)
   }
 
-  const filteredLeads = useMemo(() => {
+  // Everything except the data-set tab, so each tab's count reflects the
+  // other filters and switching tabs never shows a surprising number.
+  const leadsBeforeDataSet = useMemo(() => {
     const allLeads = leadsQuery.data ?? []
     const normalizedSearch = filters.search.trim().toLowerCase()
 
     return allLeads.filter((lead) => {
+      const matchesPriority =
+        filters.priorities.length === 0 ||
+        (lead.priority ? filters.priorities.includes(lead.priority) : false)
+      if (!matchesPriority) return false
+
       const matchesSearch =
         !normalizedSearch ||
-        [lead.full_name, lead.company_name, lead.phone]
+        [lead.full_name, lead.company_name, lead.phone, lead.owner_name]
           .filter(Boolean)
           .some((value) => value!.toLowerCase().includes(normalizedSearch))
 
@@ -157,6 +173,23 @@ export function LeadsPageContent() {
       )
     })
   }, [filters, leadsQuery.data])
+
+  const dataSetCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const lead of leadsBeforeDataSet) {
+      const key = lead.data_set_id ? dataSetById.get(lead.data_set_id)?.key : undefined
+      if (key) counts[key] = (counts[key] ?? 0) + 1
+    }
+    return counts
+  }, [leadsBeforeDataSet, dataSetById])
+
+  const filteredLeads = useMemo(() => {
+    if (filters.dataSets.length === 0) return leadsBeforeDataSet
+    return leadsBeforeDataSet.filter((lead) => {
+      const key = lead.data_set_id ? dataSetById.get(lead.data_set_id)?.key : undefined
+      return key ? filters.dataSets.includes(key) : false
+    })
+  }, [leadsBeforeDataSet, filters.dataSets, dataSetById])
 
   const sortedLeads = useMemo(() => {
     const leads = [...filteredLeads]
@@ -300,6 +333,9 @@ export function LeadsPageContent() {
           full_name: member.full_name,
         }))}
         canFilterAssignedTo={canFilterAssignedTo}
+        dataSets={dataSets}
+        dataSetCounts={dataSetCounts}
+        totalCount={leadsBeforeDataSet.length}
       />
 
       <div className="md:mt-6">

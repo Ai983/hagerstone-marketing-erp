@@ -29,6 +29,9 @@ import {
   Users,
   X,
   CalendarDays,
+  FileText,
+  Gauge,
+  Globe,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -54,12 +57,15 @@ interface NavItem {
 }
 
 const primaryNavigation: ReadonlyArray<NavItem> = [
+  { href: "/sales-engine", label: "Sales Engine", icon: Gauge, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/pipeline", label: "Pipeline", icon: Kanban, roles: ALL_ROLES },
   { href: "/inbox", label: "Lead Inbox", icon: Inbox, badgeKey: "inbox", roles: ["admin", "manager"] },
   { href: "/leads", label: "All Leads", icon: Users, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/leads/archive", label: "Archive", icon: Archive, roles: ALL_ROLES },
   { href: "/activities", label: "My Tasks", icon: CheckSquare, badgeKey: "activities", roles: ALL_ROLES },
   { href: "/meetings", label: "Meetings", icon: CalendarDays, roles: ALL_ROLES },
+  { href: "/documents", label: "Profiles & Pitches", icon: FileText, roles: ALL_ROLES },
+  { href: "/universe", label: "Contact Universe", icon: Globe, roles: ALL_ROLES },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone, roles: ["admin", "manager", "marketing", "founder"] },
   { href: "/campaigns/monitor", label: "Send Monitor", icon: Activity, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/analytics", label: "Analytics", icon: BarChart2, roles: ["admin", "manager", "founder", "marketing"] },

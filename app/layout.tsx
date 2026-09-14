@@ -7,6 +7,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  // Lets env(safe-area-inset-*) report the iPhone home-bar area, so the
+  // bottom nav and sheets are not hidden under it.
+  viewportFit: "cover",
+  themeColor: "#0A0A0F",
 };
 
 const dmSans = DM_Sans({

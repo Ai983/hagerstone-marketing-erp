@@ -13,6 +13,9 @@ import {
   UserCircle2,
 } from "lucide-react"
 
+import { DataSetBadge } from "@/components/data/DataSetBadge"
+import { LeadPickerModal } from "@/components/leads/LeadPickerModal"
+import { useDataSets } from "@/lib/hooks/useDataSets"
 import { createClient } from "@/lib/supabase/client"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { cn } from "@/lib/utils"
@@ -28,6 +31,7 @@ type MeetingRow = {
   attendees: string | null
   occurred_at: string | null
   created_at: string
+  data_set_id?: string | null
   lead: { id: string; full_name: string; company_name: string | null } | null
   user: { id: string; full_name: string } | null
 }
@@ -56,14 +60,14 @@ function meetingDate(m: MeetingRow) {
 
 async function fetchMeetings(): Promise<MeetingRow[]> {
   const supabase = createClient()
+  // `*` rather than a column list so the page keeps working whether or not
+  // migration 003 (data_set_id) has been applied.
   const { data, error } = await supabase
     .from("interactions")
-    .select(
-      "id, type, title, notes, outcome, duration_minutes, location, attendees, occurred_at, created_at, lead:lead_id(id, full_name, company_name), user:user_id(id, full_name)"
-    )
+    .select("*, lead:lead_id(id, full_name, company_name), user:user_id(id, full_name)")
     .in("type", ["meeting", "site_visit"])
     .order("created_at", { ascending: false })
-    .limit(500)
+    .limit(1000)
 
   if (error) throw error
 
@@ -75,7 +79,10 @@ async function fetchMeetings(): Promise<MeetingRow[]> {
 export default function MeetingsPage() {
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState<"all" | "meeting" | "site_visit">("all")
-  const { setLeadDrawerId } = useUIStore()
+  const [dataSetFilter, setDataSetFilter] = useState("")
+  const [picking, setPicking] = useState(false)
+  const { setLeadDrawerId, setDrawerOpenLogMeeting } = useUIStore()
+  const { dataSets } = useDataSets()
 
   const { data: meetings, isLoading, error } = useQuery({
     queryKey: ["meetings"],
@@ -87,6 +94,7 @@ export default function MeetingsPage() {
     const q = search.trim().toLowerCase()
     return rows.filter((m) => {
       if (typeFilter !== "all" && m.type !== typeFilter) return false
+      if (dataSetFilter && m.data_set_id !== dataSetFilter) return false
       if (!q) return true
       return [
         m.lead?.full_name,
@@ -99,7 +107,13 @@ export default function MeetingsPage() {
         .filter(Boolean)
         .some((v) => (v as string).toLowerCase().includes(q))
     })
-  }, [meetings, search, typeFilter])
+  }, [meetings, search, typeFilter, dataSetFilter])
+
+  const dataSetCounts = useMemo(() => {
+    const c: Record<string, number> = {}
+    for (const m of meetings ?? []) if (m.data_set_id) c[m.data_set_id] = (c[m.data_set_id] ?? 0) + 1
+    return c
+  }, [meetings])
 
   const stats = useMemo(() => {
     const rows = meetings ?? []
@@ -113,18 +127,49 @@ export default function MeetingsPage() {
   }, [meetings])
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 md:px-6">
-      <div className="mb-5">
-        <h1 className="font-[family-name:var(--font-heading)] text-2xl font-bold text-[#F0F0FA]">
-          Meetings
-        </h1>
-        <p className="mt-1 text-sm text-[#9090A8]">
-          Every client meeting and site visit recorded across the pipeline.
-        </p>
+    <div className="mx-auto max-w-5xl px-4 py-5 md:px-6 md:py-6">
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="font-[family-name:var(--font-heading)] text-xl font-bold text-[#F0F0FA] md:text-2xl">
+            Meetings
+          </h1>
+          <p className="mt-1 text-sm text-[#9090A8]">
+            Every client meeting and site visit recorded across the pipeline.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setPicking(true)}
+          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-[#8B5CF6] px-3 text-sm font-medium text-white transition hover:bg-[#7C3AED] md:px-4"
+        >
+          <Users className="size-4" />
+          Log meeting
+        </button>
       </div>
 
+      {dataSets.some((d) => dataSetCounts[d.id]) ? (
+        <div className="thin-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
+          {[{ id: "", name: "All sources", color: "#9090A8" }, ...dataSets.filter((d) => dataSetCounts[d.id])].map((d) => (
+            <button
+              key={d.id || "all"}
+              type="button"
+              onClick={() => setDataSetFilter(d.id)}
+              className={cn(
+                "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm transition",
+                dataSetFilter === d.id ? "text-[#F0F0FA]" : "border-[#2A2A3C] bg-[#1A1A24] text-[#9090A8]"
+              )}
+              style={dataSetFilter === d.id ? { borderColor: d.color, backgroundColor: `${d.color}22` } : undefined}
+            >
+              <span className="size-2 rounded-full" style={{ backgroundColor: d.color }} />
+              {d.name}
+              <span className="text-xs text-[#5A5A72]">{d.id ? dataSetCounts[d.id] : (meetings ?? []).length}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {/* Stats */}
-      <div className="mb-5 grid grid-cols-3 gap-3">
+      <div className="mb-5 grid grid-cols-3 gap-2 md:gap-3">
         {[
           { label: "Total Recorded", value: stats.total, icon: Users },
           { label: "This Month", value: stats.thisMonth, icon: CalendarDays },
@@ -132,13 +177,13 @@ export default function MeetingsPage() {
         ].map(({ label, value, icon: Icon }) => (
           <div
             key={label}
-            className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-4"
+            className="min-w-0 rounded-xl border border-[#2A2A3C] bg-[#111118] p-3 md:p-4"
           >
             <div className="flex items-center gap-1.5 text-[#9090A8]">
-              <Icon className="size-3.5" />
-              <span className="text-[11px] uppercase tracking-wider">{label}</span>
+              <Icon className="size-3.5 shrink-0" />
+              <span className="truncate text-[10px] uppercase tracking-wider md:text-[11px]">{label}</span>
             </div>
-            <p className="mt-1 text-2xl font-semibold text-[#F0F0FA]">{value}</p>
+            <p className="mt-1 text-xl font-semibold text-[#F0F0FA] md:text-2xl">{value}</p>
           </div>
         ))}
       </div>
@@ -237,6 +282,7 @@ export default function MeetingsPage() {
                       · {m.lead.company_name}
                     </span>
                   )}
+                  <DataSetBadge dataSetId={m.data_set_id} />
 
                   {m.outcome && (
                     <span
@@ -267,12 +313,17 @@ export default function MeetingsPage() {
                       {m.location}
                     </span>
                   )}
-                  {m.user?.full_name && (
+                  {m.user?.full_name ? (
                     <span className="inline-flex items-center gap-1">
                       <UserCircle2 className="size-3 text-[#5A5A72]" />
                       {m.user.full_name}
                     </span>
-                  )}
+                  ) : m.data_set_id ? (
+                    <span className="inline-flex items-center gap-1 text-[#5A5A72]">
+                      <UserCircle2 className="size-3" />
+                      Imported record
+                    </span>
+                  ) : null}
                 </div>
 
                 {m.attendees && (
@@ -292,6 +343,18 @@ export default function MeetingsPage() {
           })}
         </div>
       )}
+
+      <LeadPickerModal
+        open={picking}
+        title="Log a meeting with…"
+        subtitle="Pick the lead you met"
+        onClose={() => setPicking(false)}
+        onPick={(lead) => {
+          setDrawerOpenLogMeeting(true)
+          setLeadDrawerId(lead.id)
+          setPicking(false)
+        }}
+      />
     </div>
   )
 }
