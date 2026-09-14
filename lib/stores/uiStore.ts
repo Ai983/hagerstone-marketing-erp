@@ -14,6 +14,9 @@ interface UIState {
   drawerOpenLogMeeting: boolean
   isNewLeadModalOpen: boolean
   isBulkImportModalOpen: boolean
+  /** Hides the sidebar and top bar so a page (the pipeline) gets the whole screen. */
+  isFocusMode: boolean
+  setFocusMode: (on: boolean) => void
   setSidebarCollapsed: (collapsed: boolean) => void
   toggleSidebar: () => void
   openMobileNav: () => void
@@ -42,6 +45,8 @@ export const useUIStore = create<UIState>((set) => ({
   drawerOpenLogMeeting: false,
   isNewLeadModalOpen: false,
   isBulkImportModalOpen: false,
+  isFocusMode: false,
+  setFocusMode: (on) => set({ isFocusMode: on }),
   setSidebarCollapsed: (collapsed) => set({ isSidebarCollapsed: collapsed }),
   toggleSidebar: () =>
     set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),

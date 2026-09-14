@@ -32,6 +32,12 @@ export interface KanbanLead {
   assigned_to?: string | null
   estimated_budget?: string | null
   closure_value?: number | null
+  proposal_estimated_cost?: number | null
+  final_agreed_price?: number | null
+  priority?: string | null
+  priority_note?: string | null
+  owner_name?: string | null
+  data_set_id?: string | null
   score?: number | null
   category?: LeadCategory | null
   category_remarks?: string | null

@@ -23,6 +23,9 @@ import type { KanbanLead } from "@/lib/hooks/useKanban"
 import type { PipelineStage } from "@/lib/types"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import { useUIStore } from "@/lib/stores/uiStore"
+import { PriorityBadge } from "@/components/data/DataSetBadge"
+import { formatInrShort, leadValue } from "@/components/kanban/lead-value"
+import { useDataSets } from "@/lib/hooks/useDataSets"
 import { categoryConfig } from "@/lib/utils/lead-category"
 import { cn } from "@/lib/utils"
 
@@ -256,14 +259,11 @@ export function MobileLeadCard({
   )
 }
 
-function getStageAgeStyles(days: number) {
-  if (days > 7) {
-    return "bg-[#3F161A] text-[#F87171]"
-  }
-  if (days >= 3) {
-    return "bg-[#3F2A12] text-[#F59E0B]"
-  }
-  return "bg-[#163322] text-[#34D399]"
+
+function stageAgeClass(days: number) {
+  if (days > 7) return "bg-[#3F161A] text-[#F87171]"
+  if (days >= 3) return "bg-[#3F2A12] text-[#F59E0B]"
+  return "bg-[#1A1A24] text-[#9090A8]"
 }
 
 interface LeadCardProps {
@@ -276,6 +276,11 @@ interface LeadCardProps {
   isRecentlyMoved?: boolean
 }
 
+/**
+ * Desktop board card. Kept to four short lines so a column shows 6–8
+ * leads instead of 2–3: only facts that exist are rendered — no
+ * "Location not set" / "Unassigned" / "No follow-up set" placeholders.
+ */
 export function LeadCard({
   lead,
   buttonProps,
@@ -287,53 +292,36 @@ export function LeadCard({
 }: LeadCardProps) {
   const { setLeadDrawerId } = useUIStore()
   const { setSelectedLeadId } = useKanbanStore()
+  const { byId: dataSetById } = useDataSets()
+  const dataSet = lead.data_set_id ? dataSetById.get(lead.data_set_id) : undefined
 
   const leftAccentColor = lead.has_overdue_follow_up ? "#F59E0B" : lead.stage?.color ?? "#6B7280"
   const shadows = [
-    lead.stage_age_days > 7 ? "0 0 0 1px rgba(239, 68, 68, 0.25)" : null,
     isOverlay ? "0 16px 40px rgba(0, 0, 0, 0.45)" : null,
     isRecentlyMoved ? "0 0 0 1px rgba(34, 197, 94, 0.65)" : null,
   ]
     .filter(Boolean)
     .join(", ")
 
+  const value = leadValue(lead)
+  const owner = lead.assignee?.full_name || lead.owner_name || null
+
   const nextTask = lead.next_task ?? lead.next_follow_up ?? null
-  const getFollowUpText = () => {
+  const followUp = (() => {
     if (!nextTask) return null
     const due = new Date(nextTask.due_at)
+    if (isPast(due)) return { text: `Overdue ${format(due, "d MMM")}`, className: "text-[#F87171]" }
+    if (isToday(due)) return { text: `Today ${format(due, "h:mm a")}`, className: "text-[#F59E0B]" }
+    if (isTomorrow(due)) return { text: "Tomorrow", className: "text-[#F59E0B]" }
+    return { text: format(due, "d MMM"), className: "text-[#9090A8]" }
+  })()
 
-    if (isPast(due)) {
-      return {
-        text: `Overdue: ${format(due, "dd MMM")}`,
-        color: "#EF4444",
-        bg: "#7F1D1D",
-      }
-    }
-    if (isToday(due)) {
-      return {
-        text: `Today ${format(due, "hh:mm a")}`,
-        color: "#F59E0B",
-        bg: "#78350F",
-      }
-    }
-    if (isTomorrow(due)) {
-      return {
-        text: `Tomorrow ${format(due, "hh:mm a")}`,
-        color: "#F59E0B",
-        bg: "#78350F",
-      }
-    }
-    return {
-      text: format(due, "dd MMM, hh:mm a"),
-      color: "#9090A8",
-      bg: "transparent",
-    }
-  }
-  const followUp = getFollowUpText()
-  const daysLeft =
-    lead.boq_deadline != null
-      ? differenceInDays(new Date(lead.boq_deadline), new Date())
-      : null
+  const boqDaysLeft = lead.boq_deadline != null ? differenceInDays(new Date(lead.boq_deadline), new Date()) : null
+  const showSource = lead.source && lead.source !== "manual_sales"
+  const category = lead.category && categoryConfig[lead.category] ? categoryConfig[lead.category] : null
+  const subtitle = [lead.company_name && lead.company_name !== lead.full_name ? lead.company_name : null, lead.city]
+    .filter(Boolean)
+    .join(" · ")
 
   return (
     <button
@@ -343,120 +331,102 @@ export function LeadCard({
         setLeadDrawerId(lead.id)
       }}
       className={cn(
-        "w-full rounded-[10px] border border-[#2A2A3C] bg-[#111118] p-3 text-left transition duration-150 hover:scale-[1.01] hover:bg-[#1A1A24]",
-        isDraggingGhost && "border-dashed opacity-30 hover:scale-100 hover:bg-[#111118]",
+        "group w-full rounded-lg border border-[#2A2A3C] bg-[#15151D] px-2.5 py-2 text-left transition duration-150 hover:border-[#3A3A52] hover:bg-[#1A1A24]",
+        isDraggingGhost && "border-dashed opacity-30 hover:bg-[#15151D]",
         isRecentlyMoved && "border-green-500",
         className
       )}
       style={{
         boxShadow: shadows || undefined,
-        borderLeftWidth: "4px",
+        borderLeftWidth: "3px",
         borderLeftColor: leftAccentColor,
         ...style,
       }}
       {...buttonProps}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-[14px] font-semibold text-[#F0F0FA]">{lead.full_name}</p>
-          <p className="truncate text-[12px] text-[#9090A8]">
-            {lead.company_name || "No company"}
-          </p>
+      {/* Name + value */}
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="truncate text-[13px] font-semibold leading-5 text-[#F0F0FA]">{lead.full_name}</p>
+        {value > 0 ? (
+          <span className="shrink-0 text-[12px] font-semibold tabular-nums text-[#34D399]">{formatInrShort(value)}</span>
+        ) : lead.estimated_budget ? (
+          <span className="max-w-[40%] shrink-0 truncate text-[11px] text-[#9090A8]" title={lead.estimated_budget}>
+            {lead.estimated_budget}
+          </span>
+        ) : null}
+      </div>
+
+      {/* Company · city */}
+      {subtitle || dataSet ? (
+        <div className="mt-0.5 flex items-center gap-1.5">
+          {dataSet ? (
+            <span
+              className="size-1.5 shrink-0 rounded-full"
+              style={{ backgroundColor: dataSet.color }}
+              title={`Source: ${dataSet.name}`}
+            />
+          ) : null}
+          <p className="truncate text-[11px] leading-4 text-[#9090A8]">{subtitle || dataSet?.name}</p>
         </div>
-      </div>
+      ) : null}
 
-      <div className="mt-3">
-        <span
-          className={`inline-flex rounded-full px-2 py-1 text-[11px] font-medium ${
-            sourceStyles[lead.source]
-          }`}
-        >
-          {lead.source
-            .split("_")
-            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-            .join(" ")}
-        </span>
-      </div>
-
-      <div className="mt-3 flex items-center gap-1 text-[12px] text-[#9090A8]">
-        <MapPin className="size-3.5 shrink-0" />
-        <span className="truncate">{lead.city || "Location not set"}</span>
-      </div>
-
-      <div className="mt-3 flex items-center gap-2">
-        <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#1E3A5F] text-[10px] font-semibold text-[#3B82F6]">
-          {getInitials(lead.assignee?.full_name)}
+      {/* Signals — only the ones that apply */}
+      {lead.priority || category || showSource || (boqDaysLeft !== null && boqDaysLeft <= 3) ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          <PriorityBadge priority={lead.priority} note={lead.priority_note} />
+          {category ? (
+            <span
+              className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+              style={{ background: category.bg, color: category.color }}
+            >
+              {category.label}
+            </span>
+          ) : null}
+          {showSource ? (
+            <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", sourceStyles[lead.source])}>
+              {lead.source.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ")}
+            </span>
+          ) : null}
+          {boqDaysLeft !== null && boqDaysLeft <= 3 ? (
+            <span
+              className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+              style={{
+                background: boqDaysLeft < 0 ? "#7F1D1D" : "#78350F",
+                color: boqDaysLeft < 0 ? "#FCA5A5" : "#FCD34D",
+              }}
+            >
+              {boqDaysLeft < 0 ? "BOQ overdue" : `BOQ in ${boqDaysLeft}d`}
+            </span>
+          ) : null}
         </div>
-        <span className="truncate text-[12px] text-[#9090A8]">
-          {lead.assignee?.full_name || "Unassigned"}
-        </span>
-      </div>
+      ) : null}
 
-      <div className="mt-3">
-        <span
-          className={`inline-flex rounded-full px-2 py-1 text-[11px] font-medium ${getStageAgeStyles(
-            lead.stage_age_days
-          )}`}
-        >
-          {lead.stage_age_days} day{lead.stage_age_days === 1 ? "" : "s"} in stage
-        </span>
-      </div>
-
-      <div className="mt-2 flex items-center justify-between gap-2 border-t border-[#2A2A3C] pt-2">
-        <div className="flex min-w-0 items-center gap-1">
+      {/* Owner · follow-up · age */}
+      <div className="mt-1.5 flex items-center gap-1.5 border-t border-[#22222F] pt-1.5">
+        {owner ? (
+          <>
+            <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-[#1E3A5F] text-[8px] font-semibold text-[#60A5FA]">
+              {getInitials(owner)}
+            </span>
+            <span className="min-w-0 truncate text-[11px] text-[#9090A8]">{owner}</span>
+          </>
+        ) : (
+          <span className="text-[11px] text-[#5A5A72]">Unassigned</span>
+        )}
+        <span className="ml-auto flex shrink-0 items-center gap-1.5">
           {followUp ? (
-            <>
-              <Clock size={10} color={followUp.color} className="shrink-0" />
-              <span
-                className="truncate text-[10px]"
-                style={{
-                  color: followUp.color,
-                  background: followUp.bg,
-                  padding: followUp.bg !== "transparent" ? "1px 6px" : "0",
-                  borderRadius: 20,
-                }}
-              >
-                {followUp.text}
-              </span>
-            </>
-          ) : (
-            <span className="text-[10px] text-[#3A3A52]">No follow-up set</span>
-          )}
-        </div>
-
-        {lead.score != null && lead.score > 0 && (
-          <div
-            className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
-            style={{
-              background: "#1F1F2E",
-              color: "#9090A8",
-            }}
-          >
-            {lead.score}
-          </div>
-        )}
-        {lead.category && categoryConfig[lead.category] && (
+            <span className={cn("inline-flex items-center gap-0.5 text-[10px]", followUp.className)}>
+              <Clock size={10} className="shrink-0" />
+              {followUp.text}
+            </span>
+          ) : null}
           <span
-            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
-            style={{
-              background: categoryConfig[lead.category].bg,
-              color: categoryConfig[lead.category].color,
-            }}
+            className={cn("rounded px-1 py-px text-[10px] tabular-nums", stageAgeClass(lead.stage_age_days))}
+            title={`${lead.stage_age_days} day${lead.stage_age_days === 1 ? "" : "s"} in this stage`}
           >
-            {categoryConfig[lead.category].label}
+            {lead.stage_age_days}d
           </span>
-        )}
-        {daysLeft !== null && daysLeft <= 3 && (
-          <span
-            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
-            style={{
-              background: daysLeft < 0 ? "#7F1D1D" : "#78350F",
-              color: daysLeft < 0 ? "#FCA5A5" : "#FCD34D",
-            }}
-          >
-            {daysLeft < 0 ? "⚠ BOQ overdue" : `⚠ BOQ due in ${daysLeft}d`}
-          </span>
-        )}
+        </span>
       </div>
     </button>
   )

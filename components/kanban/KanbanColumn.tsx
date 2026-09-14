@@ -4,35 +4,24 @@ import { AnimatePresence, motion } from "framer-motion"
 
 import type { KanbanBoardColumn, KanbanLead } from "@/lib/hooks/useKanban"
 import { DraggableLeadCard } from "@/components/kanban/DraggableLeadCard"
+import { formatInrShort, leadValue } from "@/components/kanban/lead-value"
 import { cn } from "@/lib/utils"
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
-function getPipelineValueSummary(leads: KanbanLead[]) {
-  const numericTotal = leads.reduce((sum, lead) => sum + (lead.closure_value ?? 0), 0)
-  const estimatedBudgets = leads
-    .filter((lead) => !lead.closure_value && lead.estimated_budget)
-    .map((lead) => lead.estimated_budget as string)
-
-  const parts: string[] = []
-
-  if (numericTotal > 0) {
-    parts.push(formatCurrency(numericTotal))
+/**
+ * One number per column. The old summary listed raw budget strings
+ * ("₹5Cr+, ₹1Cr - ₹2Cr +53 more"), which can't be added up or compared.
+ */
+function getColumnValue(leads: KanbanLead[]) {
+  let total = 0
+  let valued = 0
+  for (const lead of leads) {
+    const v = leadValue(lead)
+    if (v > 0) {
+      total += v
+      valued++
+    }
   }
-
-  if (estimatedBudgets.length > 0) {
-    const visible = estimatedBudgets.slice(0, 2).join(", ")
-    const moreCount = estimatedBudgets.length - 2
-    parts.push(moreCount > 0 ? `${visible} +${moreCount} more` : visible)
-  }
-
-  return parts.length > 0 ? parts.join(" + ") : "No value set"
+  return { total, valued }
 }
 
 interface KanbanColumnProps {
@@ -50,49 +39,55 @@ export function KanbanColumn({
   realtimeInsertedId = null,
   realtimeFlashedId = null,
 }: KanbanColumnProps) {
+  const isEmpty = column.leads.length === 0
+  const { total, valued } = getColumnValue(column.leads)
+
   return (
     <section
       className={cn(
-        "flex h-full flex-col overflow-hidden rounded-xl border bg-[#111118] transition-colors duration-150",
-        isDragOver ? "bg-[#161620]" : "bg-[#111118]"
+        "flex h-full w-full flex-col overflow-hidden rounded-xl border transition-colors duration-150",
+        isDragOver ? "bg-[#161620]" : "bg-[#111118]/90"
       )}
-      style={{
-        borderColor: isDragOver ? column.stage.color : "#2A2A3C",
-        scrollSnapAlign: "start",
-        flexShrink: 0,
-        width: "85vw",
-        maxWidth: "280px",
-      }}
+      style={{ borderColor: isDragOver ? column.stage.color : "#2A2A3C" }}
     >
-      <div className="border-b border-[#2A2A3C] bg-[#0F0F15] px-4 py-3">
+      <div
+        className="border-b border-[#2A2A3C] bg-[#0F0F15] px-3 py-2.5"
+        style={{ boxShadow: `inset 0 2px 0 ${column.stage.color}` }}
+      >
         <div className="flex items-center gap-2">
-          <span
-            className="size-2 shrink-0 rounded-full"
-            style={{ backgroundColor: column.stage.color }}
-          />
-          <h2 className="truncate text-sm font-medium text-[#F0F0FA]">{column.stage.name}</h2>
-          <span className="ml-auto rounded-full bg-[#1A1A24] px-2 py-0.5 text-[11px] text-[#9090A8]">
+          <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: column.stage.color }} />
+          <h2 className="truncate text-[13px] font-semibold text-[#F0F0FA]">{column.stage.name}</h2>
+          <span className="ml-auto shrink-0 rounded-full bg-[#1A1A24] px-2 py-0.5 text-[11px] tabular-nums text-[#9090A8]">
             {column.leads.length}
           </span>
         </div>
-        <p className="mt-2 truncate text-xs text-[#9090A8]">
-          {getPipelineValueSummary(column.leads)}
-        </p>
+        {!isEmpty ? (
+          <p className="mt-1 truncate text-[11px] text-[#9090A8]">
+            {total > 0 ? (
+              <>
+                <span className="font-medium text-[#F0F0FA]">{formatInrShort(total)}</span>
+                {valued < column.leads.length ? ` · ${column.leads.length - valued} without value` : ""}
+              </>
+            ) : (
+              "No values yet"
+            )}
+          </p>
+        ) : null}
       </div>
 
       <div
         data-scrollable
-        className="thin-scrollbar flex-1 overflow-y-auto p-3"
+        className="thin-scrollbar flex-1 overflow-y-auto p-2"
         style={{
           overflowY: "auto",
           touchAction: "pan-y",
           WebkitOverflowScrolling: "touch",
-          paddingBottom: "max(80px, env(safe-area-inset-bottom))",
+          paddingBottom: "max(24px, env(safe-area-inset-bottom))",
         }}
       >
-        {column.leads.length > 0 ? (
+        {!isEmpty ? (
           <AnimatePresence initial={false} mode="popLayout">
-            <div className="space-y-3">
+            <div className="space-y-2">
               {column.leads.map((lead) => {
                 const isNewInsert = realtimeInsertedId === lead.id
                 const isFlashed = realtimeFlashedId === lead.id
@@ -120,18 +115,21 @@ export function KanbanColumn({
                     }}
                     style={{ borderRadius: 10 }}
                   >
-                    <DraggableLeadCard
-                      lead={lead}
-                      isRecentlyMoved={recentlyMovedLeadId === lead.id}
-                    />
+                    <DraggableLeadCard lead={lead} isRecentlyMoved={recentlyMovedLeadId === lead.id} />
                   </motion.div>
                 )
               })}
             </div>
           </AnimatePresence>
         ) : (
-          <div className="flex h-full min-h-[180px] items-center justify-center rounded-xl border border-dashed border-[#2A2A3C] text-sm text-[#9090A8]">
-            No leads
+          <div
+            className={cn(
+              "flex h-full min-h-[120px] items-center justify-center rounded-lg border border-dashed px-2 text-center text-xs transition-colors",
+              isDragOver ? "text-[#F0F0FA]" : "border-[#2A2A3C] text-[#5A5A72]"
+            )}
+            style={isDragOver ? { borderColor: column.stage.color } : undefined}
+          >
+            {isDragOver ? "Drop here" : "No leads"}
           </div>
         )}
       </div>

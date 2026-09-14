@@ -28,15 +28,20 @@ export function DroppableColumn({
     },
   })
 
+  // Stages with leads share the free width (so a wide screen shows more
+  // of every column instead of empty space on the right); empty stages
+  // collapse to a narrow drop strip so they don't cost a full column.
+  const isEmpty = column.leads.length === 0
+
   return (
     <div
       ref={setNodeRef}
-      className="h-full shrink-0"
-      style={{
-        scrollSnapAlign: "start",
-        width: "85vw",
-        maxWidth: "280px",
-      }}
+      className="h-full"
+      style={
+        isEmpty
+          ? { flex: "0 0 168px" }
+          : { flex: "1 0 264px", maxWidth: "380px" }
+      }
     >
       <KanbanColumn
         column={column}

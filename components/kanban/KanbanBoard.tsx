@@ -41,12 +41,12 @@ function LoadingState() {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
-        className="thin-scrollbar flex h-full gap-3 overflow-x-auto overflow-y-hidden p-4"
+        className="thin-scrollbar flex h-full gap-2.5 overflow-x-auto overflow-y-hidden p-3"
       >
-        {Array.from({ length: 3 }).map((_, columnIndex) => (
+        {Array.from({ length: 5 }).map((_, columnIndex) => (
           <div
             key={columnIndex}
-            className="flex h-full w-[220px] shrink-0 flex-col overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118] lg:w-[280px]"
+            className="flex h-full min-w-[264px] flex-1 flex-col overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118]"
           >
             <div className="border-b border-[#2A2A3C] bg-[#0F0F15] px-4 py-3">
               <div className="h-4 w-24 animate-pulse rounded bg-[#1A1A24]" />
@@ -537,10 +537,11 @@ export function KanbanBoard({ isMobile }: { isMobile: boolean }) {
                 overflowX: "auto",
                 touchAction: "pan-x",
                 WebkitOverflowScrolling: "touch",
-                scrollSnapType: "x mandatory",
               }}
             >
-              <div className="flex h-full gap-3 p-4">
+              {/* min-w-full lets columns grow to fill a wide screen;
+                  their min widths make it scroll when they can't fit. */}
+              <div className="flex h-full min-w-full gap-2.5 p-3">
                 {columns.map((column) => (
                   <DroppableColumn
                     key={column.stage.id}

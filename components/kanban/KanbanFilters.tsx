@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ChevronDown, Filter } from "lucide-react"
+import { ChevronDown, Filter, Maximize2, Minimize2 } from "lucide-react"
 
 import {
   Select,
@@ -14,6 +14,7 @@ import {
 import { createClient } from "@/lib/supabase/client"
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
+import { useUIStore } from "@/lib/stores/uiStore"
 import type { LeadSource, Profile, ServiceLine } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -56,6 +57,38 @@ export function KanbanFilters({
 }: KanbanFiltersProps) {
   const { filters, setFilter, clearFilters } = useKanbanStore()
   const isMobile = useMediaQuery("(max-width: 768px)")
+  const { isFocusMode, setFocusMode } = useUIStore()
+
+  // Full screen = hide the app's sidebar/top bar AND ask the browser for
+  // fullscreen. Browser fullscreen can be refused (iframes, some
+  // browsers); the in-app part still works on its own.
+  const toggleFullScreen = () => {
+    if (isFocusMode) {
+      setFocusMode(false)
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    } else {
+      setFocusMode(true)
+      document.documentElement.requestFullscreen?.().catch(() => {})
+    }
+  }
+
+  // Esc leaves browser fullscreen without going through our button —
+  // follow it so the navigation comes back too.
+  useEffect(() => {
+    if (!isFocusMode) return
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement) setFocusMode(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.fullscreenElement) setFocusMode(false)
+    }
+    document.addEventListener("fullscreenchange", onFullscreenChange)
+    window.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("fullscreenchange", onFullscreenChange)
+      window.removeEventListener("keydown", onKey)
+    }
+  }, [isFocusMode, setFocusMode])
 
   // Self-fetch active profiles so the Assigned To dropdown works
   // regardless of parent prop load order. Falls back to teamMembers
@@ -325,6 +358,20 @@ export function KanbanFilters({
             Clear
           </button>
         ) : null}
+        <button
+          type="button"
+          onClick={toggleFullScreen}
+          title={isFocusMode ? "Exit full screen (Esc)" : "Full screen board"}
+          className={cn(
+            "hidden h-9 items-center gap-1.5 rounded-lg border px-3 text-sm transition md:inline-flex",
+            isFocusMode
+              ? "border-[#3B82F6] bg-[#1E3A5F] text-[#3B82F6]"
+              : "border-[#3A3A52] bg-[#1F1F2E] text-[#F0F0FA] hover:bg-[#1A1A24]"
+          )}
+        >
+          {isFocusMode ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          {isFocusMode ? "Exit" : "Full screen"}
+        </button>
         {/* Board/List toggle — desktop only (mobile has it in the header) */}
         <div className="hidden items-center rounded-lg border border-[#3A3A52] bg-[#1F1F2E] p-1 md:flex">
           <span className="inline-flex h-7 items-center rounded-md bg-[#1E3A5F] px-3 text-sm text-[#3B82F6]">

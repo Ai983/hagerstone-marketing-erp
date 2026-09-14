@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { AnimatePresence, motion } from "framer-motion"
 import { Toaster } from "sonner"
@@ -29,7 +30,14 @@ function getDisplayName(fullName?: string | null, email?: string | null) {
 }
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
-  const { isMobileSidebarOpen, setMobileSidebarOpen } = useUIStore()
+  const { isMobileSidebarOpen, setMobileSidebarOpen, isFocusMode, setFocusMode } = useUIStore()
+  const pathname = usePathname()
+
+  // Focus mode belongs to the page that turned it on; leaving that page
+  // must bring the navigation back.
+  useEffect(() => {
+    setFocusMode(false)
+  }, [pathname, setFocusMode])
 
   // Single shared auth call — every other hook/page on this route
   // reads from the same cache, avoiding the auth-token lock race.
@@ -51,15 +59,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     // 100dvh, not h-screen: on phones 100vh includes the area under the
     // browser's address bar, which pushed the bottom nav off-screen.
     <div className="flex h-screen overflow-hidden bg-[#0A0A0F] text-[#F0F0FA] supports-[height:100dvh]:h-[100dvh]">
-      <Sidebar
-        fullName={fullName}
-        role={role}
-        badges={{
-          inbox: counts?.unassignedLeads,
-          activities: counts?.overdueTasks,
-          adminTasks: counts?.adminOverdueTasks,
-        }}
-      />
+      {!isFocusMode && (
+        <Sidebar
+          fullName={fullName}
+          role={role}
+          badges={{
+            inbox: counts?.unassignedLeads,
+            activities: counts?.overdueTasks,
+            adminTasks: counts?.adminOverdueTasks,
+          }}
+        />
+      )}
 
       <AnimatePresence>
         {isMobileSidebarOpen && (
@@ -75,8 +85,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       </AnimatePresence>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent">
-        <TopBar fullName={fullName} role={role} />
-        <DemoModeBanner />
+        {!isFocusMode && (
+          <>
+            <TopBar fullName={fullName} role={role} />
+            <DemoModeBanner />
+          </>
+        )}
 
         <main className="relative flex-1 overflow-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
           <div className="min-h-full">{children}</div>
