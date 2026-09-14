@@ -116,39 +116,24 @@ async function fetchStages() {
 
 async function fetchKanbanLeads() {
   const supabase = createClient()
+  // Open tasks come embedded with each lead — `normalizeLead` derives the
+  // next and overdue follow-ups from them. There used to be a second
+  // query here passing every lead id in `.in("lead_id", …)`; at ~440 leads
+  // that URL passed 16 KB, the gateway rejected it after ~19 s, and React
+  // Query's retries left the board on its loading skeleton.
   const { data, error } = await supabase
     .from("leads")
     .select(
-      "id, full_name, company_name, phone, city, service_line, source, stage_id, stage_entered_at, assigned_to, estimated_budget, closure_value, score, category, category_remarks, category_updated_at, category_updated_by, boq_deadline, created_at, stage:stage_id(*), assignee:assigned_to(id, full_name, avatar_url, role), tasks:tasks!left(id, lead_id, title, type, due_at, completed_at, assigned_to)"
+      "id, full_name, company_name, phone, city, service_line, source, stage_id, stage_entered_at, assigned_to, estimated_budget, closure_value, proposal_estimated_cost, final_agreed_price, priority, priority_note, owner_name, data_set_id, score, category, category_remarks, category_updated_at, category_updated_by, boq_deadline, created_at, stage:stage_id(*), assignee:assigned_to(id, full_name, avatar_url, role), tasks:tasks!left(id, lead_id, title, type, due_at, completed_at, assigned_to)"
     )
     .eq("is_archived", false)
+    // Only open tasks — completed ones never affect the card, and they
+    // were most of the payload. Filters the embedded rows, not the leads.
+    .is("tasks.completed_at", null)
     .order("created_at", { ascending: false })
 
   if (error) {
     throw error
-  }
-
-  const leadIds = (data ?? []).map((lead) => lead.id)
-  const taskMap = new Map<string, KanbanTask>()
-
-  if (leadIds.length > 0) {
-    const { data: upcomingTasks, error: taskError } = await supabase
-      .from("tasks")
-      .select("id, lead_id, title, type, due_at, completed_at, assigned_to")
-      .is("completed_at", null)
-      .gte("due_at", new Date().toISOString())
-      .in("lead_id", leadIds)
-      .order("due_at", { ascending: true })
-
-    if (taskError) {
-      throw taskError
-    }
-
-    ;((upcomingTasks ?? []) as KanbanTask[]).forEach((task) => {
-      if (task.lead_id && !taskMap.has(task.lead_id)) {
-        taskMap.set(task.lead_id, task)
-      }
-    })
   }
 
   return (data ?? []).map((lead) =>
@@ -165,6 +150,12 @@ async function fetchKanbanLeads() {
       assigned_to: lead.assigned_to,
       estimated_budget: lead.estimated_budget,
       closure_value: lead.closure_value,
+      proposal_estimated_cost: lead.proposal_estimated_cost,
+      final_agreed_price: lead.final_agreed_price,
+      priority: lead.priority,
+      priority_note: lead.priority_note,
+      owner_name: lead.owner_name,
+      data_set_id: lead.data_set_id,
       score: lead.score,
       category: lead.category,
       category_remarks: lead.category_remarks,
@@ -175,7 +166,6 @@ async function fetchKanbanLeads() {
       stage: getSingleRelation(lead.stage) as KanbanLead["stage"],
       assignee: getSingleRelation(lead.assignee) as KanbanLead["assignee"],
       tasks: (lead.tasks ?? []) as KanbanTask[],
-      next_task: taskMap.get(lead.id) ?? null,
     })
   )
 }
@@ -218,6 +208,9 @@ export function useKanban() {
     queryKey: ["kanban-leads"],
     queryFn: fetchKanbanLeads,
     refetchInterval: 60000,
+    // One retry, not three with backoff: a failing board should show its
+    // error in seconds rather than sit on the skeleton for a minute.
+    retry: 1,
   })
 
   const currentProfileQuery = useQuery({
