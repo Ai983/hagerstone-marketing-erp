@@ -6,6 +6,7 @@ import { format } from "date-fns"
 import { toast } from "sonner"
 import { FileText, UserCircle2 } from "lucide-react"
 
+import { WhereItStoppedCard } from "@/components/architect/WhereItStopped"
 import { DataSetBadge, PRIORITY_OPTIONS, PriorityBadge } from "@/components/data/DataSetBadge"
 import { useDataSets } from "@/lib/hooks/useDataSets"
 import { getCachedUser } from "@/lib/hooks/useUser"
@@ -162,10 +163,16 @@ export function LeadProvenancePanel({ lead }: { lead: Lead }) {
           <p className="mt-2 text-xs leading-relaxed text-[#9090A8]">{lead.priority_note}</p>
         ) : null}
 
+        {lead.data_set_id && dataSetById.get(lead.data_set_id)?.key === "architect-meetings-dec-2025" ? (
+          <WhereItStoppedCard leadId={lead.id} />
+        ) : null}
+
         {(snapshotsQuery.data ?? []).map((snap) => {
           const ds = dataSetById.get(snap.data_set_id)
           const d = snap.data
           const isFounder = ds?.key === "founder-pipeline"
+          // The architect tracker row is already inside "Where it stopped".
+          if (!isFounder) return null
           const sheetStage = isFounder && typeof d.status === "string" ? FOUNDER_STATUS_STAGE[d.status] : undefined
           const currentStage = (lead.stage as { slug?: string; name?: string } | undefined)
           const moved = sheetStage && currentStage?.slug && currentStage.slug !== sheetStage

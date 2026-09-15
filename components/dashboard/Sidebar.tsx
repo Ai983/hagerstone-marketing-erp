@@ -60,6 +60,7 @@ interface NavItem {
 const primaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/sales-engine", label: "Sales Engine", icon: Gauge, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/founder-desk", label: "Founder Desk", icon: Crown, roles: ["admin", "manager", "founder"] },
+  { href: "/architect-drive", label: "Architect Drive", icon: Users, roles: ["admin", "manager", "founder", "sales_rep"] },
   { href: "/pipeline", label: "Pipeline", icon: Kanban, roles: ALL_ROLES },
   { href: "/inbox", label: "Lead Inbox", icon: Inbox, badgeKey: "inbox", roles: ["admin", "manager"] },
   { href: "/leads", label: "All Leads", icon: Users, roles: ["admin", "manager", "founder", "marketing"] },

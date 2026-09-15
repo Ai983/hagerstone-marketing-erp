@@ -21,6 +21,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/universe": "Contact Universe",
   "/sales-engine": "Sales Engine",
   "/founder-desk": "Founder Desk",
+  "/architect-drive": "Architect Drive",
   "/campaigns": "Campaigns",
   "/analytics": "Analytics",
   "/ai-agent": "AI Agent",

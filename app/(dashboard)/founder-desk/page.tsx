@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query"
 import { format, formatDistanceToNowStrict, isPast } from "date-fns"
 import { toast } from "sonner"
 import {
-  BookOpen, CalendarDays, Copy, Crown, Flame, Globe, Loader2, Phone, Search, Users,
+  BookOpen, CalendarDays, Copy, Crown, Flame, Globe, Loader2, Phone, Search,
 } from "lucide-react"
 
 import { PriorityBadge } from "@/components/data/DataSetBadge"
@@ -67,7 +67,7 @@ const STATUS_STAGE: Record<string, string> = {
   HOT: "negotiation", WON: "won", LOST: "lost", DROPPED: "lost",
 }
 
-type Tab = "today" | "deals" | "architect" | "contacts" | "guide"
+type Tab = "today" | "deals" | "contacts" | "guide"
 
 function dealValue(d: FounderDeal) {
   return d.lead.final_agreed_price ?? d.lead.closure_value ?? d.lead.proposal_estimated_cost ?? 0
@@ -94,7 +94,6 @@ export default function FounderDeskPage() {
   const { setLeadDrawerId } = useUIStore()
   const { byKey } = useDataSets()
   const founderSet = byKey.get("founder-pipeline")
-  const architectSet = byKey.get("architect-meetings-dec-2025")
   const [tab, setTab] = useState<Tab>("today")
 
   const dealsQuery = useQuery({
@@ -182,7 +181,6 @@ export default function FounderDeskPage() {
   const tabs: { id: Tab; label: string; icon: typeof Flame }[] = [
     { id: "today", label: "Today", icon: Phone },
     { id: "deals", label: `Deals${deals.length ? ` · ${deals.length}` : ""}`, icon: Flame },
-    { id: "architect", label: "Architect Drive", icon: Users },
     { id: "contacts", label: "Contacts", icon: Globe },
     { id: "guide", label: "Guide", icon: BookOpen },
   ]
@@ -194,7 +192,8 @@ export default function FounderDeskPage() {
           <Crown className="size-5 text-[#F59E0B]" /> Founder Desk
         </h1>
         <p className="mt-1 text-sm text-[#9090A8]">
-          Everything handed over from Dhruv sir&apos;s Sales Engine — kept separate from ERP leads. Handled by Manpreet Singh.
+          Only what came from Dhruv sir&apos;s Sales Engine — separate from ERP leads and from the{" "}
+          <Link href="/architect-drive" className="text-[#A78BFA] hover:underline">Architect Drive</Link>. Handled by Manpreet Singh.
         </p>
       </div>
 
@@ -248,8 +247,6 @@ export default function FounderDeskPage() {
         <TodayTab deals={deals} nextTaskByLead={nextTaskByLead} lastTouch={lastTouch} onOpen={setLeadDrawerId} />
       ) : tab === "deals" ? (
         <DealsTab deals={deals} nextTaskByLead={nextTaskByLead} lastTouch={lastTouch} onOpen={setLeadDrawerId} />
-      ) : tab === "architect" ? (
-        <ArchitectTab dataSetId={architectSet?.id} onOpen={setLeadDrawerId} />
       ) : tab === "contacts" ? (
         <ContactsTab />
       ) : (
@@ -471,116 +468,6 @@ function DealsTab({ deals, nextTaskByLead, lastTouch, onOpen }: TabProps) {
                     <p className="text-[10px] text-[#5A5A72]">{d.lead.assignee?.full_name ?? "Unassigned"}</p>
                   </div>
                 </div>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
-  )
-}
-
-// ------------------------------------------------------------------
-// Architect Drive — where each firm's conversation stopped
-// ------------------------------------------------------------------
-
-type ArchitectLead = {
-  id: string
-  full_name: string
-  company_name: string | null
-  phone: string | null
-  priority: string | null
-  priority_note: string | null
-  stage: Stage | null
-  assignee: { full_name: string } | null
-}
-
-function ArchitectTab({ dataSetId, onOpen }: { dataSetId?: string; onOpen: (id: string) => void }) {
-  const [priority, setPriority] = useState("")
-
-  const leadsQuery = useQuery({
-    queryKey: ["founder-desk-architects", dataSetId],
-    enabled: Boolean(dataSetId),
-    queryFn: async (): Promise<ArchitectLead[]> => {
-      const { data, error } = await createClient()
-        .from("leads")
-        .select("id, full_name, company_name, phone, priority, priority_note, stage:stage_id(name, slug, color, stage_type), assignee:assigned_to(full_name)")
-        .eq("data_set_id", dataSetId!)
-        .eq("is_archived", false)
-      if (error) throw error
-      return (data ?? []) as unknown as ArchitectLead[]
-    },
-  })
-
-  const meetingsQuery = useQuery({
-    queryKey: ["founder-desk-architect-meetings", dataSetId],
-    enabled: Boolean(dataSetId),
-    queryFn: async () => {
-      const { data, error } = await createClient()
-        .from("interactions")
-        .select("lead_id, occurred_at, created_at, notes, outcome, lead:lead_id!inner(data_set_id)")
-        .in("type", ["meeting", "site_visit"])
-        .eq("lead.data_set_id", dataSetId!)
-        .order("occurred_at", { ascending: false, nullsFirst: false })
-      if (error) throw error
-      const last = new Map<string, { at: string; notes: string | null; count: number }>()
-      for (const m of (data ?? []) as { lead_id: string; occurred_at: string | null; created_at: string; notes: string | null }[]) {
-        const prev = last.get(m.lead_id)
-        if (prev) prev.count++
-        else last.set(m.lead_id, { at: m.occurred_at ?? m.created_at, notes: m.notes, count: 1 })
-      }
-      return last
-    },
-  })
-
-  // P1 first, unrated after P4, dropped last.
-  const rank = (p: string | null) => ({ P1: 0, P2: 1, P3: 2, P4: 3, dropped: 5 } as Record<string, number>)[p ?? ""] ?? 4
-  const rows = (leadsQuery.data ?? [])
-    .filter((l) => !priority || l.priority === priority)
-    .sort((a, b) => rank(a.priority) - rank(b.priority))
-
-  if (leadsQuery.isLoading) {
-    return <div className="flex items-center justify-center py-16 text-[#9090A8]"><Loader2 className="mr-2 size-4 animate-spin" /> Loading…</div>
-  }
-
-  return (
-    <div>
-      <p className="mb-3 text-sm text-[#9090A8]">
-        The Delhi team&apos;s Dec 2025 architect meeting drive. Each firm shows its field rating and the last thing said — pick up from there.
-      </p>
-      <div className="thin-scrollbar -mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
-        {["", "P1", "P2", "P3", "P4", "dropped"].map((p) => (
-          <button
-            key={p || "all"}
-            type="button"
-            onClick={() => setPriority(p)}
-            className={cn("inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs", priority === p ? "border-[#8B5CF6] bg-[#8B5CF6]/15 text-[#F0F0FA]" : "border-[#2A2A3C] text-[#9090A8]")}
-          >
-            {p === "" ? "All" : p === "dropped" ? "Dropped" : p}
-            <span className="ml-1 text-[#5A5A72]">{p === "" ? (leadsQuery.data ?? []).length : (leadsQuery.data ?? []).filter((l) => l.priority === p).length}</span>
-          </button>
-        ))}
-      </div>
-      <ul className="divide-y divide-[#1F1F2E] overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118]">
-        {rows.map((l) => {
-          const m = meetingsQuery.data?.get(l.id)
-          return (
-            <li key={l.id}>
-              <button type="button" onClick={() => onOpen(l.id)} className="block w-full p-3 text-left hover:bg-[#15151D]">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <PriorityBadge priority={l.priority} note={l.priority_note} />
-                  <span className="truncate text-sm font-semibold text-[#F0F0FA]">{l.company_name || l.full_name}</span>
-                  {l.company_name && l.full_name !== l.company_name ? <span className="text-xs text-[#9090A8]">· {l.full_name}</span> : null}
-                  <span className="ml-auto text-[10px] text-[#5A5A72]">{l.assignee?.full_name ?? "Unassigned"}</span>
-                </div>
-                {m ? (
-                  <p className="mt-1 line-clamp-2 text-xs text-[#9090A8]">
-                    <span className="text-[#A78BFA]">Last met {format(new Date(m.at), "d MMM yyyy")}{m.count > 1 ? ` (${m.count} meetings)` : ""}:</span>{" "}
-                    {m.notes?.split("\n")[0]}
-                  </p>
-                ) : (
-                  <p className="mt-1 text-xs text-[#5A5A72]">No meeting on record</p>
-                )}
               </button>
             </li>
           )
