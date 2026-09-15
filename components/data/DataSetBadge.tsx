@@ -44,6 +44,38 @@ export function DataSetBadge({ dataSetId, dataSet, size = "xs", className }: Dat
   )
 }
 
+/** One short word per data set — what a card says about where it came from. */
+export const SOURCE_SHORT_LABEL: Record<string, string> = {
+  "erp-native": "ERP",
+  "architect-meetings-dec-2025": "ARCHITECT",
+  "founder-pipeline": "FOUNDER",
+  "founder-universe": "UNIVERSE",
+}
+
+export function sourceShortLabel(ds: Pick<DataSet, "key" | "name">) {
+  return SOURCE_SHORT_LABEL[ds.key] ?? ds.name.toUpperCase()
+}
+
+/**
+ * Compact, always-visible source tag for cards: FOUNDER / ARCHITECT / ERP
+ * in the data set's colour. Deliberately text, not just a colour dot —
+ * a dot alone was too easy to miss and clashed with status colours.
+ */
+export function SourceTag({ dataSetId, className }: { dataSetId?: string | null; className?: string }) {
+  const { byId } = useDataSets()
+  const ds = dataSetId ? byId.get(dataSetId) : undefined
+  if (!ds) return null
+  return (
+    <span
+      title={ds.description ?? ds.name}
+      className={cn("inline-flex shrink-0 items-center rounded px-1.5 py-px text-[9px] font-bold tracking-wider", className)}
+      style={{ color: ds.color, backgroundColor: `${ds.color}24` }}
+    >
+      {sourceShortLabel(ds)}
+    </span>
+  )
+}
+
 const PRIORITY_STYLE: Record<string, { label: string; className: string; hint: string }> = {
   P1: { label: "P1", className: "bg-[#3F161A] text-[#F87171] border-[#F87171]/30", hint: "High-value — act now, weekly touchpoints" },
   P2: { label: "P2", className: "bg-[#3F2A12] text-[#F59E0B] border-[#F59E0B]/30", hint: "Medium potential — nurture" },

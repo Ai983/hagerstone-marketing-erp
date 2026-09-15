@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select"
 import { createClient } from "@/lib/supabase/client"
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
+import { sourceShortLabel } from "@/components/data/DataSetBadge"
 import { useDataSets } from "@/lib/hooks/useDataSets"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import { useUIStore } from "@/lib/stores/uiStore"
@@ -56,7 +57,7 @@ export function KanbanFilters({
   currentUserId,
   teamMembers,
 }: KanbanFiltersProps) {
-  const { filters, setFilter, clearFilters } = useKanbanStore()
+  const { filters, setFilter, clearFilters, leads: boardLeads } = useKanbanStore()
   const isMobile = useMediaQuery("(max-width: 768px)")
   const { isFocusMode, setFocusMode } = useUIStore()
 
@@ -156,8 +157,52 @@ export function KanbanFilters({
   // the filter row is always visible.
   const [filtersOpen, setFiltersOpen] = useState(false)
 
+  // Source tabs double as the colour legend for the card tags.
+  const sourceTabs = [
+    { id: null as string | null, label: "All", color: "#9090A8", count: boardLeads.length },
+    ...dataSets
+      .filter((d) => d.kind !== "founder_universe")
+      .map((d) => ({
+        id: d.id as string | null,
+        label: sourceShortLabel(d),
+        color: d.color,
+        count: boardLeads.filter((l) => l.data_set_id === d.id).length,
+      }))
+      .filter((t) => t.count > 0),
+  ]
+
+  const sourceTabStrip = sourceTabs.length > 1 ? (
+    <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-[#2A2A3C] bg-[#0F0F15] p-0.5" role="tablist" aria-label="Lead source">
+      {sourceTabs.map((t) => {
+        const active = (filters.dataSetId ?? null) === t.id
+        return (
+          <button
+            key={t.id ?? "all"}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => setFilter("dataSetId", t.id)}
+            className={cn(
+              "inline-flex h-8 shrink-0 touch-manipulation items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold tracking-wide transition",
+              active ? "text-[#F0F0FA]" : "text-[#9090A8] hover:text-[#F0F0FA]"
+            )}
+            style={active ? { backgroundColor: `${t.color}2E`, boxShadow: `inset 0 0 0 1px ${t.color}66` } : undefined}
+          >
+            <span className="size-2 rounded-full" style={{ backgroundColor: t.color }} />
+            {t.label}
+            <span className="font-normal text-[#5A5A72]">{t.count}</span>
+          </button>
+        )
+      })}
+    </div>
+  ) : null
+
   return (
     <div className="shrink-0 border-b border-[#2A2A3C] bg-[#111118]">
+      {/* Source tabs — always visible on phones, outside the Filters toggle */}
+      {sourceTabStrip ? (
+        <div className="thin-scrollbar overflow-x-auto px-4 pt-2 md:hidden">{sourceTabStrip}</div>
+      ) : null}
       {/* Mobile-only header — Filters toggle + view-mode switch */}
       <div className="flex h-12 items-center justify-between px-4 md:hidden">
         <button
@@ -204,6 +249,7 @@ export function KanbanFilters({
         )}
       >
         <div className="thin-scrollbar flex flex-col items-stretch gap-2 md:flex-row md:flex-nowrap md:items-center md:overflow-x-auto">
+        {sourceTabStrip ? <div className="hidden md:block">{sourceTabStrip}</div> : null}
         <button
           type="button"
           onClick={() => setFilter("myLeadsOnly", !filters.myLeadsOnly)}
@@ -229,30 +275,6 @@ export function KanbanFilters({
         >
           Overdue Only
         </button>
-
-        {/* Data source — keeps Dhruv sir's deals separable on the board */}
-        {dataSets.length > 0 ? (
-          <Select
-            value={filters.dataSetId ?? ALL}
-            onValueChange={(next) => setFilter("dataSetId", next === ALL ? null : next)}
-          >
-            <SelectTrigger
-              className={cn("h-9 w-full shrink-0 md:w-[160px]", filters.dataSetId && activeTriggerClass)}
-            >
-              <SelectValue placeholder="All data" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All data</SelectItem>
-              {dataSets
-                .filter((d) => d.kind !== "founder_universe")
-                .map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        ) : null}
 
         {/* Service Line */}
         <Select

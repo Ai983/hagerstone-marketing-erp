@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
@@ -29,6 +29,7 @@ import {
   Users,
   X,
   CalendarDays,
+  ChevronDown,
   Crown,
   FileText,
   Gauge,
@@ -55,19 +56,23 @@ interface NavItem {
   roles: Role[]
   /** Opens in a new browser tab instead of navigating within the ERP shell. */
   external?: boolean
+  /** Shown in the short everyday list; everything else sits under "More". */
+  daily?: boolean
 }
 
 const primaryNavigation: ReadonlyArray<NavItem> = [
-  { href: "/sales-engine", label: "Sales Engine", icon: Gauge, roles: ["admin", "manager", "founder", "marketing"] },
-  { href: "/founder-desk", label: "Founder Desk", icon: Crown, roles: ["admin", "manager", "founder"] },
-  { href: "/architect-drive", label: "Architect Drive", icon: Users, roles: ["admin", "manager", "founder", "sales_rep"] },
-  { href: "/pipeline", label: "Pipeline", icon: Kanban, roles: ALL_ROLES },
+  // Everyday — the short list a salesperson works from.
+  { href: "/founder-desk", label: "Founder Desk", icon: Crown, roles: ["admin", "manager", "founder"], daily: true },
+  { href: "/pipeline", label: "Pipeline", icon: Kanban, roles: ALL_ROLES, daily: true },
+  { href: "/architect-drive", label: "Architect Drive", icon: Users, roles: ["admin", "manager", "founder", "sales_rep"], daily: true },
+  { href: "/activities", label: "My Tasks", icon: CheckSquare, badgeKey: "activities", roles: ALL_ROLES, daily: true },
+  { href: "/meetings", label: "Meetings", icon: CalendarDays, roles: ALL_ROLES, daily: true },
+  { href: "/documents", label: "Profiles & Pitches", icon: FileText, roles: ALL_ROLES, daily: true },
+  { href: "/sales-engine", label: "Sales Engine", icon: Gauge, roles: ["admin", "manager", "founder", "marketing"], daily: true },
+  // More
   { href: "/inbox", label: "Lead Inbox", icon: Inbox, badgeKey: "inbox", roles: ["admin", "manager"] },
   { href: "/leads", label: "All Leads", icon: Users, roles: ["admin", "manager", "founder", "marketing"] },
   { href: "/leads/archive", label: "Archive", icon: Archive, roles: ALL_ROLES },
-  { href: "/activities", label: "My Tasks", icon: CheckSquare, badgeKey: "activities", roles: ALL_ROLES },
-  { href: "/meetings", label: "Meetings", icon: CalendarDays, roles: ALL_ROLES },
-  { href: "/documents", label: "Profiles & Pitches", icon: FileText, roles: ALL_ROLES },
   { href: "/universe", label: "Contact Universe", icon: Globe, roles: ALL_ROLES },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone, roles: ["admin", "manager", "marketing", "founder"] },
   { href: "/campaigns/monitor", label: "Send Monitor", icon: Activity, roles: ["admin", "manager", "founder", "marketing"] },
@@ -232,11 +237,101 @@ function SidebarBody({
 
   const visiblePrimary = filterByRole(primaryNavigation)
   const visibleSecondary = filterByRole(secondaryNavigation)
+  const dailyItems = visiblePrimary.filter((item) => item.daily)
+  const moreItems = visiblePrimary.filter((item) => !item.daily)
+
+  const isItemActive = (item: NavItem, root: string) =>
+    !item.external &&
+    (pathname === item.href || (item.href !== root && pathname.startsWith(`${item.href}/`)))
+
+  // "More" remembers whether it was open, and always opens when the
+  // current page lives inside it — so you never lose where you are.
+  const activeInMore =
+    moreItems.some((item) => isItemActive(item, "/campaigns")) ||
+    visibleSecondary.some((item) => isItemActive(item, "/admin"))
+  const [moreOpen, setMoreOpen] = useState(false)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("sidebar-more-open") === "1") setMoreOpen(true)
+    } catch {
+      // storage unavailable — stays closed
+    }
+  }, [])
+  useEffect(() => {
+    if (activeInMore) setMoreOpen(true)
+  }, [activeInMore])
+  const toggleMore = () => {
+    setMoreOpen((open) => {
+      try {
+        localStorage.setItem("sidebar-more-open", open ? "0" : "1")
+      } catch {
+        // ignore
+      }
+      return !open
+    })
+  }
+  // The icon-only sidebar has no room for a toggle; show everything.
+  const showMore = collapsed || moreOpen
 
   const getBadge = (key?: BadgeKey): number | undefined => {
     if (!key) return undefined
     const value = badges?.[key]
     return value && value > 0 ? value : undefined
+  }
+
+  const renderItem = (item: NavItem, root: string) => {
+    const Icon = item.icon
+    const isActive = isItemActive(item, root)
+    const badgeCount = getBadge(item.badgeKey)
+    const isOverdueBadge = item.badgeKey === "activities" || item.badgeKey === "adminTasks"
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={onItemClick}
+        target={item.external ? "_blank" : undefined}
+        rel={item.external ? "noopener noreferrer" : undefined}
+        className={cn(
+          "relative flex h-11 items-center rounded-xl border-l-2 text-sm transition-colors duration-200",
+          collapsed ? "justify-center px-0" : "gap-3 px-3",
+          isActive
+            ? "border-[#3B82F6] bg-[#1E3A5F] text-[#3B82F6]"
+            : "border-transparent text-[#9090A8] hover:bg-[#1A1A24] hover:text-[#F0F0FA]"
+        )}
+        title={collapsed ? item.label : undefined}
+      >
+        <div className="relative">
+          <Icon className="size-4 shrink-0" />
+          {collapsed && badgeCount != null && (
+            <span
+              className={cn(
+                "absolute -right-1.5 -top-1.5 flex min-w-[14px] items-center justify-center rounded-full px-1 text-[9px] font-semibold text-white",
+                isOverdueBadge ? "bg-[#EF4444]" : "bg-[#3B82F6]"
+              )}
+            >
+              {badgeCount > 99 ? "99+" : badgeCount}
+            </span>
+          )}
+        </div>
+        {!collapsed ? (
+          <>
+            <span>{item.label}</span>
+            {item.external && <ExternalLink className="ml-auto size-3.5 shrink-0 text-[#5A5A72]" aria-hidden />}
+            {badgeCount != null && (
+              <span
+                className={cn(
+                  "ml-auto min-w-[20px] rounded-full px-1.5 py-0.5 text-center text-[10px] font-semibold text-white",
+                  isOverdueBadge ? "bg-[#EF4444]" : "bg-[#3B82F6]"
+                )}
+              >
+                {badgeCount > 99 ? "99+" : badgeCount}
+              </span>
+            )}
+          </>
+        ) : null}
+      </Link>
+    )
   }
 
   return (
@@ -289,124 +384,37 @@ function SidebarBody({
       </div>
 
       <nav className="thin-scrollbar flex-1 space-y-1 overflow-y-auto px-2 py-4">
-        {visiblePrimary.map((item) => {
-          const Icon = item.icon
-          const isActive =
-            !item.external &&
-            (pathname === item.href ||
-              (item.href !== "/campaigns" && pathname.startsWith(`${item.href}/`)))
-          const badgeCount = getBadge(item.badgeKey)
-          const isOverdueBadge = item.badgeKey === "activities"
+        {dailyItems.map((item) => renderItem(item, "/campaigns"))}
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onItemClick}
-              target={item.external ? "_blank" : undefined}
-              rel={item.external ? "noopener noreferrer" : undefined}
-              className={cn(
-                "relative flex h-11 items-center rounded-xl border-l-2 text-sm transition-colors duration-200",
-                collapsed ? "justify-center px-0" : "gap-3 px-3",
-                isActive
-                  ? "border-[#3B82F6] bg-[#1E3A5F] text-[#3B82F6]"
-                  : "border-transparent text-[#9090A8] hover:bg-[#1A1A24] hover:text-[#F0F0FA]"
-              )}
-              title={collapsed ? item.label : undefined}
-            >
-              <div className="relative">
-                <Icon className="size-4 shrink-0" />
-                {collapsed && badgeCount != null && (
-                  <span
-                    className={cn(
-                      "absolute -right-1.5 -top-1.5 flex min-w-[14px] items-center justify-center rounded-full px-1 text-[9px] font-semibold text-white",
-                      isOverdueBadge ? "bg-[#EF4444]" : "bg-[#3B82F6]"
-                    )}
-                  >
-                    {badgeCount > 99 ? "99+" : badgeCount}
-                  </span>
-                )}
-              </div>
-              {!collapsed ? (
-                <>
-                  <span>{item.label}</span>
-                  {item.external && (
-                    <ExternalLink className="ml-auto size-3.5 shrink-0 text-[#5A5A72]" aria-hidden />
-                  )}
-                  {badgeCount != null && (
-                    <span
-                      className={cn(
-                        "ml-auto min-w-[20px] rounded-full px-1.5 py-0.5 text-center text-[10px] font-semibold text-white",
-                        isOverdueBadge ? "bg-[#EF4444]" : "bg-[#3B82F6]"
-                      )}
-                    >
-                      {badgeCount > 99 ? "99+" : badgeCount}
-                    </span>
-                  )}
-                </>
-              ) : null}
-            </Link>
-          )
-        })}
-
-        {visibleSecondary.length > 0 && (
+        {moreItems.length + visibleSecondary.length > 0 ? (
           <>
-            <div className="my-3 border-t border-[#2A2A3C]" />
-            {visibleSecondary.map((item) => {
-              const Icon = item.icon
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/admin" && pathname.startsWith(`${item.href}/`))
-              const badgeCount = getBadge(item.badgeKey)
-              const isOverdueBadge = item.badgeKey === "adminTasks"
+            {!collapsed ? (
+              <button
+                type="button"
+                onClick={toggleMore}
+                aria-expanded={moreOpen}
+                className="mt-3 flex h-9 w-full items-center gap-3 rounded-xl px-3 text-xs font-medium uppercase tracking-wider text-[#5A5A72] transition hover:text-[#9090A8]"
+              >
+                More
+                <ChevronDown className={cn("ml-auto size-4 transition-transform", moreOpen && "rotate-180")} />
+              </button>
+            ) : (
+              <div className="my-3 border-t border-[#2A2A3C]" />
+            )}
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onItemClick}
-                  className={cn(
-                    "flex h-11 items-center rounded-xl border-l-2 text-sm transition-colors duration-200",
-                    collapsed ? "justify-center px-0" : "gap-3 px-3",
-                    isActive
-                      ? "border-[#3B82F6] bg-[#1E3A5F] text-[#3B82F6]"
-                      : "border-transparent text-[#9090A8] hover:bg-[#1A1A24] hover:text-[#F0F0FA]"
-                  )}
-                  title={collapsed ? item.label : undefined}
-                >
-                  <div className="relative">
-                    <Icon className="size-4 shrink-0" />
-                    {collapsed && badgeCount != null && (
-                      <span
-                        className={cn(
-                          "absolute -right-1.5 -top-1.5 flex min-w-[14px] items-center justify-center rounded-full px-1 text-[9px] font-semibold text-white",
-                          isOverdueBadge ? "bg-[#EF4444]" : "bg-[#3B82F6]"
-                        )}
-                      >
-                        {badgeCount > 99 ? "99+" : badgeCount}
-                      </span>
-                    )}
-                  </div>
-                  {!collapsed ? (
-                    <>
-                      <span>{item.label}</span>
-                      {badgeCount != null && (
-                        <span
-                          className={cn(
-                            "ml-auto min-w-[20px] rounded-full px-1.5 py-0.5 text-center text-[10px] font-semibold text-white",
-                            isOverdueBadge ? "bg-[#EF4444]" : "bg-[#3B82F6]"
-                          )}
-                        >
-                          {badgeCount > 99 ? "99+" : badgeCount}
-                        </span>
-                      )}
-                    </>
-                  ) : null}
-                </Link>
-              )
-            })}
+            {showMore ? (
+              <>
+                {moreItems.map((item) => renderItem(item, "/campaigns"))}
+                {visibleSecondary.length > 0 ? (
+                  <>
+                    <div className="my-3 border-t border-[#2A2A3C]" />
+                    {visibleSecondary.map((item) => renderItem(item, "/admin"))}
+                  </>
+                ) : null}
+              </>
+            ) : null}
           </>
-        )}
+        ) : null}
 
         <div className="my-3 border-t border-[#2A2A3C]" />
 

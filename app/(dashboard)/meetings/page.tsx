@@ -32,7 +32,7 @@ type MeetingRow = {
   occurred_at: string | null
   created_at: string
   data_set_id?: string | null
-  lead: { id: string; full_name: string; company_name: string | null } | null
+  lead: { id: string; full_name: string; company_name: string | null; data_set_id?: string | null } | null
   user: { id: string; full_name: string } | null
 }
 
@@ -64,7 +64,7 @@ async function fetchMeetings(): Promise<MeetingRow[]> {
   // migration 003 (data_set_id) has been applied.
   const { data, error } = await supabase
     .from("interactions")
-    .select("*, lead:lead_id(id, full_name, company_name), user:user_id(id, full_name)")
+    .select("*, lead:lead_id(id, full_name, company_name, data_set_id), user:user_id(id, full_name)")
     .in("type", ["meeting", "site_visit"])
     .order("created_at", { ascending: false })
     .limit(1000)
@@ -94,7 +94,9 @@ export default function MeetingsPage() {
     const q = search.trim().toLowerCase()
     return rows.filter((m) => {
       if (typeFilter !== "all" && m.type !== typeFilter) return false
-      if (dataSetFilter && m.data_set_id !== dataSetFilter) return false
+      // Filter by the LEAD source: a meeting logged today on a founder deal
+      // belongs under Founder, even though the record itself was made in the ERP.
+      if (dataSetFilter && m.lead?.data_set_id !== dataSetFilter) return false
       if (!q) return true
       return [
         m.lead?.full_name,
@@ -111,7 +113,10 @@ export default function MeetingsPage() {
 
   const dataSetCounts = useMemo(() => {
     const c: Record<string, number> = {}
-    for (const m of meetings ?? []) if (m.data_set_id) c[m.data_set_id] = (c[m.data_set_id] ?? 0) + 1
+    for (const m of meetings ?? []) {
+      const ds = m.lead?.data_set_id
+      if (ds) c[ds] = (c[ds] ?? 0) + 1
+    }
     return c
   }, [meetings])
 
@@ -282,7 +287,7 @@ export default function MeetingsPage() {
                       · {m.lead.company_name}
                     </span>
                   )}
-                  <DataSetBadge dataSetId={m.data_set_id} />
+                  <DataSetBadge dataSetId={m.lead?.data_set_id} />
 
                   {m.outcome && (
                     <span

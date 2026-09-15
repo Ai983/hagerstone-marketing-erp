@@ -72,7 +72,7 @@ type ActivityRow = {
   created_at: string
   data_set_id: string | null
   user: { full_name: string } | null
-  lead: { full_name: string; company_name: string | null } | null
+  lead: { full_name: string; company_name: string | null; data_set_id: string | null } | null
 }
 
 function inr(n: number) {
@@ -112,7 +112,7 @@ export default function SalesEnginePage() {
     queryFn: async (): Promise<ActivityRow[]> => {
       const { data, error } = await createClient()
         .from("interactions")
-        .select("id, lead_id, type, title, notes, outcome, occurred_at, created_at, data_set_id, user:user_id(full_name), lead:lead_id(full_name, company_name)")
+        .select("id, lead_id, type, title, notes, outcome, occurred_at, created_at, data_set_id, user:user_id(full_name), lead:lead_id(full_name, company_name, data_set_id)")
         .in("type", ["meeting", "site_visit", "call_outbound", "call_inbound", "note", "whatsapp_sent", "email_sent"])
         .gte("created_at", subDays(new Date(), 30).toISOString())
         .order("created_at", { ascending: false })
@@ -197,7 +197,7 @@ export default function SalesEnginePage() {
   }, [leads])
 
   const activity = useMemo(() => {
-    const rows = (activityQuery.data ?? []).filter((a) => !selectedDataSetId || a.data_set_id === selectedDataSetId)
+    const rows = (activityQuery.data ?? []).filter((a) => !selectedDataSetId || a.lead?.data_set_id === selectedDataSetId)
     // Only human-entered activity: skip AI categorisation notes and imports.
     const human = rows.filter((a) => a.user && !(a.type === "note" && a.notes?.startsWith("AI Profile Categorisation")))
     const weekAgo = subDays(new Date(), 7)

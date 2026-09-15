@@ -23,23 +23,11 @@ import type { KanbanLead } from "@/lib/hooks/useKanban"
 import type { PipelineStage } from "@/lib/types"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import { useUIStore } from "@/lib/stores/uiStore"
-import { PriorityBadge } from "@/components/data/DataSetBadge"
+import { PriorityBadge, SourceTag } from "@/components/data/DataSetBadge"
 import { formatInrShort, leadValue } from "@/components/kanban/lead-value"
 import { useDataSets } from "@/lib/hooks/useDataSets"
 import { categoryConfig } from "@/lib/utils/lead-category"
 import { cn } from "@/lib/utils"
-
-const sourceStyles = {
-  website: "bg-[#1E3A5F] text-[#60A5FA]",
-  manual_sales: "bg-[#1A1A24] text-[#9090A8]",
-  referral: "bg-[#2E1A47] text-[#C084FC]",
-  google_ads: "bg-[#3A2413] text-[#FB923C]",
-  whatsapp_inbound: "bg-[#1D3A2A] text-[#34D399]",
-  linkedin: "bg-[#1A1A24] text-[#9090A8]",
-  justdial: "bg-[#1A1A24] text-[#9090A8]",
-  ai_suggested: "bg-[#1A1A24] text-[#9090A8]",
-  other: "bg-[#1A1A24] text-[#9090A8]",
-} as const
 
 function getInitials(name?: string | null) {
   if (!name) {
@@ -151,19 +139,23 @@ export function MobileLeadCard({
             <h3 className="truncate text-base font-semibold text-[#F0F0FA]">
               {lead.full_name}
             </h3>
-            {lead.company_name && (
-              <p className="mt-0.5 truncate text-xs text-[#9090A8]">
-                {lead.company_name}
-              </p>
-            )}
+            <div className="mt-1 flex items-center gap-1.5">
+              <SourceTag dataSetId={lead.data_set_id} />
+              {lead.company_name && lead.company_name !== lead.full_name ? (
+                <p className="truncate text-xs text-[#9090A8]">{lead.company_name}</p>
+              ) : null}
+            </div>
           </div>
-          {lead.category && (
+          {/* One importance signal: field priority, else category. */}
+          {lead.priority ? (
+            <PriorityBadge priority={lead.priority} note={lead.priority_note} />
+          ) : lead.category ? (
             <span
               className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${categoryClass}`}
             >
               {categoryIcon}
             </span>
-          )}
+          ) : null}
         </div>
 
         <div className="mb-3 flex flex-wrap gap-2">
@@ -295,7 +287,9 @@ export function LeadCard({
   const { byId: dataSetById } = useDataSets()
   const dataSet = lead.data_set_id ? dataSetById.get(lead.data_set_id) : undefined
 
-  const leftAccentColor = lead.has_overdue_follow_up ? "#F59E0B" : lead.stage?.color ?? "#6B7280"
+  // Stage colour only. Overdue used to turn this amber, which clashed with
+  // the amber FOUNDER tag; overdue is now the red clock text in the footer.
+  const leftAccentColor = lead.stage?.color ?? "#6B7280"
   const shadows = [
     isOverlay ? "0 16px 40px rgba(0, 0, 0, 0.45)" : null,
     isRecentlyMoved ? "0 0 0 1px rgba(34, 197, 94, 0.65)" : null,
@@ -317,11 +311,21 @@ export function LeadCard({
   })()
 
   const boqDaysLeft = lead.boq_deadline != null ? differenceInDays(new Date(lead.boq_deadline), new Date()) : null
-  const showSource = lead.source && lead.source !== "manual_sales"
-  const category = lead.category && categoryConfig[lead.category] ? categoryConfig[lead.category] : null
+  // One importance signal per card: the field priority (P1–P4) when set,
+  // otherwise the Hot/Warm category. Score stays in the lead drawer.
+  const category = !lead.priority && lead.category && categoryConfig[lead.category] ? categoryConfig[lead.category] : null
   const subtitle = [lead.company_name && lead.company_name !== lead.full_name ? lead.company_name : null, lead.city]
     .filter(Boolean)
     .join(" · ")
+
+  // Imported deals entered their stage in the ERP on import day — Dhruv
+  // sir's sheet never recorded when a deal reached its status — so "1d in
+  // stage" would be wrong. Show the date the ERP has instead.
+  const importedSource = dataSet && dataSet.kind !== "erp_native"
+  const stageAgeLabel = importedSource ? `since ${format(new Date(lead.stage_entered_at), "d MMM")}` : `${lead.stage_age_days}d`
+  const stageAgeTitle = importedSource
+    ? `In this stage in the ERP since ${format(new Date(lead.stage_entered_at), "d MMM yyyy")}. The source didn't record when it first reached this stage.`
+    : `${lead.stage_age_days} day${lead.stage_age_days === 1 ? "" : "s"} in this stage`
 
   return (
     <button
@@ -356,22 +360,16 @@ export function LeadCard({
         ) : null}
       </div>
 
-      {/* Company · city */}
+      {/* Source tag · company · city */}
       {subtitle || dataSet ? (
-        <div className="mt-0.5 flex items-center gap-1.5">
-          {dataSet ? (
-            <span
-              className="size-1.5 shrink-0 rounded-full"
-              style={{ backgroundColor: dataSet.color }}
-              title={`Source: ${dataSet.name}`}
-            />
-          ) : null}
-          <p className="truncate text-[11px] leading-4 text-[#9090A8]">{subtitle || dataSet?.name}</p>
+        <div className="mt-1 flex items-center gap-1.5">
+          <SourceTag dataSetId={lead.data_set_id} />
+          {subtitle ? <p className="truncate text-[11px] leading-4 text-[#9090A8]">{subtitle}</p> : null}
         </div>
       ) : null}
 
       {/* Signals — only the ones that apply */}
-      {lead.priority || category || showSource || (boqDaysLeft !== null && boqDaysLeft <= 3) ? (
+      {lead.priority || category || (boqDaysLeft !== null && boqDaysLeft <= 3) ? (
         <div className="mt-1.5 flex flex-wrap items-center gap-1">
           <PriorityBadge priority={lead.priority} note={lead.priority_note} />
           {category ? (
@@ -380,11 +378,6 @@ export function LeadCard({
               style={{ background: category.bg, color: category.color }}
             >
               {category.label}
-            </span>
-          ) : null}
-          {showSource ? (
-            <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", sourceStyles[lead.source])}>
-              {lead.source.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ")}
             </span>
           ) : null}
           {boqDaysLeft !== null && boqDaysLeft <= 3 ? (
@@ -421,10 +414,13 @@ export function LeadCard({
             </span>
           ) : null}
           <span
-            className={cn("rounded px-1 py-px text-[10px] tabular-nums", stageAgeClass(lead.stage_age_days))}
-            title={`${lead.stage_age_days} day${lead.stage_age_days === 1 ? "" : "s"} in this stage`}
+            className={cn(
+              "rounded px-1 py-px text-[10px] tabular-nums",
+              importedSource ? "bg-[#1A1A24] text-[#5A5A72]" : stageAgeClass(lead.stage_age_days)
+            )}
+            title={stageAgeTitle}
           >
-            {lead.stage_age_days}d
+            {stageAgeLabel}
           </span>
         </span>
       </div>
