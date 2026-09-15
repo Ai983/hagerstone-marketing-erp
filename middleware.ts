@@ -99,6 +99,15 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/pipeline", request.url))
     }
 
+    // The founder's handed-over book: deal values and sir's own notes.
+    if (
+      hasProfile &&
+      request.nextUrl.pathname.startsWith("/founder-desk") &&
+      !["admin", "manager", "founder"].includes(profile?.role ?? "")
+    ) {
+      return NextResponse.redirect(new URL("/pipeline", request.url))
+    }
+
     if (hasProfile && request.nextUrl.pathname.startsWith("/admin")) {
       const role = profile?.role
       const isAdminRole = role === "admin" || role === "founder"

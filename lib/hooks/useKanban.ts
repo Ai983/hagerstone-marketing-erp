@@ -253,6 +253,8 @@ export function useKanban() {
       const matchesAssignedTo =
         filters.assignedTo.length === 0 ||
         filters.assignedTo.includes(lead.assigned_to ?? "")
+      const matchesDataSet = !filters.dataSetId || lead.data_set_id === filters.dataSetId
+      if (!matchesDataSet) return false
       const matchesCategory =
         !filters.category ||
         filters.category === "" ||

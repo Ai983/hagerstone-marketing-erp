@@ -21,13 +21,12 @@
 // into one lead, so those always become their own leads.
 
 import {
-  DRY_RUN, supabase, readWorkbook, sheetRows, clean, phoneTail, companyKey,
-  istNoon, fetchAll, getDataSet, markImported, log,
+  DRY_RUN, supabase, readWorkbook, clean, phoneTail, companyKey,
+  fetchAll, getDataSet, markImported, log,
 } from "./_shared.mjs"
+import { FOUNDER_FILE as FILE, FOUNDER_SNAPSHOT as SNAPSHOT, readFounderPipeline } from "./_founder-sheet.mjs"
 
-const FILE = "SALES_FUNNEL_MASTER.xlsx"
 const DATA_SET = "founder-pipeline"
-const SNAPSHOT = { label: "14 Sep 2026", at: istNoon(2026, 9, 14) }
 
 // Founder status → ERP stage. TENDER is bid submission and
 // techno-commercial rounds, i.e. a price is with the client.
@@ -54,8 +53,6 @@ const SERVICE_LINE_FOR_CAT = {
   Mixed: "multiple",
 }
 
-const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 }
-
 // Serial #287 is not a deal: it is the founder's pointer to the nine
 // Priority-1 architect firms left mid-follow-up when Saurabh resigned.
 // Those firms are already leads (Architect Drive), so instead of a
@@ -80,14 +77,6 @@ const PARTY_OVERRIDES = {
   "213": { company: "HCL (corporate)", person: null },
   "80876": { company: "ST-04 Infra — Japanese GC cluster", person: "Somnath Mandal ji" },
   "80880": { company: "Metalman — Aurangabad (site #3)", person: null },
-}
-
-/** "06-Aug" → 2026-08-06. Every date in the tab is in 2026. */
-function parseNextDate(value) {
-  const m = String(value ?? "").trim().match(/^(\d{1,2})-([A-Za-z]{3})$/)
-  if (!m) return null
-  const month = MONTHS[m[2].toLowerCase()]
-  return month ? { label: m[0], iso: istNoon(2026, month, Number(m[1])) } : null
 }
 
 /**
@@ -177,36 +166,7 @@ async function main() {
   // Read the tabs
   // ----------------------------------------------------------------
 
-  const [header, ...body] = sheetRows(XLSX, wb, "00-ONGOING TENDERS")
-  const col = Object.fromEntries(header.map((h, i) => [h, i]))
-  const rows = body
-    .filter((r) => clean(r[col["#"]]))
-    .map((r) => {
-      let nextAction = clean(r[col["Next Action"]])
-      let nextDateRaw = clean(r[col["Next Date"]])
-      // From serial #47 on, the tab's Next Action column holds the date
-      // and Next Date holds "?" — a column shift in the source.
-      if (nextAction && /^\d{1,2}-[A-Za-z]{3}$/.test(nextAction) && !nextDateRaw) {
-        nextDateRaw = nextAction
-        nextAction = null
-      }
-      return {
-        serial: String(r[col["#"]]).trim(),
-        cat: clean(r[col["Cat"]]),
-        partyRaw: clean(r[col["Party"]]),
-        project: clean(r[col["Project"]]),
-        valueRaw: clean(r[col["Value"]]),
-        contactRaw: clean(r[col["Contact"]]),
-        status: clean(r[col["Status"]])?.toUpperCase(),
-        nextAction,
-        nextDate: parseNextDate(nextDateRaw),
-        owner: clean(r[col["Owner"]]),
-      }
-    })
-
-  const immediate = new Set(
-    sheetRows(XLSX, wb, "03-IMMEDIATE ACTIONS").slice(1).map((r) => String(r[0]).trim()).filter(Boolean),
-  )
+  const { rows, immediate } = readFounderPipeline(XLSX, wb)
 
   // How many deals the founder lists per company — see header note.
   const dealsPerCompany = new Map()

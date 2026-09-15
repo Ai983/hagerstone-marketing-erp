@@ -12,6 +12,8 @@ export interface KanbanFiltersState {
   sources: LeadSource[]
   assignedTo: string[]
   category: string | null
+  /** Data set id — ERP / Architect Drive / Founder Pipeline. Null = all. */
+  dataSetId: string | null
 }
 
 export interface PendingStageChange {
@@ -49,6 +51,7 @@ const defaultFilters: KanbanFiltersState = {
   sources: [],
   assignedTo: [],
   category: null,
+  dataSetId: null,
 }
 
 export const useKanbanStore = create<KanbanStoreState>((set) => ({
@@ -108,17 +111,7 @@ export const useKanbanStore = create<KanbanStoreState>((set) => ({
       },
     }))
   },
-  clearFilters: () =>
-    set({
-      filters: {
-        myLeadsOnly: false,
-        overdueOnly: false,
-        serviceLines: [],
-        sources: [],
-        assignedTo: [],
-        category: null,
-      },
-    }),
+  clearFilters: () => set({ filters: defaultFilters }),
   setSelectedLeadId: (id) => set({ selectedLeadId: id }),
   setPendingStageChange: (change) => set({ pendingStageChange: change }),
   clearPendingStageChange: () => set({ pendingStageChange: null }),

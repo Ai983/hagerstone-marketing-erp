@@ -7,10 +7,33 @@ import { toast } from "sonner"
 import { FileText, UserCircle2 } from "lucide-react"
 
 import { DataSetBadge, PRIORITY_OPTIONS, PriorityBadge } from "@/components/data/DataSetBadge"
+import { useDataSets } from "@/lib/hooks/useDataSets"
 import { getCachedUser } from "@/lib/hooks/useUser"
 import { createClient } from "@/lib/supabase/client"
 import type { Lead } from "@/lib/types"
 import { cn } from "@/lib/utils"
+
+type SnapshotRow = {
+  id: string
+  data_set_id: string
+  external_ref: string | null
+  source_file: string | null
+  captured_at: string
+  data: Record<string, string | boolean | null>
+}
+
+// Founder sheet status → the ERP stage it was imported as. Used to say
+// whether the deal has moved since the handover.
+const FOUNDER_STATUS_STAGE: Record<string, string> = {
+  NEW: "new_lead",
+  "FOLLOW-UP": "contacted",
+  TENDER: "proposal_sent",
+  "AWAITING CLIENT": "proposal_sent",
+  HOT: "negotiation",
+  WON: "won",
+  LOST: "lost",
+  DROPPED: "lost",
+}
 
 type ShareRow = {
   id: string
@@ -44,6 +67,21 @@ export function LeadProvenancePanel({ lead }: { lead: Lead }) {
     },
     retry: false,
   })
+
+  const snapshotsQuery = useQuery({
+    queryKey: ["lead-snapshots", lead.id],
+    queryFn: async (): Promise<SnapshotRow[]> => {
+      const { data, error } = await createClient()
+        .from("lead_source_snapshots")
+        .select("id, data_set_id, external_ref, source_file, captured_at, data")
+        .eq("lead_id", lead.id)
+        .order("captured_at", { ascending: false })
+      if (error) throw error
+      return (data ?? []) as SnapshotRow[]
+    },
+    retry: false,
+  })
+  const { byId: dataSetById } = useDataSets()
 
   const setPriority = async (next: string) => {
     const value = lead.priority === next ? null : next
@@ -123,6 +161,60 @@ export function LeadProvenancePanel({ lead }: { lead: Lead }) {
         {lead.priority_note ? (
           <p className="mt-2 text-xs leading-relaxed text-[#9090A8]">{lead.priority_note}</p>
         ) : null}
+
+        {(snapshotsQuery.data ?? []).map((snap) => {
+          const ds = dataSetById.get(snap.data_set_id)
+          const d = snap.data
+          const isFounder = ds?.key === "founder-pipeline"
+          const sheetStage = isFounder && typeof d.status === "string" ? FOUNDER_STATUS_STAGE[d.status] : undefined
+          const currentStage = (lead.stage as { slug?: string; name?: string } | undefined)
+          const moved = sheetStage && currentStage?.slug && currentStage.slug !== sheetStage
+
+          const rows: [string, string | boolean | null | undefined][] = isFounder
+            ? [
+                ["Status", d.status],
+                ["Value", d.value ?? "not known"],
+                ["Owner (sheet)", d.owner],
+                ["Next action", [d.next_action, d.next_date ? `due ${d.next_date}` : null].filter(Boolean).join(" · ") || null],
+                ["Project", d.project],
+                ["Contact", d.contact],
+              ]
+            : [
+                ["Priority", d.priority],
+                ["Status", d.remark],
+                ["POC", d.poc],
+                ["Location", d.location],
+              ]
+
+          return (
+            <div key={snap.id} className="mt-3 rounded-md border border-dashed border-[#3A3A52] bg-[#111118] p-2.5">
+              <p className="flex flex-wrap items-center gap-1.5 text-[11px] uppercase tracking-wider text-[#9090A8]">
+                {isFounder ? "As received from Dhruv sir" : "As received from the Delhi team"}
+                <span className="normal-case tracking-normal text-[#5A5A72]">
+                  · {format(new Date(snap.captured_at), "d MMM yyyy")}
+                  {isFounder && snap.external_ref ? ` · #${snap.external_ref}` : ""}
+                </span>
+              </p>
+              <dl className="mt-1.5 space-y-1">
+                {rows
+                  .filter(([, v]) => v !== null && v !== undefined && v !== "")
+                  .map(([k, v]) => (
+                    <div key={k} className="flex gap-2 text-xs">
+                      <dt className="w-24 shrink-0 text-[#5A5A72]">{k}</dt>
+                      <dd className="min-w-0 break-words text-[#F0F0FA]">{String(v)}</dd>
+                    </div>
+                  ))}
+              </dl>
+              {isFounder && sheetStage ? (
+                <p className={cn("mt-1.5 text-[11px]", moved ? "text-[#F59E0B]" : "text-[#5A5A72]")}>
+                  {moved
+                    ? `Moved since handover: ${d.status} → now ${currentStage?.name ?? currentStage?.slug}`
+                    : "Stage unchanged since handover"}
+                </p>
+              ) : null}
+            </div>
+          )
+        })}
 
         {shares.length > 0 ? (
           <>

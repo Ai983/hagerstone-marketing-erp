@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select"
 import { createClient } from "@/lib/supabase/client"
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
+import { useDataSets } from "@/lib/hooks/useDataSets"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import { useUIStore } from "@/lib/stores/uiStore"
 import type { LeadSource, Profile, ServiceLine } from "@/lib/types"
@@ -124,7 +125,10 @@ export function KanbanFilters({
 
   const assignableMembers = profiles.length > 0 ? profiles : teamMembers
 
+  const { dataSets } = useDataSets()
+
   const activeFilterCount =
+    (filters.dataSetId ? 1 : 0) +
     (filters.myLeadsOnly ? 1 : 0) +
     (filters.overdueOnly ? 1 : 0) +
     filters.serviceLines.length +
@@ -225,6 +229,30 @@ export function KanbanFilters({
         >
           Overdue Only
         </button>
+
+        {/* Data source — keeps Dhruv sir's deals separable on the board */}
+        {dataSets.length > 0 ? (
+          <Select
+            value={filters.dataSetId ?? ALL}
+            onValueChange={(next) => setFilter("dataSetId", next === ALL ? null : next)}
+          >
+            <SelectTrigger
+              className={cn("h-9 w-full shrink-0 md:w-[160px]", filters.dataSetId && activeTriggerClass)}
+            >
+              <SelectValue placeholder="All data" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All data</SelectItem>
+              {dataSets
+                .filter((d) => d.kind !== "founder_universe")
+                .map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        ) : null}
 
         {/* Service Line */}
         <Select
