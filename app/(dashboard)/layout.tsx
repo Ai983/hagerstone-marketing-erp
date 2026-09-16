@@ -64,7 +64,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           fullName={fullName}
           role={role}
           badges={{
-            inbox: counts?.unassignedLeads,
             activities: counts?.overdueTasks,
             adminTasks: counts?.adminOverdueTasks,
           }}

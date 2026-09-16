@@ -47,7 +47,6 @@ type FounderDeal = {
     closure_value: number | null
     final_agreed_price: number | null
     stage: Stage | null
-    assignee: { full_name: string } | null
   }
 }
 
@@ -103,7 +102,7 @@ export default function FounderDeskPage() {
       const { data, error } = await createClient()
         .from("lead_source_snapshots")
         .select(
-          "id, external_ref, data, lead:lead_id(id, full_name, company_name, phone, priority, proposal_estimated_cost, closure_value, final_agreed_price, stage:stage_id(name, slug, color, stage_type), assignee:assigned_to(full_name))"
+          "id, external_ref, data, lead:lead_id(id, full_name, company_name, phone, priority, proposal_estimated_cost, closure_value, final_agreed_price, stage:stage_id(name, slug, color, stage_type))"
         )
         .eq("data_set_id", founderSet!.id)
       if (error) throw error
@@ -465,7 +464,7 @@ function DealsTab({ deals, nextTaskByLead, lastTouch, onOpen }: TabProps) {
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-semibold text-[#F0F0FA]">{dealValue(d) ? formatInrShort(dealValue(d)) : d.sheet.value ?? "—"}</p>
-                    <p className="text-[10px] text-[#5A5A72]">{d.lead.assignee?.full_name ?? "Unassigned"}</p>
+                    <p className="text-[10px] text-[#5A5A72]">{d.sheet.owner ?? ""}</p>
                   </div>
                 </div>
               </button>

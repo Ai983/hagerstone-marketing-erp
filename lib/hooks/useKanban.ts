@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
-import type { LeadSource, PipelineStage, Profile, ServiceLine, UserRole } from "@/lib/types"
+import type { LeadSource, PipelineStage, Profile, ServiceLine } from "@/lib/types"
 import type { LeadCategory } from "@/lib/utils/lead-category"
 
 interface KanbanTask {
@@ -58,8 +58,6 @@ export interface KanbanBoardColumn {
   stage: PipelineStage
   leads: KanbanLead[]
 }
-
-const privilegedRoles: UserRole[] = ["manager", "admin"]
 
 function getStageAgeDays(stageEnteredAt: string) {
   const diffMs = Date.now() - new Date(stageEnteredAt).getTime()
@@ -178,23 +176,6 @@ async function fetchCurrentProfile() {
   return (profile as Profile | null) ?? null
 }
 
-async function fetchTeamMembers() {
-  const supabase = createClient()
-  // Minimal column set — only what the Assigned To filter actually
-  // reads. Keeps the query 400-proof against schema drift.
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, full_name, role, is_active")
-    .eq("is_active", true)
-    .order("full_name", { ascending: true })
-
-  if (error) {
-    throw error
-  }
-
-  return (data ?? []) as Profile[]
-}
-
 export function useKanban() {
   const queryClient = useQueryClient()
   const { leads, stages, filters, setLeads, setStages } = useKanbanStore()
@@ -218,16 +199,6 @@ export function useKanban() {
     queryFn: fetchCurrentProfile,
   })
 
-  const canFilterAssignedTo = privilegedRoles.includes(
-    (currentProfileQuery.data?.role ?? "sales_rep") as UserRole
-  )
-
-  const teamMembersQuery = useQuery({
-    queryKey: ["kanban-team-members"],
-    queryFn: fetchTeamMembers,
-    enabled: canFilterAssignedTo,
-  })
-
   useEffect(() => {
     if (leadsQuery.data) {
       setLeads(leadsQuery.data)
@@ -242,17 +213,12 @@ export function useKanban() {
 
   const filteredLeads = useMemo(() => {
     const out = leads.filter((lead) => {
-      const matchesMyLeads =
-        !filters.myLeadsOnly || lead.assigned_to === currentProfileQuery.data?.id
       const matchesOverdue = !filters.overdueOnly || lead.has_overdue_follow_up
       const matchesServiceLine =
         filters.serviceLines.length === 0 ||
         (lead.service_line ? filters.serviceLines.includes(lead.service_line) : false)
       const matchesSource =
         filters.sources.length === 0 || filters.sources.includes(lead.source)
-      const matchesAssignedTo =
-        filters.assignedTo.length === 0 ||
-        filters.assignedTo.includes(lead.assigned_to ?? "")
       const matchesDataSet = !filters.dataSetId || lead.data_set_id === filters.dataSetId
       if (!matchesDataSet) return false
       const matchesCategory =
@@ -262,31 +228,10 @@ export function useKanban() {
           ? lead.category == null
           : lead.category === filters.category)
 
-      return (
-        matchesMyLeads &&
-        matchesOverdue &&
-        matchesServiceLine &&
-        matchesSource &&
-        matchesAssignedTo &&
-        matchesCategory
-      )
-    })
-    // When an Assigned To filter is active, log a sample of leads so
-    // we can verify the UUIDs being compared. Only the first 3 are
-    // logged to avoid flooding the console.
-    if (filters.assignedTo.length > 0) {
-      console.log("[useKanban] assignedTo filter active:", filters.assignedTo)
-      leads.slice(0, 3).forEach((lead) => {
-        console.log("Lead assigned_to:", lead.id, "→", lead.assigned_to)
-      })
-    }
-    console.log("[useKanban] filteredLeads:", {
-      filters,
-      inputCount: leads.length,
-      outputCount: out.length,
+      return matchesOverdue && matchesServiceLine && matchesSource && matchesCategory
     })
     return out
-  }, [currentProfileQuery.data?.id, filters, leads])
+  }, [filters, leads])
 
   const columns = useMemo<KanbanBoardColumn[]>(() => {
     return stages.map((stage) => ({
@@ -313,12 +258,12 @@ export function useKanban() {
     }
 
     const trimmedNote = note?.trim()
-    const isManagerOrAdmin = role === "manager" || role === "admin"
+    const isSignedIn = Boolean(role)
 
     if (
       (fromStage.stage_type === "won" || fromStage.stage_type === "lost") &&
       toStage.stage_type === "active" &&
-      !isManagerOrAdmin
+      !isSignedIn
     ) {
       throw new Error("Only managers or admins can move Won or Lost leads back to active stages.")
     }
@@ -454,10 +399,8 @@ export function useKanban() {
     stages,
     filteredLeads,
     currentProfile: currentProfileQuery.data,
-    teamMembers: teamMembersQuery.data ?? [],
     isLoading: stagesQuery.isLoading || leadsQuery.isLoading || currentProfileQuery.isLoading,
     isError: stagesQuery.isError || leadsQuery.isError || currentProfileQuery.isError,
-    canFilterAssignedTo,
     updateLeadStage,
   }
 }

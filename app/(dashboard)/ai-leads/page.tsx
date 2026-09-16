@@ -27,7 +27,7 @@ import type { UserRole } from "@/lib/types"
 
 // ── Types & constants ──────────────────────────────────────────────
 
-const ALLOWED_ROLES: UserRole[] = ["admin", "manager", "founder", "marketing"]
+const ALLOWED_ROLES: UserRole[] = ["admin", "sales_head"]
 
 const VALID_SERVICE_LINES = new Set([
   "office_interiors",

@@ -32,7 +32,7 @@ export async function GET() {
       .eq("id", user.id)
       .maybeSingle()
 
-    const allowedRoles = ["admin", "manager", "founder"]
+    const allowedRoles = ["admin", "sales_head"]
     if (!profile?.role || !allowedRoles.includes(profile.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }

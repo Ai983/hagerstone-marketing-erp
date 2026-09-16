@@ -6,11 +6,9 @@ import type { LeadSource, PipelineStage, ServiceLine } from "@/lib/types"
 import type { KanbanLead } from "@/lib/hooks/useKanban"
 
 export interface KanbanFiltersState {
-  myLeadsOnly: boolean
   overdueOnly: boolean
   serviceLines: ServiceLine[]
   sources: LeadSource[]
-  assignedTo: string[]
   category: string | null
   /** Data set id — ERP / Architect Drive / Founder Pipeline. Null = all. */
   dataSetId: string | null
@@ -45,11 +43,9 @@ interface KanbanStoreState {
 }
 
 const defaultFilters: KanbanFiltersState = {
-  myLeadsOnly: false,
   overdueOnly: false,
   serviceLines: [],
   sources: [],
-  assignedTo: [],
   category: null,
   dataSetId: null,
 }

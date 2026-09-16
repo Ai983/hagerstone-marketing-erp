@@ -1,4 +1,10 @@
-export type UserRole = 'admin' | 'manager' | 'sales_rep' | 'marketing' | 'founder'
+/**
+ * Two roles only. `admin` owns system settings (admin@hagerstone.com and
+ * marketing.admin@ as backup); `sales_head` is everyone who sells and,
+ * for now, has access to every page and feature. Anyone who joins the
+ * sales team gets `sales_head`.
+ */
+export type UserRole = 'admin' | 'sales_head'
 
 export type ServiceLine =
   | 'office_interiors' | 'mep' | 'facade_glazing'

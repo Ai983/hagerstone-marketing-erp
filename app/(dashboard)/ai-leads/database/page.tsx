@@ -24,7 +24,7 @@ import { useUIStore } from "@/lib/stores/uiStore"
 import { cn } from "@/lib/utils"
 import type { UserRole } from "@/lib/types"
 
-const ALLOWED_ROLES: UserRole[] = ["admin", "manager", "founder", "marketing"]
+const ALLOWED_ROLES: UserRole[] = ["admin", "sales_head"]
 const PAGE_SIZE = 25
 const VALID_SERVICE_LINES = new Set([
   "office_interiors",

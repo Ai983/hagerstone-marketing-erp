@@ -75,8 +75,7 @@ export function StageChangeModal({
       toStage &&
       (fromStage.stage_type === "won" || fromStage.stage_type === "lost") &&
       toStage.stage_type === "active" &&
-      currentUserRole !== "manager" &&
-      currentUserRole !== "admin"
+      !currentUserRole
   )
 
   const title = useMemo(() => {

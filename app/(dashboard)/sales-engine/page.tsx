@@ -58,7 +58,6 @@ type LeadRow = {
   closed_at: string | null
   updated_at: string
   stage: { slug: string; name: string; color: string; stage_type: string; position: number } | null
-  assignee: { full_name: string } | null
 }
 
 type ActivityRow = {
@@ -85,8 +84,9 @@ function dealValue(l: LeadRow) {
   return l.final_agreed_price ?? l.closure_value ?? l.proposal_estimated_cost ?? 0
 }
 
+/** Deal owner as named by the source sheet — no ERP assignment exists. */
 function ownerOf(l: LeadRow) {
-  return l.owner_name || l.assignee?.full_name || "Unassigned"
+  return l.owner_name || "No owner named"
 }
 
 export default function SalesEnginePage() {
@@ -99,7 +99,7 @@ export default function SalesEnginePage() {
     queryFn: async (): Promise<LeadRow[]> => {
       const { data, error } = await createClient()
         .from("leads")
-        .select("*, stage:stage_id(slug, name, color, stage_type, position), assignee:assigned_to(full_name)")
+        .select("*, stage:stage_id(slug, name, color, stage_type, position)")
         .eq("is_archived", false)
         .limit(5000)
       if (error) throw error

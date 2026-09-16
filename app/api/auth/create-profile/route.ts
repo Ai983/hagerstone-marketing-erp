@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
 // Creates the sales-rep profile after client-side supabase.auth.signUp.
-// Role is forced to sales_rep regardless of what the client sends — do
+// Role is forced to sales_head regardless of what the client sends — do
 // NOT trust `role` from the request body.
 
 export async function POST(request: Request) {
@@ -36,7 +36,9 @@ export async function POST(request: Request) {
       full_name,
       email,
       phone: phone || null,
-      role: "sales_rep", // always sales_rep — never trust the client
+      // Anyone who joins the sales team is a Sales Head; only an admin
+      // can raise someone to admin, from the Users page.
+      role: "sales_head", // never trust the client
       is_active: true,
     })
 

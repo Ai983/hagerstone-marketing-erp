@@ -3,15 +3,15 @@
 import { useQuery } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 
+/**
+ * Badge numbers for the sidebar. There is no "unassigned leads" count
+ * any more — leads are not assigned to people; the whole team works the
+ * same book.
+ */
 async function fetchSidebarCounts(currentUserId: string | null) {
   const supabase = createClient()
 
-  const [unassignedRes, overdueRes, adminOverdueRes] = await Promise.all([
-    supabase
-      .from("leads")
-      .select("id", { count: "exact", head: true })
-      .is("assigned_to", null)
-      .eq("is_archived", false),
+  const [overdueRes, adminOverdueRes] = await Promise.all([
     // `is_overdue` lives on the overdue_tasks VIEW, not the tasks table
     // (PRD §5). Querying tasks.is_overdue returns PostgREST 42703 → 400.
     currentUserId
@@ -30,7 +30,6 @@ async function fetchSidebarCounts(currentUserId: string | null) {
   ])
 
   return {
-    unassignedLeads: unassignedRes.count ?? 0,
     overdueTasks: overdueRes.count ?? 0,
     adminOverdueTasks: adminOverdueRes.count ?? 0,
   }

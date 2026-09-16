@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { ChevronDown, Filter, Search, X } from "lucide-react"
 
 import { PRIORITY_OPTIONS, priorityLabel } from "@/components/data/DataSetBadge"
-import type { DataSet, LeadSource, PipelineStage, Profile, ServiceLine } from "@/lib/types"
+import type { DataSet, LeadSource, PipelineStage, ServiceLine } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 export type ProfileCategoryFilter =
@@ -21,7 +21,6 @@ export interface LeadsFilterState {
   stages: string[]
   sources: LeadSource[]
   serviceLines: ServiceLine[]
-  assignedTo: string[]
   category: "all" | "hot" | "warm" | "lukewarm" | "cold" | "uncategorized"
   profile: ProfileCategoryFilter
   /** Data set keys — "architect-meetings-dec-2025", "founder-pipeline"… */
@@ -34,7 +33,6 @@ export const EMPTY_LEAD_FILTERS: LeadsFilterState = {
   stages: [],
   sources: [],
   serviceLines: [],
-  assignedTo: [],
   category: "all",
   profile: "all",
   dataSets: [],
@@ -60,8 +58,6 @@ interface LeadFiltersProps {
   filters: LeadsFilterState
   onFiltersChange: (filters: LeadsFilterState) => void
   stages: Pick<PipelineStage, "id" | "name" | "slug" | "color">[]
-  teamMembers: Pick<Profile, "id" | "full_name">[]
-  canFilterAssignedTo: boolean
   dataSets: DataSet[]
   /** Lead count per data set key, for the tab labels. */
   dataSetCounts: Record<string, number>
@@ -190,8 +186,6 @@ export function LeadFilters({
   filters,
   onFiltersChange,
   stages,
-  teamMembers,
-  canFilterAssignedTo,
   dataSets,
   dataSetCounts,
   totalCount,
@@ -223,20 +217,10 @@ export function LeadFilters({
     [stages]
   )
 
-  const assignedOptions = useMemo<MultiSelectOption[]>(
-    () =>
-      teamMembers.map((member) => ({
-        label: member.full_name,
-        value: member.id,
-      })),
-    [teamMembers]
-  )
-
   const activeFilterCount =
     filters.stages.length +
     filters.sources.length +
     filters.serviceLines.length +
-    filters.assignedTo.length +
     (filters.category !== "all" ? 1 : 0) +
     (filters.profile !== "all" ? 1 : 0) +
     filters.priorities.length +
@@ -364,14 +348,6 @@ export function LeadFilters({
               </option>
             ))}
           </select>
-          {canFilterAssignedTo ? (
-            <MultiSelectDropdown
-              label="Assigned To"
-              values={filters.assignedTo}
-              options={assignedOptions}
-              onChange={(values) => update({ assignedTo: values })}
-            />
-          ) : null}
           {hasActiveFilters ? (
             <button
               type="button"
@@ -439,14 +415,6 @@ export function LeadFilters({
                 </option>
               ))}
             </select>
-            {canFilterAssignedTo ? (
-              <MultiSelectDropdown
-                label="Assigned To"
-                values={filters.assignedTo}
-                options={assignedOptions}
-                onChange={(values) => update({ assignedTo: values })}
-              />
-            ) : null}
             {hasActiveFilters ? (
               <button
                 type="button"

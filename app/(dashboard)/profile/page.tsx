@@ -27,10 +27,7 @@ const roleMeta: Record<
   { label: string; color: string; bg: string }
 > = {
   admin: { label: "Admin", color: "#F87171", bg: "#F8717120" },
-  manager: { label: "Manager", color: "#C084FC", bg: "#C084FC20" },
-  founder: { label: "Founder", color: "#F59E0B", bg: "#F59E0B20" },
-  marketing: { label: "Marketing", color: "#60A5FA", bg: "#60A5FA20" },
-  sales_rep: { label: "Sales Rep", color: "#34D399", bg: "#34D39920" },
+  sales_head: { label: "Sales Head", color: "#34D399", bg: "#34D39920" },
 }
 
 function getInitials(name: string) {

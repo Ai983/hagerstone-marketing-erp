@@ -6,7 +6,6 @@ import { format } from "date-fns"
 import { toast } from "sonner"
 import { X, CalendarPlus, Loader2 } from "lucide-react"
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
-import type { Profile } from "@/lib/types"
 
 const followUpTypes = [
   { value: "call", label: "Call" },
@@ -24,8 +23,6 @@ interface ScheduleFollowUpModalProps {
   leadId: string
   leadName: string
   currentUserId: string | null
-  currentUserRole?: string
-  teamMembers: Pick<Profile, "id" | "full_name">[]
   onClose: () => void
   onSubmit: (data: {
     type: string
@@ -39,25 +36,18 @@ export function ScheduleFollowUpModal({
   open,
   leadName,
   currentUserId,
-  currentUserRole,
-  teamMembers,
   onClose,
   onSubmit,
 }: ScheduleFollowUpModalProps) {
   const [type, setType] = useState("call")
   const [dueAt, setDueAt] = useState("")
   const [notes, setNotes] = useState("")
-  const [assignedTo, setAssignedTo] = useState(currentUserId ?? "")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const isMobile = useMediaQuery("(max-width: 768px)")
 
-  const canAssignOthers =
-    currentUserRole === "manager" ||
-    currentUserRole === "admin" ||
-    currentUserRole === "founder"
-
   const isValidDate = dueAt !== "" && new Date(dueAt).getTime() > Date.now()
-  const canSubmit = isValidDate && assignedTo !== ""
+  // Follow-ups belong to whoever schedules them — there is no assignment.
+  const canSubmit = isValidDate && Boolean(currentUserId)
 
   const handleSubmit = async () => {
     if (!canSubmit) return
@@ -67,7 +57,7 @@ export function ScheduleFollowUpModal({
         type,
         due_at: new Date(dueAt).toISOString(),
         notes: notes.trim(),
-        assigned_to: assignedTo,
+        assigned_to: currentUserId ?? "",
       })
       const dateLabel = format(new Date(dueAt), "MMM d 'at' h:mm a")
       toast.success(`Follow-up scheduled for ${dateLabel}`)
@@ -83,7 +73,6 @@ export function ScheduleFollowUpModal({
     setType("call")
     setDueAt("")
     setNotes("")
-    setAssignedTo(currentUserId ?? "")
     onClose()
   }
 
@@ -185,31 +174,6 @@ export function ScheduleFollowUpModal({
                   />
                 </div>
 
-                {/* Assigned to */}
-                <div>
-                  <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-[#9090A8]">
-                    Assigned To
-                  </label>
-                  <select
-                    value={assignedTo}
-                    onChange={(e) => setAssignedTo(e.target.value)}
-                    disabled={!canAssignOthers}
-                    className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] outline-none focus:border-[#3B82F6] disabled:opacity-60 md:text-sm"
-                  >
-                    <option value="">Select...</option>
-                    {teamMembers.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.full_name}
-                        {m.id === currentUserId ? " (you)" : ""}
-                      </option>
-                    ))}
-                  </select>
-                  {!canAssignOthers && (
-                    <p className="mt-1 text-[11px] text-[#9090A8]">
-                      Only managers and admins can assign to others
-                    </p>
-                  )}
-                </div>
               </div>
             </div>
 

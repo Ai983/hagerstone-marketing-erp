@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
   const { data: managers } = await supabase
     .from("profiles")
     .select("id")
-    .in("role", ["manager", "admin"])
+    .in("role", ["admin", "sales_head"])
     .eq("is_active", true)
 
   if (managers && managers.length > 0) {

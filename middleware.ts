@@ -94,54 +94,9 @@ export async function middleware(request: NextRequest) {
       )
     }
 
-    // Company-wide targets and pipeline value are for heads, not reps.
-    if (hasProfile && request.nextUrl.pathname.startsWith("/sales-engine") && profile?.role === "sales_rep") {
-      return NextResponse.redirect(new URL("/pipeline", request.url))
-    }
-
-    // Website enquiries are unassigned when they land, and RLS hides
-    // unassigned leads from reps — the page would just look empty.
-    if (
-      hasProfile &&
-      request.nextUrl.pathname.startsWith("/website-leads") &&
-      profile?.role === "sales_rep"
-    ) {
-      return NextResponse.redirect(new URL("/pipeline", request.url))
-    }
-
-    // The founder's handed-over book: deal values and sir's own notes.
-    if (
-      hasProfile &&
-      request.nextUrl.pathname.startsWith("/founder-desk") &&
-      !["admin", "manager", "founder"].includes(profile?.role ?? "")
-    ) {
-      return NextResponse.redirect(new URL("/pipeline", request.url))
-    }
-
-    if (hasProfile && request.nextUrl.pathname.startsWith("/admin")) {
-      const role = profile?.role
-      const isAdminRole = role === "admin" || role === "founder"
-      const isManagerAdminPath =
-        request.nextUrl.pathname === "/admin/tasks" ||
-        request.nextUrl.pathname.startsWith("/admin/tasks/") ||
-        request.nextUrl.pathname === "/admin/whatsapp-health" ||
-        request.nextUrl.pathname.startsWith("/admin/whatsapp-health/")
-      const isEmailTemplatesPath =
-        request.nextUrl.pathname === "/admin/email-templates" ||
-        request.nextUrl.pathname.startsWith("/admin/email-templates/")
-
-      if (role === "sales_rep" || (role === "marketing" && !isEmailTemplatesPath)) {
-        return NextResponse.redirect(new URL("/activities", request.url))
-      }
-
-      if (role === "manager" && !isManagerAdminPath) {
-        return NextResponse.redirect(new URL("/admin/tasks", request.url))
-      }
-
-      if (!isAdminRole && role !== "manager") {
-        return NextResponse.redirect(new URL("/pipeline", request.url))
-      }
-    }
+    // Two roles — admin and sales_head — and both may open every page,
+    // so there are no per-page role redirects. Signing in and having a
+    // profile (checked above) is the only gate.
   }
 
   return response

@@ -11,20 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { createClient } from "@/lib/supabase/client"
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { sourceShortLabel } from "@/components/data/DataSetBadge"
 import { useDataSets } from "@/lib/hooks/useDataSets"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import { useUIStore } from "@/lib/stores/uiStore"
-import type { LeadSource, Profile, ServiceLine } from "@/lib/types"
+import type { LeadSource, ServiceLine } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-interface KanbanFiltersProps {
-  canFilterAssignedTo: boolean
-  currentUserId?: string
-  teamMembers: Profile[]
-}
+type KanbanFiltersProps = Record<string, never>
 
 // Radix Select reserves "" for the empty/placeholder state, so a
 // SelectItem can't use "" as its value. We use this sentinel for
@@ -52,11 +47,7 @@ const sourceOptions: Array<{ label: string; value: LeadSource }> = [
   { label: "Other", value: "other" },
 ]
 
-export function KanbanFilters({
-  canFilterAssignedTo,
-  currentUserId,
-  teamMembers,
-}: KanbanFiltersProps) {
+export function KanbanFilters({}: KanbanFiltersProps) {
   const { filters, setFilter, clearFilters, leads: boardLeads } = useKanbanStore()
   const isMobile = useMediaQuery("(max-width: 768px)")
   const { isFocusMode, setFocusMode } = useUIStore()
@@ -92,49 +83,13 @@ export function KanbanFilters({
     }
   }, [isFocusMode, setFocusMode])
 
-  // Self-fetch active profiles so the Assigned To dropdown works
-  // regardless of parent prop load order. Falls back to teamMembers
-  // while the self-fetch is in flight.
-  const [profiles, setProfiles] = useState<
-    Array<Pick<Profile, "id" | "full_name" | "role">>
-  >([])
-
-  useEffect(() => {
-    if (!canFilterAssignedTo) return
-    let mounted = true
-    const fetchProfiles = async () => {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, role")
-        .eq("is_active", true)
-        .order("full_name", { ascending: true })
-      if (!mounted) return
-      if (error) {
-        console.error("[KanbanFilters] profiles fetch error:", error)
-        return
-      }
-      setProfiles(
-        (data ?? []) as Array<Pick<Profile, "id" | "full_name" | "role">>
-      )
-    }
-    fetchProfiles()
-    return () => {
-      mounted = false
-    }
-  }, [canFilterAssignedTo])
-
-  const assignableMembers = profiles.length > 0 ? profiles : teamMembers
-
   const { dataSets } = useDataSets()
 
   const activeFilterCount =
     (filters.dataSetId ? 1 : 0) +
-    (filters.myLeadsOnly ? 1 : 0) +
     (filters.overdueOnly ? 1 : 0) +
     filters.serviceLines.length +
     filters.sources.length +
-    filters.assignedTo.length +
     (filters.category ? 1 : 0)
 
   const hasFilters = activeFilterCount > 0
@@ -143,12 +98,10 @@ export function KanbanFilters({
   // single-value shape Select expects. "__all__" means "no filter".
   const serviceLineValue = filters.serviceLines[0] ?? ALL
   const sourceValue = filters.sources[0] ?? ALL
-  const assignedToValue = filters.assignedTo[0] ?? ALL
   const categoryValue = filters.category ?? ALL
 
   const serviceLineActive = filters.serviceLines.length > 0
   const sourceActive = filters.sources.length > 0
-  const assignedToActive = filters.assignedTo.length > 0
   const categoryActive = Boolean(filters.category)
 
   const activeTriggerClass = "border-[#3B82F6] text-[#3B82F6]"
@@ -252,19 +205,6 @@ export function KanbanFilters({
         {sourceTabStrip ? <div className="hidden md:block">{sourceTabStrip}</div> : null}
         <button
           type="button"
-          onClick={() => setFilter("myLeadsOnly", !filters.myLeadsOnly)}
-          disabled={!currentUserId}
-          className={cn(
-            "h-9 w-full shrink-0 rounded-lg border px-3 text-sm transition md:w-auto",
-            filters.myLeadsOnly
-              ? "border-[#3B82F6] bg-[#1E3A5F] text-[#3B82F6]"
-              : "border-[#3A3A52] bg-[#1F1F2E] text-[#F0F0FA] hover:bg-[#1A1A24]"
-          )}
-        >
-          My Leads
-        </button>
-        <button
-          type="button"
           onClick={() => setFilter("overdueOnly", !filters.overdueOnly)}
           className={cn(
             "h-9 w-full shrink-0 rounded-lg border px-3 text-sm transition md:w-auto",
@@ -335,38 +275,6 @@ export function KanbanFilters({
             ))}
           </SelectContent>
         </Select>
-
-        {/* Assigned To — manager/admin only */}
-        {canFilterAssignedTo ? (
-          <Select
-            value={assignedToValue}
-            onValueChange={(next) => {
-              console.log("[KanbanFilters] Filter changed: assignedTo", next)
-              if (next === ALL) {
-                setFilter("assignedTo", [])
-              } else {
-                setFilter("assignedTo", [next])
-              }
-            }}
-          >
-            <SelectTrigger
-              className={cn(
-                "h-9 w-full shrink-0 md:w-[160px]",
-                assignedToActive && activeTriggerClass
-              )}
-            >
-              <SelectValue placeholder="Assigned To" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All Reps</SelectItem>
-              {assignableMembers.map((member) => (
-                <SelectItem key={member.id} value={member.id}>
-                  {member.full_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : null}
 
         <Select
           value={categoryValue}

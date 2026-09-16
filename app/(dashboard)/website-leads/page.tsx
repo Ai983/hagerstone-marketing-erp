@@ -1,15 +1,13 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { format, formatDistanceToNowStrict, isAfter, subDays } from "date-fns"
-import { toast } from "sonner"
 import {
-  Clock, Globe, Loader2, Mail, MessageCircle, Phone, Search, UserPlus, Zap,
+  Clock, Globe, Loader2, Mail, MessageCircle, Phone, Search, Zap,
 } from "lucide-react"
 
 import { useDataSets } from "@/lib/hooks/useDataSets"
-import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
@@ -27,9 +25,7 @@ type WebsiteLead = {
   utm_source: string | null
   utm_campaign: string | null
   created_at: string
-  assigned_to: string | null
   stage: { name: string; slug: string; color: string; stage_type: string } | null
-  assignee: { id: string; full_name: string } | null
 }
 
 type Reply = { lead_id: string; created_at: string; type: string; user: { full_name: string } | null }
@@ -52,13 +48,11 @@ function humanMs(ms: number) {
 }
 
 export default function WebsiteLeadsPage() {
-  const queryClient = useQueryClient()
   const { setLeadDrawerId } = useUIStore()
   const { byKey } = useDataSets()
   const dataSet = byKey.get("website")
   const [tab, setTab] = useState<Tab>("attention")
   const [search, setSearch] = useState("")
-  const [assigning, setAssigning] = useState<string | null>(null)
 
   const leadsQuery = useQuery({
     queryKey: ["website-leads", dataSet?.id],
@@ -66,7 +60,7 @@ export default function WebsiteLeadsPage() {
     queryFn: async (): Promise<WebsiteLead[]> => {
       const { data, error } = await createClient()
         .from("leads")
-        .select("id, full_name, company_name, phone, email, city, service_line, initial_notes, source_detail, utm_source, utm_campaign, created_at, assigned_to, stage:stage_id(name, slug, color, stage_type), assignee:assigned_to(id, full_name)")
+        .select("id, full_name, company_name, phone, email, city, service_line, initial_notes, source_detail, utm_source, utm_campaign, created_at, stage:stage_id(name, slug, color, stage_type)")
         .eq("data_set_id", dataSet!.id)
         .eq("is_archived", false)
         .order("created_at", { ascending: false })
@@ -126,27 +120,6 @@ export default function WebsiteLeadsPage() {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q)))
   }, [leads, tab, search, replies])
-
-  const assignToMe = async (lead: WebsiteLead) => {
-    setAssigning(lead.id)
-    try {
-      const { user } = await getCachedUserAndProfile()
-      if (!user) throw new Error("Not signed in")
-      const { error } = await createClient()
-        .from("leads")
-        .update({ assigned_to: user.id, assigned_at: new Date().toISOString() })
-        .eq("id", lead.id)
-      if (error) throw error
-      toast.success(`${lead.full_name} is yours`)
-      queryClient.invalidateQueries({ queryKey: ["website-leads"] })
-      queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
-      queryClient.invalidateQueries({ queryKey: ["sidebar-counts"] })
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not assign")
-    } finally {
-      setAssigning(null)
-    }
-  }
 
   const tabs: { id: Tab; label: string; count: number }[] = [
     { id: "attention", label: "Needs a reply", count: stats.waiting },
@@ -268,7 +241,6 @@ export default function WebsiteLeadsPage() {
                         ? `Replied in ${humanMs(ms)}${reply?.user ? ` by ${reply.user.full_name}` : ""}`
                         : `Waiting ${formatDistanceToNowStrict(new Date(lead.created_at))}`}
                     </span>
-                    <span className="text-[#5A5A72]">{lead.assignee?.full_name ?? "Unassigned"}</span>
                   </div>
                 </button>
 
@@ -287,17 +259,6 @@ export default function WebsiteLeadsPage() {
                     <a href={`mailto:${lead.email}`} className="inline-flex h-9 max-w-full items-center gap-1.5 rounded-lg border border-[#2A2A3C] px-3 text-xs text-[#F0F0FA]">
                       <Mail className="size-3.5" /> <span className="truncate">{lead.email}</span>
                     </a>
-                  ) : null}
-                  {!lead.assigned_to ? (
-                    <button
-                      type="button"
-                      disabled={assigning === lead.id}
-                      onClick={() => assignToMe(lead)}
-                      className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#06B6D4]/15 px-3 text-xs font-medium text-[#22D3EE] disabled:opacity-60"
-                    >
-                      {assigning === lead.id ? <Loader2 className="size-3.5 animate-spin" /> : <UserPlus className="size-3.5" />}
-                      Assign to me
-                    </button>
                   ) : null}
                 </div>
               </li>

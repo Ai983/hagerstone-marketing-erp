@@ -23,7 +23,6 @@ type ArchitectLead = {
   priority: string | null
   priority_note: string | null
   stage: { name: string; slug: string; color: string } | null
-  assignee: { full_name: string } | null
 }
 
 const PRIORITY_RANK: Record<string, number> = { P1: 0, P2: 1, P3: 2, P4: 3, dropped: 5 }
@@ -48,7 +47,7 @@ export default function ArchitectDrivePage() {
       const [leads, ints, tasks] = await Promise.all([
         supabase
           .from("leads")
-          .select("id, full_name, company_name, phone, city, priority, priority_note, stage:stage_id(name, slug, color), assignee:assigned_to(full_name)")
+          .select("id, full_name, company_name, phone, city, priority, priority_note, stage:stage_id(name, slug, color)")
           .eq("data_set_id", id)
           .eq("is_archived", false),
         supabase
@@ -216,7 +215,7 @@ function ArchitectRow({
             </span>
           ) : null}
           <span className="ml-auto text-[10px] text-[#5A5A72]">
-            {meetingCount} meeting{meetingCount === 1 ? "" : "s"} · {lead.stage?.name ?? "—"} · {lead.assignee?.full_name ?? "Unassigned"}
+            {meetingCount} meeting{meetingCount === 1 ? "" : "s"} · {lead.stage?.name ?? "—"}
           </span>
         </div>
 

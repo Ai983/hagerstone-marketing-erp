@@ -66,8 +66,7 @@ function LoadingState() {
 
 export function KanbanBoard({ isMobile }: { isMobile: boolean }) {
   const router = useRouter()
-  const { columns, leads, currentProfile, teamMembers, isLoading, isError, canFilterAssignedTo, updateLeadStage } =
-    useKanban()
+  const { columns, leads, currentProfile, isLoading, isError, updateLeadStage } = useKanban()
   const {
     pendingStageChange,
     setPendingStageChange,
@@ -317,11 +316,7 @@ export function KanbanBoard({ isMobile }: { isMobile: boolean }) {
   if (isError) {
     return (
       <div className="flex h-full flex-col overflow-hidden">
-        <KanbanFilters
-          canFilterAssignedTo={canFilterAssignedTo}
-          currentUserId={currentProfile?.id}
-          teamMembers={teamMembers}
-        />
+        <KanbanFilters />
         <div className="flex flex-1 items-center justify-center p-6">
           <div className="rounded-xl border border-[#7F1D1D] bg-[#2A1215] px-4 py-3 text-sm text-[#F87171]">
             Unable to load pipeline data right now. Please refresh and try again.
@@ -334,11 +329,7 @@ export function KanbanBoard({ isMobile }: { isMobile: boolean }) {
   if (isLoading) {
     return (
       <div className="flex h-full flex-col overflow-hidden">
-        <KanbanFilters
-          canFilterAssignedTo={canFilterAssignedTo}
-          currentUserId={currentProfile?.id}
-          teamMembers={teamMembers}
-        />
+        <KanbanFilters />
         <LoadingState />
       </div>
     )
@@ -347,11 +338,7 @@ export function KanbanBoard({ isMobile }: { isMobile: boolean }) {
   if (leads.length === 0) {
     return (
       <div className="flex h-full flex-col overflow-hidden">
-        <KanbanFilters
-          canFilterAssignedTo={canFilterAssignedTo}
-          currentUserId={currentProfile?.id}
-          teamMembers={teamMembers}
-        />
+        <KanbanFilters />
         <div className="flex flex-1 items-center justify-center p-6">
           <div className="text-center">
             <h2 className="text-2xl font-semibold text-[#F0F0FA]">No leads in pipeline</h2>
@@ -377,11 +364,7 @@ export function KanbanBoard({ isMobile }: { isMobile: boolean }) {
     return (
       <>
         <div className="flex h-full flex-col overflow-hidden">
-          <KanbanFilters
-            canFilterAssignedTo={canFilterAssignedTo}
-            currentUserId={currentProfile?.id}
-            teamMembers={teamMembers}
-          />
+          <KanbanFilters />
 
           <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-[#2A2A3C] px-4 py-3">
             {columns.map((column) => {
@@ -485,11 +468,7 @@ export function KanbanBoard({ isMobile }: { isMobile: boolean }) {
   return (
     <>
       <div className="flex h-full flex-col overflow-hidden">
-        <KanbanFilters
-          canFilterAssignedTo={canFilterAssignedTo}
-          currentUserId={currentProfile?.id}
-          teamMembers={teamMembers}
-        />
+        <KanbanFilters />
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}

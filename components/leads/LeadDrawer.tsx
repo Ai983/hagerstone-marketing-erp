@@ -54,7 +54,6 @@ import { ScheduleFollowUpModal } from "@/components/leads/ScheduleFollowUpModal"
 import { SendWhatsAppModal } from "@/components/leads/SendWhatsAppModal"
 import { RichTextEditor } from "@/components/email/RichTextEditor"
 import { VideoInsertPanel } from "@/components/email/VideoInsertPanel"
-import { ReassignPopover } from "@/components/leads/ReassignPopover"
 import { StagePickerPopover } from "@/components/leads/StagePickerPopover"
 import { StageChangeModal } from "@/components/kanban/StageChangeModal"
 import { scoreLead, getScoreLabel, MAX_POINTS } from "@/lib/utils/lead-scoring"
@@ -65,8 +64,6 @@ import type { KanbanLead } from "@/lib/hooks/useKanban"
 import type { TimelineInteraction } from "@/lib/hooks/useActivities"
 import { cn } from "@/lib/utils"
 import { plainTextToEmailHtml, type EmailEditorMode } from "@/lib/utils/email-content"
-
-const PRIVILEGED_ROLES = new Set<UserRole>(["admin", "manager", "founder"])
 
 // ── Fetch lead detail ───────────────────────────────────────────────
 
@@ -225,17 +222,14 @@ function placeholderToast() {
 interface OverviewTabProps {
   lead: Lead
   interactions: TimelineInteraction[]
-  currentUserRole: UserRole | null
   onLogCall: () => void
   onLogMeeting: () => void
   onScheduleFollowUp: () => void
   onAddNote: () => void
   onSendWhatsApp: () => void
   onMoveStage: (toStage: PipelineStage) => void
-  onReassign: (profileId: string | null, profileName: string | null) => Promise<void>
   onCategoryChange: (category: LeadCategory) => Promise<void>
   onRemarksUpdate: (remarks: string) => Promise<void>
-  isReassigning: boolean
 }
 
 function ScoreRow({
@@ -285,26 +279,21 @@ function ScoreRow({
 function OverviewTab({
   lead,
   interactions,
-  currentUserRole,
   onLogCall,
   onLogMeeting,
   onScheduleFollowUp,
   onAddNote,
   onSendWhatsApp,
   onMoveStage,
-  onReassign,
   onCategoryChange,
   onRemarksUpdate,
-  isReassigning,
 }: OverviewTabProps) {
   const sourceLabel = lead.source
     .split("_")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ")
 
-  const canReassign = Boolean(currentUserRole && PRIVILEGED_ROLES.has(currentUserRole))
   const [stagePickerOpen, setStagePickerOpen] = useState(false)
-  const [reassignOpen, setReassignOpen] = useState(false)
   const queryClient = useQueryClient()
   const currentStageSlug = lead.stage?.slug
   const [isEditing, setIsEditing] = useState(false)
@@ -766,35 +755,15 @@ function OverviewTab({
         )}
       </div>
 
-      {/* Assigned row */}
-      <div className="relative flex items-center justify-between border-b border-[#2A2A3C] px-4 py-3">
-        <div className="flex items-center gap-2">
+      {/* Deal owner — the name from the source sheet, where there is one.
+          Leads are not assigned to ERP users any more. */}
+      {lead.owner_name ? (
+        <div className="flex items-center gap-2 border-b border-[#2A2A3C] px-4 py-3">
           <UserCircle className="size-4 text-[#9090A8]" />
-          <span className="text-xs text-[#F0F0FA]">
-            {lead.assignee?.full_name ?? "Unassigned"}
-          </span>
+          <span className="text-xs text-[#F0F0FA]">{lead.owner_name}</span>
+          <span className="text-[10px] text-[#5A5A72]">owner on the source sheet</span>
         </div>
-        {canReassign && (
-          <button
-            onClick={() => setReassignOpen((o) => !o)}
-            disabled={isReassigning}
-            className="rounded px-1.5 py-0.5 text-[11px] text-[#3B82F6] transition hover:underline disabled:opacity-50"
-          >
-            {isReassigning ? "Reassigning…" : "Reassign"}
-          </button>
-        )}
-        {reassignOpen && (
-          <ReassignPopover
-            currentAssigneeId={lead.assigned_to ?? null}
-            pending={isReassigning}
-            onSelect={async (profileId, profileName) => {
-              await onReassign(profileId, profileName)
-              setReassignOpen(false)
-            }}
-            onClose={() => setReassignOpen(false)}
-          />
-        )}
-      </div>
+      ) : null}
 
       {/* Score + breakdown */}
       <div className="border-b border-[#2A2A3C] px-4 py-3">
@@ -2777,7 +2746,6 @@ function TasksTab({
   leadId,
   tasks,
   isLoading,
-  teamMembers,
   onComplete,
   onCreate,
   isCreating,
@@ -2785,9 +2753,8 @@ function TasksTab({
   leadId: string
   tasks: import("@/lib/types").Task[]
   isLoading: boolean
-  teamMembers: Pick<Profile, "id" | "full_name">[]
   onComplete: (taskId: string) => Promise<void>
-  onCreate: (input: { title: string; type: string; due_at: string; assigned_to: string }) => Promise<void>
+  onCreate: (input: { title: string; type: string; due_at: string }) => Promise<void>
   isCreating: boolean
 }) {
   const queryClient = useQueryClient()
@@ -2795,20 +2762,18 @@ function TasksTab({
   const [title, setTitle] = useState("")
   const [type, setType] = useState("follow_up")
   const [dueAt, setDueAt] = useState("")
-  const [assignedTo, setAssignedTo] = useState("")
 
   const overdue = tasks.filter((t) => !t.completed_at && t.is_overdue)
   const upcoming = tasks.filter((t) => !t.completed_at && !t.is_overdue)
   const completed = tasks.filter((t) => t.completed_at)
 
   const handleCreate = async () => {
-    if (!title.trim() || !dueAt || !assignedTo) return
+    if (!title.trim() || !dueAt) return
     try {
       await onCreate({
         title: title.trim(),
         type,
         due_at: new Date(dueAt).toISOString(),
-        assigned_to: assignedTo,
       })
       toast.success("Task created!")
       queryClient.invalidateQueries({ queryKey: ["lead-tasks", leadId] })
@@ -2816,7 +2781,6 @@ function TasksTab({
       setTitle("")
       setType("follow_up")
       setDueAt("")
-      setAssignedTo("")
       setShowForm(false)
     } catch (err) {
       const message =
@@ -2895,23 +2859,11 @@ function TasksTab({
                 onChange={(e) => setDueAt(e.target.value)}
                 className="rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-xs text-[#F0F0FA] outline-none"
               />
-              <select
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className="rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-xs text-[#F0F0FA] outline-none"
-              >
-                <option value="">Assign to...</option>
-                {teamMembers.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.full_name}
-                  </option>
-                ))}
-              </select>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={handleCreate}
-                disabled={isCreating || !title.trim() || !dueAt || !assignedTo}
+                disabled={isCreating || !title.trim() || !dueAt}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-[#3B82F6] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#2563EB] disabled:opacity-50"
               >
                 {isCreating ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
@@ -3347,9 +3299,6 @@ export function LeadDrawer() {
   const [pendingToStage, setPendingToStage] = useState<PipelineStage | null>(null)
   const [isMovingStage, setIsMovingStage] = useState(false)
 
-  // Reassign flow
-  const [isReassigning, setIsReassigning] = useState(false)
-
   const leadQuery = useQuery({
     queryKey: ["lead-drawer-detail", leadDrawerId],
     queryFn: () => fetchLeadDetail(leadDrawerId!),
@@ -3366,8 +3315,7 @@ export function LeadDrawer() {
     interactions,
     tasks,
     enrollments,
-    teamMembers,
-    currentUserId,
+      currentUserId,
     isLoadingInteractions,
     isLoadingTasks,
     isLoadingEnrollments,
@@ -3471,56 +3419,6 @@ export function LeadDrawer() {
       new Date(lastWhatsAppViewedAt).getTime()
     )
   }).length
-
-  // ── Reassign handler ─────────────────────────────────────────
-  const handleReassign = async (
-    profileId: string | null,
-    profileName: string | null
-  ) => {
-    if (!lead) return
-    setIsReassigning(true)
-    const supabase = createClient()
-    try {
-      const { error: updateError } = await supabase
-        .from("leads")
-        .update({
-          assigned_to: profileId,
-          assigned_at: profileId ? new Date().toISOString() : null,
-        })
-        .eq("id", lead.id)
-      if (updateError) throw updateError
-
-      await supabase.from("interactions").insert({
-        lead_id: lead.id,
-        user_id: currentUserId,
-        type: "note",
-        title: profileId ? "Lead reassigned" : "Lead unassigned",
-        notes: profileId
-          ? `Lead reassigned to ${profileName ?? "another rep"}`
-          : "Lead unassigned",
-        is_automated: true,
-      })
-
-      // Lead-reassignment notification is handled by the Supabase DB trigger
-      // on the leads table — do not insert it here or it will duplicate.
-
-      toast.success(
-        profileId ? `Lead assigned to ${profileName ?? "rep"}` : "Lead unassigned"
-      )
-
-      // Refresh drawer data + downstream caches
-      queryClient.invalidateQueries({ queryKey: ["lead-drawer-detail", lead.id] })
-      queryClient.invalidateQueries({ queryKey: ["lead-interactions", lead.id] })
-      queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
-      queryClient.invalidateQueries({ queryKey: ["sidebar-counts"] })
-      queryClient.invalidateQueries({ queryKey: ["inbox-leads"] })
-      queryClient.invalidateQueries({ queryKey: ["notifications"] })
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Reassign failed")
-    } finally {
-      setIsReassigning(false)
-    }
-  }
 
   const handleCategoryChange = async (cat: LeadCategory) => {
     if (!lead) return
@@ -3901,9 +3799,6 @@ export function LeadDrawer() {
                         <OverviewTab
                           lead={lead}
                           interactions={interactions}
-                          currentUserRole={
-                            (profileQuery.data?.role as UserRole | undefined) ?? null
-                          }
                           onLogCall={() => setShowLogCall(true)}
                           onLogMeeting={() => setShowLogMeeting(true)}
                           onScheduleFollowUp={() => setShowFollowUp(true)}
@@ -3913,10 +3808,8 @@ export function LeadDrawer() {
                             setShowWhatsApp(true)
                           }}
                           onMoveStage={(toStage) => setPendingToStage(toStage)}
-                          onReassign={handleReassign}
                           onCategoryChange={handleCategoryChange}
                           onRemarksUpdate={handleRemarksUpdate}
-                          isReassigning={isReassigning}
                         />
                       ) : (
                         <LeadDrawerSkeleton />
@@ -3962,9 +3855,8 @@ export function LeadDrawer() {
                         leadId={lead.id}
                         tasks={tasks}
                         isLoading={isLoadingTasks}
-                        teamMembers={teamMembers}
                         onComplete={completeTask}
-                        onCreate={createTask}
+                        onCreate={(input) => createTask({ ...input, assigned_to: currentUserId ?? "" })}
                         isCreating={isCreatingTask}
                       />
                     )}
@@ -4024,8 +3916,6 @@ export function LeadDrawer() {
             leadId={lead.id}
             leadName={lead.full_name}
             currentUserId={currentUserId}
-            currentUserRole={profileQuery.data?.role}
-            teamMembers={teamMembers}
             onClose={() => setShowFollowUp(false)}
             onSubmit={async (data) => {
               await scheduleFollowUp({ ...data, lead_name: lead.full_name })

@@ -17,7 +17,7 @@ export async function POST() {
     .maybeSingle()
 
   const role = profile?.role
-  if (role !== "admin" && role !== "manager") {
+  if (!role) {
     return NextResponse.json(
       { error: "Only admins and managers can batch-score leads" },
       { status: 403 }

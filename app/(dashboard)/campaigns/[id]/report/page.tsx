@@ -35,7 +35,7 @@ import type { UserRole } from "@/lib/types"
 
 // ── Types ──────────────────────────────────────────────────────────
 
-const ALLOWED_ROLES: UserRole[] = ["admin", "manager", "founder", "marketing"]
+const ALLOWED_ROLES: UserRole[] = ["admin", "sales_head"]
 
 type EnrollmentStatus = "active" | "completed" | "paused" | "opted_out"
 

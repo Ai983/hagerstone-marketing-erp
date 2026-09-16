@@ -298,11 +298,7 @@ export default function AdminTasksPage() {
         router.replace("/login")
         return
       }
-      if (role === "sales_rep" || role === "marketing") {
-        router.replace("/activities")
-        return
-      }
-      if (!role || !["admin", "manager", "founder"].includes(role)) {
+      if (!role) {
         router.replace("/activities")
         return
       }

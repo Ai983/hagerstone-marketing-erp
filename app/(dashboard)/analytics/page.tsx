@@ -298,10 +298,8 @@ export default function AnalyticsPage() {
     queryFn: fetchEmailStats,
   })
 
-  const canSeeRepTable =
-    profileQuery.data?.role === "manager" ||
-    profileQuery.data?.role === "admin" ||
-    profileQuery.data?.role === "founder"
+  // Both roles see every number; nothing is hidden by role any more.
+  const canSeeRepTable = Boolean(profileQuery.data?.role)
 
   const kpis = kpiQuery.data
 

@@ -298,7 +298,7 @@ export function LeadCard({
     .join(", ")
 
   const value = leadValue(lead)
-  const owner = lead.assignee?.full_name || lead.owner_name || null
+  const owner = lead.owner_name || null
 
   const nextTask = lead.next_task ?? lead.next_follow_up ?? null
   const followUp = (() => {
@@ -403,9 +403,7 @@ export function LeadCard({
             </span>
             <span className="min-w-0 truncate text-[11px] text-[#9090A8]">{owner}</span>
           </>
-        ) : (
-          <span className="text-[11px] text-[#5A5A72]">Unassigned</span>
-        )}
+        ) : null}
         <span className="ml-auto flex shrink-0 items-center gap-1.5">
           {followUp ? (
             <span className={cn("inline-flex items-center gap-0.5 text-[10px]", followUp.className)}>

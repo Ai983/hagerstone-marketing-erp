@@ -3,7 +3,7 @@ import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { createClient as createUserClient } from "@/lib/supabase/server"
 
 // Who may permanently delete an (archived) lead. Irreversible.
-const DELETE_ROLES = new Set(["admin", "founder", "manager"])
+const DELETE_ROLES = new Set(["admin", "sales_head"])
 
 /**
  * Permanently deletes a lead and its dependent records.

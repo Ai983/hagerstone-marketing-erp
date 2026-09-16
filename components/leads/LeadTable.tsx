@@ -37,7 +37,7 @@ export type SortKey =
   | "service_line"
   | "source"
   | "city"
-  | "assigned_to"
+  | "owner_name"
   | "created_at"
 
 export type SortDirection = "asc" | "desc"
@@ -498,8 +498,8 @@ export function LeadTable({
               </th>
               <th className="hidden px-4 py-3 md:table-cell">
                 <SortableHeader
-                  label="Assigned To"
-                  sortKey="assigned_to"
+                  label="Owner"
+                  sortKey="owner_name"
                   activeSortKey={sortKey}
                   direction={sortDirection}
                   onSort={onSortChange}
@@ -606,15 +606,15 @@ export function LeadTable({
                     {lead.city || "—"}
                   </td>
                   <td className="hidden px-4 py-4 md:table-cell">
-                    {lead.assignee ? (
+                    {lead.owner_name ? (
                       <div className="flex items-center gap-3">
                         <div className="flex size-8 items-center justify-center rounded-full bg-[#1E3A5F] text-xs font-semibold text-[#3B82F6]">
-                          {getInitials(lead.assignee.full_name)}
+                          {getInitials(lead.owner_name)}
                         </div>
-                        <span className="text-sm text-[#F0F0FA]">{lead.assignee.full_name}</span>
+                        <span className="text-sm text-[#F0F0FA]">{lead.owner_name}</span>
                       </div>
                     ) : (
-                      <span className="text-sm text-[#9090A8]">Unassigned</span>
+                      <span className="text-sm text-[#5A5A72]">—</span>
                     )}
                   </td>
                   <td className="hidden px-4 py-4 text-sm text-[#9090A8] md:table-cell">

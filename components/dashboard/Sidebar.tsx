@@ -16,7 +16,6 @@ import {
   ChevronRight,
   Database,
   ExternalLink,
-  Inbox,
   Kanban,
   Loader2,
   LogOut,
@@ -42,11 +41,11 @@ import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { createClient } from "@/lib/supabase/client"
 
-type BadgeKey = "inbox" | "activities" | "adminTasks"
+type BadgeKey = "activities" | "adminTasks"
 
-type Role = "admin" | "manager" | "founder" | "marketing" | "sales_rep"
+type Role = "admin" | "sales_head"
 
-const ALL_ROLES: Role[] = ["admin", "manager", "founder", "marketing", "sales_rep"]
+const ALL_ROLES: Role[] = ["admin", "sales_head"]
 
 interface NavItem {
   href: string
@@ -62,43 +61,41 @@ interface NavItem {
 
 const primaryNavigation: ReadonlyArray<NavItem> = [
   // Everyday — the short list a salesperson works from.
-  { href: "/founder-desk", label: "Founder Desk", icon: Crown, roles: ["admin", "manager", "founder"], daily: true },
+  { href: "/founder-desk", label: "Founder Desk", icon: Crown, roles: ALL_ROLES, daily: true },
   { href: "/pipeline", label: "Pipeline", icon: Kanban, roles: ALL_ROLES, daily: true },
-  { href: "/architect-drive", label: "Architect Drive", icon: Users, roles: ["admin", "manager", "founder", "sales_rep"], daily: true },
-  { href: "/website-leads", label: "Website Leads", icon: Globe, roles: ["admin", "manager", "founder", "marketing"], daily: true },
+  { href: "/architect-drive", label: "Architect Drive", icon: Users, roles: ALL_ROLES, daily: true },
+  { href: "/website-leads", label: "Website Leads", icon: Globe, roles: ALL_ROLES, daily: true },
   { href: "/activities", label: "My Tasks", icon: CheckSquare, badgeKey: "activities", roles: ALL_ROLES, daily: true },
   { href: "/meetings", label: "Meetings", icon: CalendarDays, roles: ALL_ROLES, daily: true },
   { href: "/documents", label: "Profiles & Pitches", icon: FileText, roles: ALL_ROLES, daily: true },
-  { href: "/sales-engine", label: "Sales Engine", icon: Gauge, roles: ["admin", "manager", "founder", "marketing"], daily: true },
+  { href: "/sales-engine", label: "Sales Engine", icon: Gauge, roles: ALL_ROLES, daily: true },
   // More
-  { href: "/inbox", label: "Lead Inbox", icon: Inbox, badgeKey: "inbox", roles: ["admin", "manager"] },
-  { href: "/leads", label: "All Leads", icon: Users, roles: ["admin", "manager", "founder", "marketing"] },
+  { href: "/leads", label: "All Leads", icon: Users, roles: ALL_ROLES },
   { href: "/leads/archive", label: "Archive", icon: Archive, roles: ALL_ROLES },
   { href: "/universe", label: "Contact Universe", icon: Globe, roles: ALL_ROLES },
-  { href: "/campaigns", label: "Campaigns", icon: Megaphone, roles: ["admin", "manager", "marketing", "founder"] },
-  { href: "/campaigns/monitor", label: "Send Monitor", icon: Activity, roles: ["admin", "manager", "founder", "marketing"] },
-  { href: "/analytics", label: "Analytics", icon: BarChart2, roles: ["admin", "manager", "founder", "marketing"] },
-  { href: "/ai-agent", label: "AI Agent", icon: Sparkles, roles: ["admin", "manager", "founder"] },
-  { href: "/ai-leads", label: "AI Lead Gen", icon: Sparkles, roles: ["admin", "manager", "founder", "marketing"] },
-  { href: "/ai-leads/database", label: "Lead Database", icon: Database, roles: ["admin", "manager", "founder", "marketing"] },
-  { href: "/portfolio", label: "Portfolio", icon: Building2, roles: ["admin", "founder"], external: true },
+  { href: "/campaigns", label: "Campaigns", icon: Megaphone, roles: ALL_ROLES },
+  { href: "/campaigns/monitor", label: "Send Monitor", icon: Activity, roles: ALL_ROLES },
+  { href: "/analytics", label: "Analytics", icon: BarChart2, roles: ALL_ROLES },
+  { href: "/ai-agent", label: "AI Agent", icon: Sparkles, roles: ALL_ROLES },
+  { href: "/ai-leads", label: "AI Lead Gen", icon: Sparkles, roles: ALL_ROLES },
+  { href: "/ai-leads/database", label: "Lead Database", icon: Database, roles: ALL_ROLES },
+  { href: "/portfolio", label: "Portfolio", icon: Building2, roles: ALL_ROLES, external: true },
   { href: "/profile", label: "My Profile", icon: UserIcon, roles: ALL_ROLES },
 ]
 
 const secondaryNavigation: ReadonlyArray<NavItem> = [
-  { href: "/admin", label: "Admin", icon: Settings, roles: ["admin"] },
-  { href: "/admin/tasks", label: "All Tasks", icon: ClipboardList, badgeKey: "adminTasks", roles: ["admin", "manager", "founder"] },
-  { href: "/admin/email-templates", label: "Email Templates", icon: Mail, roles: ["admin", "manager", "marketing"] },
-  { href: "/admin/chatbot", label: "Chatbot Builder", icon: Bot, roles: ["admin"] },
-  { href: "/admin/audit-log", label: "Audit Log", icon: Shield, roles: ["admin", "founder"] },
-  { href: "/admin/whatsapp-health", label: "WA Health", icon: Activity, roles: ["admin", "manager", "founder"] },
+  { href: "/admin", label: "Admin", icon: Settings, roles: ALL_ROLES },
+  { href: "/admin/tasks", label: "All Tasks", icon: ClipboardList, badgeKey: "adminTasks", roles: ALL_ROLES },
+  { href: "/admin/email-templates", label: "Email Templates", icon: Mail, roles: ALL_ROLES },
+  { href: "/admin/chatbot", label: "Chatbot Builder", icon: Bot, roles: ALL_ROLES },
+  { href: "/admin/audit-log", label: "Audit Log", icon: Shield, roles: ALL_ROLES },
+  { href: "/admin/whatsapp-health", label: "WA Health", icon: Activity, roles: ALL_ROLES },
 ]
 
 interface SidebarProps {
   fullName: string
   role: string
   badges?: {
-    inbox?: number
     activities?: number
     adminTasks?: number
   }
@@ -208,7 +205,7 @@ interface SidebarBodyProps {
   collapsed: boolean
   fullName: string
   role: string
-  badges?: { inbox?: number; activities?: number; adminTasks?: number }
+  badges?: { activities?: number; adminTasks?: number }
   isSigningOut: boolean
   onLogout: () => void
   onToggleCollapse?: () => void

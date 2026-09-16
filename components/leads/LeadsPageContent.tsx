@@ -15,10 +15,9 @@ import {
 import { LeadTable, type SortDirection, type SortKey } from "@/components/leads/LeadTable"
 import { useDataSets } from "@/lib/hooks/useDataSets"
 import { useLeads } from "@/lib/hooks/useLeads"
-import type { LeadSource, ServiceLine, UserRole } from "@/lib/types"
+import type { LeadSource, ServiceLine } from "@/lib/types"
 
 const PAGE_SIZE = 25
-const PRIVILEGED_ROLES: UserRole[] = ["manager", "admin", "founder"]
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-IN").format(value)
@@ -32,7 +31,7 @@ export function LeadsPageContent() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [currentPage, setCurrentPage] = useState(1)
 
-  const { getLeads, getStages, getCurrentProfile, getTeamMembers, getOverdueLeadIds } = useLeads()
+  const { getLeads, getStages, getCurrentProfile, getOverdueLeadIds } = useLeads()
 
   const leadsQuery = useQuery({
     queryKey: ["leads"],
@@ -47,16 +46,6 @@ export function LeadsPageContent() {
   const profileQuery = useQuery({
     queryKey: ["current-profile"],
     queryFn: getCurrentProfile,
-  })
-
-  const canFilterAssignedTo = PRIVILEGED_ROLES.includes(
-    (profileQuery.data?.role ?? "sales_rep") as UserRole
-  )
-
-  const teamMembersQuery = useQuery({
-    queryKey: ["team-members"],
-    queryFn: getTeamMembers,
-    enabled: canFilterAssignedTo,
   })
 
   const overdueLeadIdsQuery = useQuery({
@@ -74,7 +63,6 @@ export function LeadsPageContent() {
       stages: searchParams.getAll("stage"),
       sources: searchParams.getAll("source") as LeadSource[],
       serviceLines: searchParams.getAll("service") as ServiceLine[],
-      assignedTo: searchParams.getAll("assigned"),
       category:
         (searchParams.get("category") as LeadsFilterState["category"] | null) ??
         "all",
@@ -96,9 +84,6 @@ export function LeadsPageContent() {
     nextFilters.stages.forEach((value) => nextParams.append("stage", value))
     nextFilters.sources.forEach((value) => nextParams.append("source", value))
     nextFilters.serviceLines.forEach((value) => nextParams.append("service", value))
-    if (canFilterAssignedTo) {
-      nextFilters.assignedTo.forEach((value) => nextParams.append("assigned", value))
-    }
     if (nextFilters.category !== "all") {
       nextParams.set("category", nextFilters.category)
     }
@@ -141,9 +126,6 @@ export function LeadsPageContent() {
         filters.serviceLines.length === 0 ||
         (lead.service_line ? filters.serviceLines.includes(lead.service_line) : false)
 
-      const matchesAssignedTo =
-        filters.assignedTo.length === 0 ||
-        filters.assignedTo.includes(lead.assigned_to ?? "")
       const matchesCategory =
         filters.category === "all" ||
         (filters.category === "uncategorized"
@@ -167,7 +149,6 @@ export function LeadsPageContent() {
         matchesStage &&
         matchesSource &&
         matchesServiceLine &&
-        matchesAssignedTo &&
         matchesCategory &&
         matchesProfile
       )
@@ -204,7 +185,7 @@ export function LeadsPageContent() {
         service_line: (a.service_line ?? "").localeCompare(b.service_line ?? ""),
         source: a.source.localeCompare(b.source),
         city: (a.city ?? "").localeCompare(b.city ?? ""),
-        assigned_to: (a.assignee?.full_name ?? "").localeCompare(b.assignee?.full_name ?? ""),
+        owner_name: (a.owner_name ?? "").localeCompare(b.owner_name ?? ""),
         created_at: new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       }
 
@@ -232,13 +213,15 @@ export function LeadsPageContent() {
     const newThisWeek = filteredLeads.filter((lead) =>
       isAfter(new Date(lead.created_at), oneWeekAgo)
     ).length
-    const unassigned = filteredLeads.filter((lead) => !lead.assigned_to).length
+    const noValue = filteredLeads.filter(
+      (lead) => !lead.final_agreed_price && !lead.closure_value && !lead.proposal_estimated_cost && !lead.estimated_budget
+    ).length
     const overdue = filteredLeads.filter((lead) => overdueLeadIds.has(lead.id)).length
 
     return [
       { label: "Total Leads", value: formatNumber(filteredLeads.length) },
       { label: "New This Week", value: formatNumber(newThisWeek) },
-      { label: "Unassigned", value: formatNumber(unassigned) },
+      { label: "No value set", value: formatNumber(noValue) },
       { label: "Overdue Follow-ups", value: formatNumber(overdue) },
     ]
   }, [filteredLeads, overdueLeadIds])
@@ -258,7 +241,7 @@ export function LeadsPageContent() {
     stagesQuery.isLoading ||
     profileQuery.isLoading ||
     overdueLeadIdsQuery.isLoading ||
-    (canFilterAssignedTo && teamMembersQuery.isLoading)
+    false
 
   if (leadsQuery.isError || stagesQuery.isError || profileQuery.isError || overdueLeadIdsQuery.isError) {
     if (leadsQuery.error) console.error("Leads fetch error (leads):", leadsQuery.error)
@@ -328,11 +311,6 @@ export function LeadsPageContent() {
           slug: stage.slug,
           color: stage.color,
         }))}
-        teamMembers={(teamMembersQuery.data ?? []).map((member) => ({
-          id: member.id,
-          full_name: member.full_name,
-        }))}
-        canFilterAssignedTo={canFilterAssignedTo}
         dataSets={dataSets}
         dataSetCounts={dataSetCounts}
         totalCount={leadsBeforeDataSet.length}

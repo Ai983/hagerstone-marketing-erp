@@ -20,7 +20,7 @@ interface UserRow extends Profile {
   assigned_leads: number
 }
 
-const roles: UserRole[] = ["admin", "manager", "founder", "marketing", "sales_rep"]
+const roles: UserRole[] = ["admin", "sales_head"]
 
 async function fetchUsers(): Promise<UserRow[]> {
   const supabase = createClient()
