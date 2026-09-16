@@ -46,6 +46,7 @@ async function sendManagerNotification(lead: {
   phone?: string | null
   city?: string
   service_line?: string
+  source_detail?: string
 }) {
   const managerPhone = process.env.MANAGER_WHATSAPP_NUMBER
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://erp.hagerstone.com"
@@ -64,6 +65,7 @@ async function sendManagerNotification(lead: {
           .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
           .join(" ")}`
       : null,
+    lead.source_detail ? `From: ${lead.source_detail}` : null,
     `View: ${appUrl}/leads/${lead.id}`,
   ]
     .filter(Boolean)
@@ -111,6 +113,10 @@ export async function POST(request: NextRequest) {
   const city = (body.city as string | undefined)?.trim() || null
   const serviceLine = (body.service_line as string | undefined)?.trim() || null
   const message = (body.message as string | undefined)?.trim() || null
+  // Which surface on the website captured this — contact form, popup, style
+  // quiz or cost estimator. The website sends it so sales can see where the
+  // person was and what they were doing, rather than a flat "Website form".
+  const sourceDetail = (body.source_detail as string | undefined)?.trim() || null
   const utmSource = (body.utm_source as string | undefined)?.trim() || null
   const utmMedium = (body.utm_medium as string | undefined)?.trim() || null
   const utmCampaign = (body.utm_campaign as string | undefined)?.trim() || null
@@ -201,11 +207,12 @@ export async function POST(request: NextRequest) {
       service_line: serviceLine,
       initial_notes: message,
       source: "website",
-      source_detail: utmCampaign
-        ? `Website form · ${utmCampaign}`
-        : utmSource
-          ? `Website form · ${utmSource}`
-          : "Website form",
+      // Prefer the surface the website reports (e.g. "Cost estimator"), and
+      // still append the campaign when there is one. Falls back to the old
+      // behaviour for callers that don't send source_detail.
+      source_detail: [sourceDetail || "Website form", utmCampaign || utmSource]
+        .filter(Boolean)
+        .join(" · "),
       utm_source: utmSource,
       utm_medium: utmMedium,
       utm_campaign: utmCampaign,
@@ -260,6 +267,7 @@ export async function POST(request: NextRequest) {
     phone,
     city: city ?? undefined,
     service_line: serviceLine ?? undefined,
+    source_detail: sourceDetail ?? undefined,
   })
 
   // Fire-and-forget AI categorisation — non-blocking
