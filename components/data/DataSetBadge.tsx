@@ -47,6 +47,7 @@ export function DataSetBadge({ dataSetId, dataSet, size = "xs", className }: Dat
 /** One short word per data set — what a card says about where it came from. */
 export const SOURCE_SHORT_LABEL: Record<string, string> = {
   "erp-native": "ERP",
+  website: "WEBSITE",
   "architect-meetings-dec-2025": "ARCHITECT",
   "founder-pipeline": "FOUNDER",
   "founder-universe": "UNIVERSE",

@@ -14,6 +14,23 @@ function getServiceClient() {
   return createClient(url, key, { db: { schema: "marketing" } })
 }
 
+/**
+ * The "Website" data set id, so enquiries land in their own section
+ * instead of the general ERP bucket. Returns null if the row is missing
+ * — a lead must never be lost over a labelling lookup; the database
+ * trigger then falls back to "ERP".
+ */
+async function getWebsiteDataSetId(
+  supabase: ReturnType<typeof getServiceClient>
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("data_sets")
+    .select("id")
+    .eq("key", "website")
+    .maybeSingle()
+  return data?.id ?? null
+}
+
 /** Strip spaces, dashes, parens, and leading +91 / 91 country code */
 function normalisePhone(raw: string): string {
   let cleaned = raw.replace(/[\s\-()]/g, "")
@@ -102,6 +119,7 @@ export async function POST(request: NextRequest) {
   const normalisedPhone = phone ? normalisePhone(phone) : null
 
   const supabase = getServiceClient()
+  const websiteDataSetId = await getWebsiteDataSetId(supabase)
 
   // 4. Check duplicate
   let duplicate: { id: string; full_name?: string | null } | null = null
@@ -140,6 +158,7 @@ export async function POST(request: NextRequest) {
         ? `Website form re-submission:\n${message}`
         : "Duplicate enquiry received from website form.",
       is_automated: true,
+      data_set_id: websiteDataSetId,
     })
 
     return NextResponse.json(
@@ -182,11 +201,17 @@ export async function POST(request: NextRequest) {
       service_line: serviceLine,
       initial_notes: message,
       source: "website",
+      source_detail: utmCampaign
+        ? `Website form · ${utmCampaign}`
+        : utmSource
+          ? `Website form · ${utmSource}`
+          : "Website form",
       utm_source: utmSource,
       utm_medium: utmMedium,
       utm_campaign: utmCampaign,
       stage_id: newLeadStage.id,
       whatsapp_opted_in: false,
+      data_set_id: websiteDataSetId,
     })
     .select("id")
     .single()
@@ -205,6 +230,7 @@ export async function POST(request: NextRequest) {
     title: "Lead created from website",
     notes: message || null,
     is_automated: true,
+    data_set_id: websiteDataSetId,
   })
 
   const { data: managers } = await supabase

@@ -65,6 +65,7 @@ const primaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/founder-desk", label: "Founder Desk", icon: Crown, roles: ["admin", "manager", "founder"], daily: true },
   { href: "/pipeline", label: "Pipeline", icon: Kanban, roles: ALL_ROLES, daily: true },
   { href: "/architect-drive", label: "Architect Drive", icon: Users, roles: ["admin", "manager", "founder", "sales_rep"], daily: true },
+  { href: "/website-leads", label: "Website Leads", icon: Globe, roles: ["admin", "manager", "founder", "marketing"], daily: true },
   { href: "/activities", label: "My Tasks", icon: CheckSquare, badgeKey: "activities", roles: ALL_ROLES, daily: true },
   { href: "/meetings", label: "Meetings", icon: CalendarDays, roles: ALL_ROLES, daily: true },
   { href: "/documents", label: "Profiles & Pitches", icon: FileText, roles: ALL_ROLES, daily: true },

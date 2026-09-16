@@ -99,6 +99,16 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/pipeline", request.url))
     }
 
+    // Website enquiries are unassigned when they land, and RLS hides
+    // unassigned leads from reps — the page would just look empty.
+    if (
+      hasProfile &&
+      request.nextUrl.pathname.startsWith("/website-leads") &&
+      profile?.role === "sales_rep"
+    ) {
+      return NextResponse.redirect(new URL("/pipeline", request.url))
+    }
+
     // The founder's handed-over book: deal values and sir's own notes.
     if (
       hasProfile &&
