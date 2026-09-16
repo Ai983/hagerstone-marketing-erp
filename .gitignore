@@ -45,3 +45,8 @@ yarn-error.log*
 next-env.d.ts
 
 portfolio-originals-backup/
+
+# Source spreadsheets — contact data, never commit (imported into Supabase instead)
+*.xlsx
+*.xls
+*.csv
