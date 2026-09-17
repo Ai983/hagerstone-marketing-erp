@@ -87,7 +87,7 @@ const secondaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/admin", label: "Admin", icon: Settings, roles: ALL_ROLES },
   { href: "/admin/tasks", label: "All Tasks", icon: ClipboardList, badgeKey: "adminTasks", roles: ALL_ROLES },
   { href: "/admin/email-templates", label: "Email Templates", icon: Mail, roles: ALL_ROLES },
-  { href: "/admin/chatbot", label: "Chatbot Builder", icon: Bot, roles: ALL_ROLES },
+  { href: "/admin/chatbot", label: "Chatbot Builder", icon: Bot, roles: ["admin"] },
   { href: "/admin/audit-log", label: "Audit Log", icon: Shield, roles: ALL_ROLES },
   { href: "/admin/whatsapp-health", label: "WA Health", icon: Activity, roles: ALL_ROLES },
 ]

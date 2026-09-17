@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server"
 
 const PUBLIC_PATHS = new Set(["/login", "/signup", "/portfolio"])
 const PUBLIC_PREFIXES = ["/portfolio/"]
+const ADMIN_ONLY_PREFIXES = ["/admin/chatbot", "/admin/integrations"]
 
 export async function middleware(request: NextRequest) {
   // Webhooks (Maytapi inbound, website lead capture, etc.) come from
@@ -71,11 +72,25 @@ export async function middleware(request: NextRequest) {
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id, role")
+      .select("id, role, is_active")
       .eq("id", user.id)
       .maybeSingle()
 
     const hasProfile = Boolean(profile)
+    const isActive = Boolean(profile?.is_active)
+
+    // New sign-ups start inactive and wait for an Admin; deactivated users
+    // land here too. The database refuses them data either way.
+    if (hasProfile && !isActive) {
+      if (pathname === "/pending") return response
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Account awaiting admin approval" }, { status: 403 })
+      }
+      return NextResponse.redirect(new URL("/pending", request.url))
+    }
+    if (hasProfile && pathname === "/pending") {
+      return NextResponse.redirect(new URL("/pipeline", request.url))
+    }
 
     if (!hasProfile && request.nextUrl.pathname !== "/onboarding") {
       return NextResponse.redirect(new URL("/onboarding", request.url))
@@ -94,9 +109,14 @@ export async function middleware(request: NextRequest) {
       )
     }
 
-    // Two roles — admin and sales_head — and both may open every page,
-    // so there are no per-page role redirects. Signing in and having a
-    // profile (checked above) is the only gate.
+    // Two roles — admin and sales_head — with the same pages, except the
+    // system set-up screens, which are Admin only.
+    if (
+      profile?.role !== "admin" &&
+      ADMIN_ONLY_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+    ) {
+      return NextResponse.redirect(new URL("/admin", request.url))
+    }
   }
 
   return response

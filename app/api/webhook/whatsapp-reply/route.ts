@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
     const { data: adminUsers } = await supabase
       .from("profiles")
       .select("id")
-      .eq("role", "admin")
+      .in("role", ["admin", "sales_head"])
       .eq("is_active", true)
 
     if (adminUsers && adminUsers.length > 0) {

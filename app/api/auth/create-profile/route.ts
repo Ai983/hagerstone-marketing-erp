@@ -39,7 +39,8 @@ export async function POST(request: Request) {
       // Anyone who joins the sales team is a Sales Head; only an admin
       // can raise someone to admin, from the Users page.
       role: "sales_head", // never trust the client
-      is_active: true,
+      // No access until an Admin activates the account.
+      is_active: false,
     })
 
     if (error) {

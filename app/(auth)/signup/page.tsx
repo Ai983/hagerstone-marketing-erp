@@ -139,7 +139,7 @@ export default function SignupPage() {
         return
       }
 
-      toast.success("Account created successfully! You can now sign in.")
+      toast.success("Account created. An admin must approve it before you can use the ERP.")
       setTimeout(() => router.push("/login"), 2000)
     } catch (err) {
       console.error("Signup error:", err)

@@ -13,6 +13,7 @@ import {
 
 import { createClient } from "@/lib/supabase/client"
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
+import { useUser } from "@/lib/hooks/useUser"
 import type { Profile, UserRole } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -51,6 +52,9 @@ export default function AdminUsersPage() {
   const isMobile = useMediaQuery("(max-width: 768px)")
   const queryClient = useQueryClient()
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  // Only an Admin may change roles or access (the database enforces it too).
+  const { user: me, profile: myProfile } = useUser()
+  const canManage = myProfile?.role === "admin"
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["admin-users"],
@@ -94,7 +98,11 @@ export default function AdminUsersPage() {
               <h1 className="text-xl font-bold text-[#F0F0FA] md:font-[family-name:var(--font-heading)] md:text-2xl md:font-semibold">
               Users
             </h1>
-            <p className="text-sm text-[#9090A8]">Manage team members and roles.</p>
+            <p className="text-sm text-[#9090A8]">
+              {canManage
+                ? "Approve new people, change roles and turn access on or off."
+                : "Only an Admin can change roles or access."}
+            </p>
           </div>
         </div>
 
@@ -124,7 +132,7 @@ export default function AdminUsersPage() {
                     <select
                       value={u.role}
                       onChange={(e) => updateProfile(u.id, { role: e.target.value as UserRole })}
-                      disabled={updatingId === u.id}
+                      disabled={!canManage || u.id === me?.id || updatingId === u.id}
                       className="flex-1 rounded-xl border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-2.5 text-base text-[#F0F0FA] outline-none disabled:opacity-50"
                     >
                       {roles.map((r) => (
@@ -136,6 +144,7 @@ export default function AdminUsersPage() {
                       <p className="text-[10px] text-[#9090A8]">Leads</p>
                     </div>
                   </div>
+                  {canManage && u.id !== me?.id ? (
                   <button
                     onClick={() => updateProfile(u.id, { is_active: !u.is_active })}
                     disabled={updatingId === u.id}
@@ -146,6 +155,7 @@ export default function AdminUsersPage() {
                   >
                     {u.is_active ? "Deactivate User" : "Activate User"}
                   </button>
+                  ) : null}
                 </div>
               ))
             )}
@@ -186,7 +196,7 @@ export default function AdminUsersPage() {
                         onChange={(e) =>
                           updateProfile(u.id, { role: e.target.value as UserRole })
                         }
-                        disabled={updatingId === u.id}
+                        disabled={!canManage || u.id === me?.id || updatingId === u.id}
                         className="rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1 text-xs text-[#F0F0FA] outline-none focus:border-[#3B82F6] disabled:opacity-50"
                       >
                         {roles.map((r) => (
@@ -205,7 +215,7 @@ export default function AdminUsersPage() {
                             : "bg-[#1A1A24] text-[#9090A8]"
                         )}
                       >
-                        {u.is_active ? "Active" : "Inactive"}
+                        {u.is_active ? "Active" : "Inactive / pending"}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right text-[#F0F0FA]">
@@ -213,6 +223,7 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
+                        {canManage && u.id !== me?.id ? (
                         <button
                           onClick={() => updateProfile(u.id, { is_active: !u.is_active })}
                           disabled={updatingId === u.id}
@@ -226,6 +237,7 @@ export default function AdminUsersPage() {
                           <Power className="size-3" />
                           {u.is_active ? "Deactivate" : "Activate"}
                         </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

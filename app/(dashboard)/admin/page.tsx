@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 
 import { DailySummaryConfigCard } from "@/components/admin/DailySummaryConfig"
+import { useUser } from "@/lib/hooks/useUser"
 
 const sections = [
   {
@@ -42,6 +43,7 @@ const sections = [
     title: "Integrations",
     description: "Webhook, WhatsApp, AI",
     color: "#10B981",
+    adminOnly: true,
   },
   {
     href: "/admin/chatbot",
@@ -49,6 +51,7 @@ const sections = [
     title: "Chatbot Builder",
     description: "WhatsApp flows",
     color: "#F59E0B",
+    adminOnly: true,
   },
   {
     href: "/admin/email-templates",
@@ -74,6 +77,9 @@ const sections = [
 ] as const
 
 export default function AdminPage() {
+  const { profile } = useUser()
+  const isAdmin = profile?.role === "admin"
+  const visibleSections = sections.filter((s) => isAdmin || !("adminOnly" in s && s.adminOnly))
   const [clearing, setClearing] = useState(false)
   const [reseeding, setReseeding] = useState(false)
   const [scoring, setScoring] = useState(false)
@@ -177,7 +183,7 @@ export default function AdminPage() {
 
         {/* Section grid */}
         <div className="mb-8 grid grid-cols-1 gap-4 px-4 md:grid-cols-2 md:px-0">
-          {sections.map(({ href, icon: Icon, title, description, color }) => (
+          {visibleSections.map(({ href, icon: Icon, title, description, color }) => (
             <Link
               key={href}
               href={href}
@@ -199,6 +205,7 @@ export default function AdminPage() {
         </div>
 
         {/* Sample Data */}
+        {isAdmin ? (
         <section className="mx-4 rounded-xl border border-[#2A2A3C] bg-[#111118] p-4 md:mx-0 md:p-5">
           <div className="mb-4 flex items-center gap-2">
             <Database className="size-4 text-[#C084FC]" />
@@ -253,6 +260,7 @@ export default function AdminPage() {
             If the function doesn&apos;t exist yet, create it in Supabase SQL editor.
           </p>
         </section>
+        ) : null}
 
         {/* Campaign Drip */}
         <section className="mt-4 rounded-lg border border-[#2A2A3C] bg-[#111118] p-3.5">
