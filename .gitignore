@@ -50,3 +50,6 @@ portfolio-originals-backup/
 *.xlsx
 *.xls
 *.csv
+
+# Source data for one-off imports (client contacts; repo is public)
+scripts/imports/data/

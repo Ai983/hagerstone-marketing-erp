@@ -1,12 +1,12 @@
 "use client"
 
-import { Database, Flame, Globe, Users, type LucideIcon } from "lucide-react"
+import { Database, Flame, Globe, Mail, Users, type LucideIcon } from "lucide-react"
 
 import { useDataSets } from "@/lib/hooks/useDataSets"
 import type { DataSet } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-const ICONS: Record<string, LucideIcon> = { Database, Flame, Globe, Users }
+const ICONS: Record<string, LucideIcon> = { Database, Flame, Globe, Mail, Users }
 
 interface DataSetBadgeProps {
   /** Pass either the id (looked up from the cached list) or the row. */
@@ -51,6 +51,7 @@ export const SOURCE_SHORT_LABEL: Record<string, string> = {
   "architect-meetings-dec-2025": "ARCHITECT",
   "founder-pipeline": "FOUNDER",
   "founder-universe": "UNIVERSE",
+  "sales-bd-mailbox": "SALES BD",
 }
 
 export function sourceShortLabel(ds: Pick<DataSet, "key" | "name">) {
