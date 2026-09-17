@@ -171,7 +171,7 @@ function StatCard({
       </p>
       <p
         className={cn(
-          "mt-2 text-2xl font-semibold text-[#F0F0FA]",
+          "mt-2 text-xl font-semibold text-[#F0F0FA] md:text-2xl",
           tone === "danger" && "text-[#EF4444]"
         )}
       >
@@ -275,7 +275,7 @@ export default function CampaignSendMonitorPage() {
   const totalToday = todayRows.length
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] px-4 py-4 md:p-6">
       <div className="mx-auto max-w-7xl">
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -283,7 +283,7 @@ export default function CampaignSendMonitorPage() {
               <Activity className="size-5" />
             </div>
             <div>
-              <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+              <h1 className="font-[family-name:var(--font-heading)] text-xl font-semibold text-[#F0F0FA] md:text-2xl">
                 Campaign Send Monitor
               </h1>
               <p className="mt-0.5 text-sm text-[#9090A8]">

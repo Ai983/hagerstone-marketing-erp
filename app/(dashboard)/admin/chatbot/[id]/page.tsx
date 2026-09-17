@@ -1687,7 +1687,7 @@ export default function ChatbotFlowBuilderPage() {
 
         {/* Add node panel */}
         {showAddPanel && (
-          <div className="w-72 border-l border-[#2A2A3C] bg-[#111118] overflow-y-auto">
+          <div className="w-72 border-l border-[#2A2A3C] bg-[#111118] overflow-y-auto max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-[60] max-md:max-h-[70dvh] max-md:w-full max-md:min-w-0 max-md:max-w-none max-md:rounded-t-2xl max-md:border-l-0 max-md:border-t">
             <div className="flex items-center justify-between border-b border-[#2A2A3C] p-4">
               <span className="text-sm font-semibold text-[#F0F0FA]">Add Step</span>
               <button onClick={() => setShowAddPanel(false)} className="text-[#5A5A72] hover:text-[#F0F0FA]">
@@ -1716,7 +1716,7 @@ export default function ChatbotFlowBuilderPage() {
 
         {/* Config panel */}
         {selectedNode && !showAddPanel && (
-          <div className="w-[320px] min-w-[320px] max-w-[320px] overflow-y-auto overflow-x-hidden border-l border-[#2A2A3C] bg-[#111118]">
+          <div className="w-[320px] min-w-[320px] max-w-[320px] overflow-y-auto overflow-x-hidden border-l border-[#2A2A3C] bg-[#111118] max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-[60] max-md:max-h-[70dvh] max-md:w-full max-md:min-w-0 max-md:max-w-none max-md:rounded-t-2xl max-md:border-l-0 max-md:border-t">
             <ConfigPanel
               node={selectedNode}
               onUpdate={updateNodeConfig}
@@ -1728,7 +1728,7 @@ export default function ChatbotFlowBuilderPage() {
         )}
 
         {showSimulator && !selectedNode && !showAddPanel && (
-          <div className="flex w-[360px] min-w-[360px] flex-col border-l border-[#2A2A3C] bg-[#111118]">
+          <div className="flex w-[360px] min-w-[360px] flex-col border-l border-[#2A2A3C] bg-[#111118] max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-[60] max-md:max-h-[70dvh] max-md:w-full max-md:min-w-0 max-md:max-w-none max-md:rounded-t-2xl max-md:border-l-0 max-md:border-t">
             <div className="flex items-center justify-between border-b border-[#2A2A3C] p-4">
               <div>
                 <p className="text-sm font-semibold text-[#F0F0FA]">Test Flow</p>

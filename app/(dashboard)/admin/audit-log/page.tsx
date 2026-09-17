@@ -276,7 +276,7 @@ export default function AuditLogPage() {
   }
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] px-4 py-4 md:p-6">
       <div className="mx-auto max-w-7xl">
         <div className="mb-6">
           <div className="flex items-center justify-between gap-3">

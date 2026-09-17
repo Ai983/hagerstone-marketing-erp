@@ -624,7 +624,7 @@ export default function AiLeadsDatabasePage() {
         </>
       ) : (
         /* ── Desktop layout (unchanged) ── */
-        <div className="mx-auto max-w-7xl p-6">
+        <div className="mx-auto max-w-7xl px-4 py-4 md:p-6">
           {/* Header */}
           <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-start gap-3">
@@ -632,7 +632,7 @@ export default function AiLeadsDatabasePage() {
                 <Database className="size-5" />
               </div>
               <div>
-                <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+                <h1 className="font-[family-name:var(--font-heading)] text-xl font-semibold text-[#F0F0FA] md:text-2xl">
                   AI Leads Database
                 </h1>
                 <p className="text-sm text-[#9090A8]">

@@ -108,7 +108,9 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
   return (
     <div
       className={cn(
-        "absolute right-0 top-12 z-50 w-96 origin-top-right rounded-2xl border border-[#2A2A3C] bg-[#111118] shadow-2xl transition duration-200",
+        // A 384px panel anchored to the bell ran off the left edge of a
+        // phone; there it spans the screen under the top bar instead.
+        "absolute right-0 top-12 z-50 w-96 origin-top-right rounded-2xl border border-[#2A2A3C] bg-[#111118] shadow-2xl transition duration-200 max-md:fixed max-md:inset-x-3 max-md:top-[60px] max-md:w-auto",
         open
           ? "translate-y-0 opacity-100"
           : "pointer-events-none -translate-y-2 opacity-0"

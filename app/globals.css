@@ -4,6 +4,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Phones: iOS Safari zooms in on any form field below 16px when it is
+   tapped, and does not zoom back out. Keep fields at 16px on small
+   screens; desktop keeps the compact sizes set in each component. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

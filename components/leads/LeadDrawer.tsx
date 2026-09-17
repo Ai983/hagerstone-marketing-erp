@@ -2842,11 +2842,11 @@ function TasksTab({
               className="w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 py-1.5 text-sm text-[#F0F0FA] placeholder-[#9090A8] outline-none focus:border-[#3B82F6]"
               autoFocus
             />
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value)}
-                className="rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-xs text-[#F0F0FA] outline-none"
+                className="h-11 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 text-xs text-[#F0F0FA] outline-none sm:h-auto sm:py-1.5"
               >
                 {taskTypeOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -2858,7 +2858,7 @@ function TasksTab({
                 type="datetime-local"
                 value={dueAt}
                 onChange={(e) => setDueAt(e.target.value)}
-                className="rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 py-1.5 text-xs text-[#F0F0FA] outline-none"
+                className="h-11 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-2 text-xs text-[#F0F0FA] outline-none [color-scheme:dark] sm:h-auto sm:py-1.5"
               />
             </div>
             <div className="flex gap-2">

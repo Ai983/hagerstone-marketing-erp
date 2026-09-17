@@ -235,11 +235,11 @@ export default function WhatsAppHealthPage() {
   const warningCount = data.warnings.filter((w) => w.level === "warning").length
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] px-4 py-4 md:p-6">
       <div className="mx-auto max-w-4xl">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+            <h1 className="font-[family-name:var(--font-heading)] text-xl font-semibold text-[#F0F0FA] md:text-2xl">
               WhatsApp Health Monitor
             </h1>
             <p className="mt-1 text-sm text-[#9090A8]">

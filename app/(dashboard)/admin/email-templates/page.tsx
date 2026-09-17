@@ -204,11 +204,11 @@ export default function EmailTemplatesPage() {
   }
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] px-4 py-4 md:p-6">
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+            <h1 className="font-[family-name:var(--font-heading)] text-xl font-semibold text-[#F0F0FA] md:text-2xl">
               Email Templates
             </h1>
             <p className="mt-0.5 text-sm text-[#9090A8]">
@@ -376,11 +376,11 @@ function TemplateForm({
   }
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] px-4 py-4 md:p-6">
       <div className="mx-auto max-w-7xl">
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+            <h1 className="font-[family-name:var(--font-heading)] text-xl font-semibold text-[#F0F0FA] md:text-2xl">
               {template ? "Edit Template" : "New Template"}
             </h1>
             <p className="text-sm text-[#9090A8]">

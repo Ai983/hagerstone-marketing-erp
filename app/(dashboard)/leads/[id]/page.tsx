@@ -51,7 +51,7 @@ export default function LeadDetailPage() {
   }, [leadDrawerId])
 
   return (
-    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] p-6">
+    <main className="thin-scrollbar h-full overflow-y-auto bg-[#0A0A0F] px-4 py-4 md:p-6">
       <div className="mx-auto max-w-3xl">
         <Link
           href="/leads"
@@ -78,7 +78,7 @@ export default function LeadDetailPage() {
           <div className="rounded-xl border border-[#2A2A3C] bg-[#111118] p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold text-[#F0F0FA]">
+                <h1 className="font-[family-name:var(--font-heading)] text-xl font-semibold text-[#F0F0FA] md:text-2xl">
                   {lead.full_name}
                 </h1>
                 <p className="mt-1 text-sm text-[#9090A8]">

@@ -484,7 +484,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* 6. Won vs Lost This Month */}
-      <div className="grid grid-cols-2 gap-3 px-4 md:grid-cols-2 md:gap-4 md:px-0">
+      <div className="grid grid-cols-1 gap-3 px-4 sm:grid-cols-2 md:gap-4 md:px-0">
         <SectionCard title="Won" subtitle="Deals closed in this period">
           {kpiQuery.isLoading || !kpis ? (
             <div className="flex h-32 items-center justify-center">

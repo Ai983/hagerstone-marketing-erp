@@ -257,12 +257,14 @@ export function EnrollLeadsModal({
           />
           <motion.div
             key="enroll-panel"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            // Centring goes through framer's x/y: its scale animation writes
+            // `transform` inline, which would wipe Tailwind's translate classes.
+            initial={{ opacity: 0, scale: 0.95, x: "-50%", y: "-50%" }}
+            animate={{ opacity: 1, scale: 1, x: "-50%", y: "-50%" }}
+            exit={{ opacity: 0, scale: 0.95, x: "-50%", y: "-50%" }}
             transition={{ duration: 0.15 }}
-            className="fixed left-1/2 top-1/2 z-[61] flex w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118] shadow-2xl"
-            style={{ height: "min(520px, calc(100vh - 100px))" }}
+            className="fixed left-1/2 top-1/2 z-[61] flex w-[calc(100%-1.5rem)] max-w-lg flex-col overflow-hidden rounded-xl border border-[#2A2A3C] bg-[#111118] shadow-2xl"
+            style={{ height: "min(520px, calc(100dvh - 100px))" }}
           >
             {/* Header */}
             <div className="flex shrink-0 items-center justify-between border-b border-[#2A2A3C] px-5 py-3.5">
