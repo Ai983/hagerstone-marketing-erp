@@ -5,8 +5,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { toast } from "sonner"
 import {
-  Archive, Copy, Download, ExternalLink, FileImage, FileSpreadsheet, FileText, FileVideo,
-  FolderArchive, FolderOpen, Link2, Loader2, Pencil, Plus, Presentation, Search, Share2, Sparkles,
+  Archive, Download, ExternalLink, FileImage, FileSpreadsheet, FileText, FileVideo,
+  FolderArchive, FolderOpen, Link2, Loader2, Pencil, Plus, Presentation, Search, Share2,
 } from "lucide-react"
 
 import { AddLinkModal } from "@/components/documents/AddLinkModal"
@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils"
 
 function iconFor(doc: CompanyDocument) {
   if (doc.kind === "link") return Link2
-  if (doc.kind === "pitch") return Sparkles
+  if (doc.kind === "pitch") return FileText
   const t = `${doc.mime_type ?? ""} ${doc.file_name ?? ""}`.toLowerCase()
   if (/presentation|\.pptx?/.test(t)) return Presentation
   if (/image|\.(png|jpe?g|webp)/.test(t)) return FileImage
@@ -65,8 +65,7 @@ export default function DocumentsPage() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [linkOpen, setLinkOpen] = useState(false)
   const [editingLink, setEditingLink] = useState<CompanyDocument | null>(null)
-  const [pitchOpen, setPitchOpen] = useState(false)
-  const [editingPitch, setEditingPitch] = useState<CompanyDocument | null>(null)
+  const [openPitch, setOpenPitch] = useState<CompanyDocument | null>(null)
   const [sharing, setSharing] = useState<CompanyDocument | null>(null)
 
   const { data: documents, isLoading, error } = useQuery({
@@ -77,6 +76,7 @@ export default function DocumentsPage() {
         .from("documents")
         .select("*, uploader:uploaded_by(full_name)")
         .eq("is_active", true)
+        .order("is_pinned", { ascending: false })
         .order("updated_at", { ascending: false })
       if (error) throw error
       return (data ?? []) as CompanyDocument[]
@@ -120,16 +120,9 @@ export default function DocumentsPage() {
     bumpDownloads(doc)
   }
 
-  const onCopyPitch = async (doc: CompanyDocument) => {
-    await navigator.clipboard.writeText(doc.body ?? "")
-    toast.success("Pitch copied")
-    bumpDownloads(doc)
-  }
-
   const onEdit = (doc: CompanyDocument) => {
     if (doc.kind === "pitch") {
-      setEditingPitch(doc)
-      setPitchOpen(true)
+      setOpenPitch(doc)
     } else if (doc.kind === "link") {
       setEditingLink(doc)
       setLinkOpen(true)
@@ -163,17 +156,6 @@ export default function DocumentsPage() {
         </div>
         {canUpload ? (
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setEditingPitch(null)
-                setPitchOpen(true)
-              }}
-              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-[#7C3AED] px-3 text-sm font-medium text-white transition hover:bg-[#6D28D9]"
-            >
-              <Sparkles className="size-4" />
-              Write pitch with AI
-            </button>
             <button
               type="button"
               onClick={() => {
@@ -305,7 +287,7 @@ export default function DocumentsPage() {
           <p className="mt-1 text-xs text-[#9090A8]">
             {all.length === 0
               ? canUpload
-                ? "Add the Drive folder with all profiles, or write your first pitch with AI."
+                ? "Add the Drive folder with all profiles, or upload a profile."
                 : "Ask an admin to add the company profile."
               : "Try another category or search."}
           </p>
@@ -355,8 +337,8 @@ export default function DocumentsPage() {
 
                 <div className="mt-auto flex gap-2 pt-3">
                   {doc.kind === "pitch" ? (
-                    <button type="button" onClick={() => onCopyPitch(doc)} className="inline-flex h-10 flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] text-sm text-[#F0F0FA] transition hover:border-[#3A3A52]">
-                      <Copy className="size-4" /> Copy
+                    <button type="button" onClick={() => onEdit(doc)} className="inline-flex h-10 flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] text-sm text-[#F0F0FA] transition hover:border-[#3A3A52]">
+                      <FileText className="size-4" /> {canUpload ? "Open & edit" : "Open"}
                     </button>
                   ) : (
                     <button type="button" onClick={() => onOpen(doc)} className="inline-flex h-10 flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] text-sm text-[#F0F0FA] transition hover:border-[#3A3A52]">
@@ -371,7 +353,7 @@ export default function DocumentsPage() {
                   >
                     <Share2 className="size-4" /> {doc.kind === "pitch" ? "Send" : "Share"}
                   </button>
-                  {canUpload && doc.kind !== "file" ? (
+                  {canUpload && doc.kind === "link" ? (
                     <button
                       type="button"
                       onClick={() => onEdit(doc)}
@@ -400,7 +382,7 @@ export default function DocumentsPage() {
 
       <UploadDocumentModal open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={refresh} existing={all} />
       <AddLinkModal open={linkOpen} onClose={() => setLinkOpen(false)} onSaved={refresh} editing={editingLink} />
-      <PitchEditorModal open={pitchOpen} onClose={() => setPitchOpen(false)} onSaved={refresh} pitch={editingPitch} />
+      <PitchEditorModal pitch={openPitch} onClose={() => setOpenPitch(null)} onSaved={refresh} canEdit={canUpload} />
       <ShareDocumentModal document={sharing} onClose={() => setSharing(null)} />
     </div>
   )
