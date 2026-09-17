@@ -19,6 +19,9 @@ import {
 } from "lucide-react"
 import type { InteractionType } from "@/lib/types"
 import type { TimelineInteraction } from "@/lib/hooks/useActivities"
+import { useUser } from "@/lib/hooks/useUser"
+import { canChangeInteraction } from "@/lib/utils/interaction-edit"
+import { TimelineEntryActions } from "@/components/leads/TimelineEntryActions"
 
 // ── Icon map ────────────────────────────────────────────────────────
 
@@ -132,6 +135,8 @@ interface LeadTimelineProps {
 export function LeadTimeline({ interactions, isLoading, onAddNote, isAddingNote }: LeadTimelineProps) {
   const [showNoteInput, setShowNoteInput] = useState(false)
   const [noteText, setNoteText] = useState("")
+  const { user, profile } = useUser()
+  const me = { id: user?.id, role: profile?.role as string | undefined }
 
   const handleSubmitNote = async () => {
     const trimmed = noteText.trim()
@@ -262,13 +267,16 @@ export function LeadTimeline({ interactions, isLoading, onAddNote, isAddingNote 
                       <Icon className="size-3.5 text-[#9090A8]" />
                     </div>
                     <div className="flex-1 pt-0.5">
-                      <div className="flex items-center gap-2">
+                      <div className="-mt-1 flex min-h-8 items-center gap-2">
                         <span className="text-xs font-medium text-[#F0F0FA]">
                           {getTypeLabel(interaction.type)}
                         </span>
                         {interaction.outcome && (
                           <OutcomeBadge outcome={interaction.outcome} />
                         )}
+                        {canChangeInteraction(interaction, me) ? (
+                          <TimelineEntryActions interaction={interaction} />
+                        ) : null}
                       </div>
                       <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#9090A8]">
                         <span>
