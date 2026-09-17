@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-import { sendWhatsAppMessage } from "@/lib/utils/whatsapp"
-
 // ── Helpers ─────────────────────────────────────────────────────────
 
 function getServiceClient() {
@@ -37,46 +35,6 @@ function normalisePhone(raw: string): string {
   // Remove leading +91 or 91 (Indian country code)
   cleaned = cleaned.replace(/^\+?91/, "")
   return cleaned
-}
-
-async function sendManagerNotification(lead: {
-  id: string
-  full_name: string
-  company_name?: string
-  phone?: string | null
-  city?: string
-  service_line?: string
-  source_detail?: string
-}) {
-  const managerPhone = process.env.MANAGER_WHATSAPP_NUMBER
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://erp.hagerstone.com"
-
-  if (!managerPhone) return
-
-  const message = [
-    "\u{1F514} *New Website Lead*",
-    `Name: ${lead.full_name}`,
-    lead.company_name ? `Company: ${lead.company_name}` : null,
-    lead.phone ? `Phone: ${lead.phone}` : null,
-    lead.city ? `City: ${lead.city}` : null,
-    lead.service_line
-      ? `Service: ${lead.service_line
-          .split("_")
-          .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(" ")}`
-      : null,
-    lead.source_detail ? `From: ${lead.source_detail}` : null,
-    `View: ${appUrl}/leads/${lead.id}`,
-  ]
-    .filter(Boolean)
-    .join("\n")
-
-  // Non-critical — fire-and-forget. Don't fail the webhook if WhatsApp
-  // delivery fails.
-  const result = await sendWhatsAppMessage(managerPhone, message)
-  if (!result.success) {
-    console.error("Failed to send manager WhatsApp notification:", result.error)
-  }
 }
 
 // ── Route handler ───────────────────────────────────────────────────
@@ -259,16 +217,8 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Send WhatsApp notification to manager (fire-and-forget)
-  sendManagerNotification({
-    id: newLead.id,
-    full_name: fullName,
-    company_name: companyName ?? undefined,
-    phone,
-    city: city ?? undefined,
-    service_line: serviceLine ?? undefined,
-    source_detail: sourceDetail ?? undefined,
-  })
+  // New leads are announced inside the ERP only (the notifications above).
+  // There is deliberately no WhatsApp alert to staff.
 
   // Fire-and-forget AI categorisation — non-blocking
   // Wrapped in try-catch so it never breaks lead creation
