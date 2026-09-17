@@ -310,15 +310,24 @@ export type DocumentCategory =
   | 'company_profile' | 'sales_pitch' | 'case_study' | 'brochure'
   | 'presentation' | 'rate_card' | 'certificate' | 'project_photos' | 'other'
 
+export type DocumentKind = 'file' | 'link' | 'pitch'
+
 export interface CompanyDocument {
   id: string
   title: string
   description: string | null
   category: DocumentCategory
   service_line: ServiceLine | 'all'
-  file_name: string
-  file_path: string
-  file_url: string
+  /** file = uploaded; link = Drive/other URL; pitch = text kept in the ERP */
+  kind: DocumentKind
+  link_url: string | null
+  body: string | null
+  is_pinned: boolean
+  ai_brief: Record<string, unknown> | null
+  updated_by: string | null
+  file_name: string | null
+  file_path: string | null
+  file_url: string | null
   file_size: number | null
   mime_type: string | null
   version: string

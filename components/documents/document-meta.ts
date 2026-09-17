@@ -42,6 +42,11 @@ export function formatBytes(bytes: number | null | undefined) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+/** The URL someone opens for this item — the Drive link or the stored file. */
+export function documentUrl(doc: { kind: string; link_url: string | null; file_url: string | null }) {
+  return doc.kind === "link" ? doc.link_url : doc.file_url
+}
+
 /** Public URL that makes the browser save the file under its real name. */
 export function downloadUrl(fileUrl: string, fileName: string) {
   const sep = fileUrl.includes("?") ? "&" : "?"

@@ -11,6 +11,8 @@ import { getCachedUser } from "@/lib/hooks/useUser"
 import { createClient } from "@/lib/supabase/client"
 import type { CompanyDocument } from "@/lib/types"
 
+import { documentUrl } from "./document-meta"
+
 type Channel = "whatsapp" | "email" | "link"
 
 /**
@@ -37,14 +39,20 @@ export function ShareDocumentModal({
 
   if (!document) return null
 
-  const message = [
-    lead ? `Hello ${lead.full_name.split(" ")[0]},` : "Hello,",
-    "",
-    `Please find the Hagerstone ${document.title} here:`,
-    document.file_url,
-    "",
-    "Happy to walk you through it at your convenience.",
-  ].join("\n")
+  const isPitch = document.kind === "pitch"
+  const url = documentUrl(document) ?? ""
+  const firstName = lead?.full_name.split(" ")[0] ?? ""
+  // A pitch is sent as its own text; files and Drive links as a short note + link.
+  const message = isPitch
+    ? (document.body ?? "").replace(/\[Name\]/g, firstName || "[Name]")
+    : [
+        lead ? `Hello ${firstName},` : "Hello,",
+        "",
+        `Please find the Hagerstone ${document.title} here:`,
+        url,
+        "",
+        "Happy to walk you through it at your convenience.",
+      ].join("\n")
 
   const record = async (channel: Channel) => {
     const supabase = createClient()
@@ -59,7 +67,9 @@ export function ShareDocumentModal({
           user_id: user?.id ?? null,
           type: channel === "whatsapp" ? "whatsapp_sent" : channel === "email" ? "email_sent" : "note",
           title: `Shared: ${document.title} (${document.version})`,
-          notes: `${document.title} ${document.version} shared via ${channel}.\n${document.file_url}`,
+          notes: isPitch
+            ? `${document.title} sent via ${channel}.\n\n${message}`
+            : `${document.title} ${document.version} shared via ${channel}.\n${url}`,
         })
         .select("id")
         .maybeSingle()
@@ -114,9 +124,9 @@ export function ShareDocumentModal({
   }
 
   const copyLink = async () => {
-    await navigator.clipboard.writeText(document.file_url)
+    await navigator.clipboard.writeText(isPitch ? message : url)
     await record("link")
-    toast.success("Link copied")
+    toast.success(isPitch ? "Pitch copied" : "Link copied")
     close()
   }
 
@@ -135,7 +145,7 @@ export function ShareDocumentModal({
           >
             <div className="mb-4 flex items-start justify-between">
               <div className="min-w-0">
-                <h2 className="text-base font-semibold text-[#F0F0FA]">Share document</h2>
+                <h2 className="text-base font-semibold text-[#F0F0FA]">{isPitch ? "Send pitch" : "Share"}</h2>
                 <p className="truncate text-xs text-[#9090A8]">{document.title} · {document.version}</p>
               </div>
               <button type="button" onClick={close} aria-label="Close" className="-mr-2 -mt-2 flex size-10 items-center justify-center rounded-lg text-[#9090A8] hover:bg-[#1A1A24]">
@@ -172,7 +182,7 @@ export function ShareDocumentModal({
               ) : null}
               <button type="button" onClick={copyLink} className={btn}>
                 <Copy className="size-4 text-[#9090A8]" />
-                Copy link
+                {isPitch ? "Copy text" : "Copy link"}
               </button>
             </div>
           </motion.div>

@@ -5,10 +5,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { toast } from "sonner"
 import {
-  Archive, Download, FileImage, FileSpreadsheet, FileText, FileVideo,
-  FolderArchive, Loader2, Plus, Presentation, Search, Share2,
+  Archive, Copy, Download, ExternalLink, FileImage, FileSpreadsheet, FileText, FileVideo,
+  FolderArchive, FolderOpen, Link2, Loader2, Pencil, Plus, Presentation, Search, Share2, Sparkles,
 } from "lucide-react"
 
+import { AddLinkModal } from "@/components/documents/AddLinkModal"
+import { PitchEditorModal } from "@/components/documents/PitchEditorModal"
 import { ShareDocumentModal } from "@/components/documents/ShareDocumentModal"
 import { UploadDocumentModal } from "@/components/documents/UploadDocumentModal"
 import {
@@ -21,13 +23,32 @@ import type { CompanyDocument, DocumentCategory } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 function iconFor(doc: CompanyDocument) {
-  const t = `${doc.mime_type ?? ""} ${doc.file_name}`.toLowerCase()
+  if (doc.kind === "link") return Link2
+  if (doc.kind === "pitch") return Sparkles
+  const t = `${doc.mime_type ?? ""} ${doc.file_name ?? ""}`.toLowerCase()
   if (/presentation|\.pptx?/.test(t)) return Presentation
   if (/image|\.(png|jpe?g|webp)/.test(t)) return FileImage
   if (/sheet|excel|\.xlsx?/.test(t)) return FileSpreadsheet
   if (/video|\.mp4/.test(t)) return FileVideo
   if (/zip/.test(t)) return FolderArchive
   return FileText
+}
+
+function hostOf(url: string | null) {
+  try {
+    return url ? new URL(url).hostname.replace(/^www\./, "") : ""
+  } catch {
+    return ""
+  }
+}
+
+function metaLine(doc: CompanyDocument) {
+  if (doc.kind === "link") return hostOf(doc.link_url) || "Link"
+  if (doc.kind === "pitch") {
+    const words = (doc.body ?? "").trim().split(/\s+/).filter(Boolean).length
+    return `${words} words`
+  }
+  return formatBytes(doc.file_size)
 }
 
 export default function DocumentsPage() {
@@ -42,6 +63,10 @@ export default function DocumentsPage() {
   const [search, setSearch] = useState("")
   const [showSuperseded, setShowSuperseded] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [linkOpen, setLinkOpen] = useState(false)
+  const [editingLink, setEditingLink] = useState<CompanyDocument | null>(null)
+  const [pitchOpen, setPitchOpen] = useState(false)
+  const [editingPitch, setEditingPitch] = useState<CompanyDocument | null>(null)
   const [sharing, setSharing] = useState<CompanyDocument | null>(null)
 
   const { data: documents, isLoading, error } = useQuery({
@@ -59,6 +84,8 @@ export default function DocumentsPage() {
   })
 
   const all = useMemo(() => documents ?? [], [documents])
+  const pinned = useMemo(() => all.filter((d) => d.is_pinned && d.kind === "link"), [all])
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["documents"] })
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {}
@@ -74,52 +101,136 @@ export default function DocumentsPage() {
       // A document for "all services" is relevant whatever line is picked.
       if (serviceLine !== "all" && d.service_line !== serviceLine && d.service_line !== "all") return false
       if (!q) return true
-      return [d.title, d.description, d.file_name, ...(d.tags ?? [])]
+      return [d.title, d.description, d.file_name, d.body, ...(d.tags ?? [])]
         .filter(Boolean)
         .some((v) => (v as string).toLowerCase().includes(q))
     })
   }, [all, category, serviceLine, search, showSuperseded])
 
-  const onDownload = (doc: CompanyDocument) => {
-    window.open(downloadUrl(doc.file_url, doc.file_name), "_blank", "noopener")
-    createClient().rpc("bump_document_downloads", { doc_id: doc.id }).then(() => {
-      queryClient.invalidateQueries({ queryKey: ["documents"] })
-    })
+  const bumpDownloads = (doc: CompanyDocument) => {
+    createClient().rpc("bump_document_downloads", { doc_id: doc.id }).then(refresh)
+  }
+
+  const onOpen = (doc: CompanyDocument) => {
+    if (doc.kind === "link" && doc.link_url) {
+      window.open(doc.link_url, "_blank", "noopener")
+    } else if (doc.file_url && doc.file_name) {
+      window.open(downloadUrl(doc.file_url, doc.file_name), "_blank", "noopener")
+    }
+    bumpDownloads(doc)
+  }
+
+  const onCopyPitch = async (doc: CompanyDocument) => {
+    await navigator.clipboard.writeText(doc.body ?? "")
+    toast.success("Pitch copied")
+    bumpDownloads(doc)
+  }
+
+  const onEdit = (doc: CompanyDocument) => {
+    if (doc.kind === "pitch") {
+      setEditingPitch(doc)
+      setPitchOpen(true)
+    } else if (doc.kind === "link") {
+      setEditingLink(doc)
+      setLinkOpen(true)
+    }
   }
 
   const onArchive = async (doc: CompanyDocument) => {
-    if (!window.confirm(`Remove "${doc.title}" from the library? The file is kept for records.`)) return
+    if (!window.confirm(`Remove "${doc.title}" from the library? It is kept for records.`)) return
     const { error } = await createClient().from("documents").update({ is_active: false }).eq("id", doc.id)
     if (error) {
       toast.error(error.message)
       return
     }
     toast.success("Removed from library")
-    queryClient.invalidateQueries({ queryKey: ["documents"] })
+    refresh()
   }
+
+  const secondaryBtn =
+    "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] px-3 text-sm text-[#F0F0FA] transition hover:border-[#3A3A52]"
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-5 md:px-6 md:pb-8 md:pt-6">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <h1 className="font-[family-name:var(--font-heading)] text-xl font-bold text-[#F0F0FA] md:text-2xl">
             Profiles & Pitches
           </h1>
           <p className="mt-1 text-sm text-[#9090A8]">
-            The current company profile, pitch decks and collateral — download or share straight to a lead.
+            Company profiles, Drive links and ready pitches — open, copy or share straight to a lead.
           </p>
         </div>
         {canUpload ? (
-          <button
-            type="button"
-            onClick={() => setUploadOpen(true)}
-            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-[#3B82F6] px-3 text-sm font-medium text-white transition hover:bg-[#2563EB] md:px-4"
-          >
-            <Plus className="size-4" />
-            Upload
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingPitch(null)
+                setPitchOpen(true)
+              }}
+              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-[#7C3AED] px-3 text-sm font-medium text-white transition hover:bg-[#6D28D9]"
+            >
+              <Sparkles className="size-4" />
+              Write pitch with AI
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingLink(null)
+                setLinkOpen(true)
+              }}
+              className={secondaryBtn}
+            >
+              <Link2 className="size-4" />
+              Add Drive link
+            </button>
+            <button
+              type="button"
+              onClick={() => setUploadOpen(true)}
+              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-[#3B82F6] px-3 text-sm font-medium text-white transition hover:bg-[#2563EB]"
+            >
+              <Plus className="size-4" />
+              Upload
+            </button>
+          </div>
         ) : null}
       </div>
+
+      {/* Pinned Drive folder(s) — the one place with every profile */}
+      {pinned.length > 0 ? (
+        <div className="mb-5 space-y-2">
+          {pinned.map((doc) => (
+            <div
+              key={doc.id}
+              className="flex flex-col gap-3 rounded-xl border border-[#1E3A5F] bg-[#0F1B2D] p-4 sm:flex-row sm:items-center"
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-[#1E3A5F]">
+                  <FolderOpen className="size-5 text-[#60A5FA]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-[#F0F0FA]">{doc.title}</p>
+                  <p className="truncate text-xs text-[#9090A8]">{doc.description || hostOf(doc.link_url)}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => onOpen(doc)} className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#3B82F6] px-4 text-sm font-medium text-white hover:bg-[#2563EB] sm:flex-none">
+                  <ExternalLink className="size-4" /> Open folder
+                </button>
+                <button type="button" onClick={() => setSharing(doc)} className={cn(secondaryBtn, "flex-1 justify-center sm:flex-none")}>
+                  <Share2 className="size-4" /> Share
+                </button>
+                {canUpload ? (
+                  <button type="button" onClick={() => onEdit(doc)} aria-label="Edit link" className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#2A2A3C] text-[#9090A8] hover:text-[#F0F0FA]">
+                    <Pencil className="size-4" />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {/* Category tabs — scroll sideways on phones */}
       <div className="thin-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
@@ -151,7 +262,7 @@ export default function DocumentsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search documents"
+            placeholder="Search profiles, links and pitches"
             className="h-11 w-full rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] pl-9 pr-3 text-base text-[#F0F0FA] placeholder-[#5A5A72] outline-none focus:border-[#3B82F6] sm:h-10 sm:text-sm"
           />
         </div>
@@ -183,7 +294,7 @@ export default function DocumentsPage() {
         </div>
       ) : error ? (
         <div className="rounded-xl border border-[#3F161A] bg-[#3F161A]/20 p-4 text-sm text-[#F87171]">
-          Could not load the library. If this is a fresh setup, the document library migration may not be applied yet.
+          Could not load the library. Refresh the page; if it keeps failing, tell the admin.
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[#2A2A3C] bg-[#111118] px-4 py-16 text-center">
@@ -194,8 +305,8 @@ export default function DocumentsPage() {
           <p className="mt-1 text-xs text-[#9090A8]">
             {all.length === 0
               ? canUpload
-                ? "Upload the company profile first — it is what the field team shares most."
-                : "Ask an admin or marketing to upload the company profile."
+                ? "Add the Drive folder with all profiles, or write your first pitch with AI."
+                : "Ask an admin to add the company profile."
               : "Try another category or search."}
           </p>
         </div>
@@ -203,6 +314,7 @@ export default function DocumentsPage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((doc) => {
             const Icon = iconFor(doc)
+            const kindLabel = doc.kind === "link" ? "Drive link" : doc.kind === "pitch" ? "Pitch" : null
             return (
               <div
                 key={doc.id}
@@ -213,45 +325,62 @@ export default function DocumentsPage() {
               >
                 <div className="flex items-start gap-3">
                   <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-[#1F1F2E]">
-                    <Icon className="size-5 text-[#60A5FA]" />
+                    <Icon className={cn("size-5", doc.kind === "pitch" ? "text-[#A78BFA]" : "text-[#60A5FA]")} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-2 text-sm font-semibold text-[#F0F0FA]">{doc.title}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-[#9090A8]">
-                      <span className="rounded-full bg-[#1F1F2E] px-2 py-0.5">{CATEGORY_LABELS[doc.category]}</span>
-                      <span className={cn("rounded-full px-2 py-0.5", doc.is_current ? "bg-[#163322] text-[#34D399]" : "bg-[#1F1F2E]")}>
-                        {doc.version}{doc.is_current ? " · current" : " · superseded"}
-                      </span>
+                      <span className="rounded-full bg-[#1F1F2E] px-2 py-0.5">{kindLabel ?? CATEGORY_LABELS[doc.category]}</span>
+                      {doc.kind === "file" ? (
+                        <span className={cn("rounded-full px-2 py-0.5", doc.is_current ? "bg-[#163322] text-[#34D399]" : "bg-[#1F1F2E]")}>
+                          {doc.version}{doc.is_current ? " · current" : " · superseded"}
+                        </span>
+                      ) : null}
                       {doc.service_line !== "all" ? <span>{SERVICE_LINE_LABELS[doc.service_line]}</span> : null}
                     </div>
                   </div>
                 </div>
 
-                {doc.description ? (
+                {doc.kind === "pitch" && doc.body ? (
+                  <p className="mt-3 line-clamp-4 whitespace-pre-line text-xs leading-relaxed text-[#9090A8]">{doc.body}</p>
+                ) : doc.description ? (
                   <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-[#9090A8]">{doc.description}</p>
                 ) : null}
 
                 <p className="mt-3 text-[11px] text-[#5A5A72]">
-                  {formatBytes(doc.file_size)} · {format(new Date(doc.created_at), "d MMM yyyy")}
+                  {metaLine(doc)} · {format(new Date(doc.updated_at), "d MMM yyyy")}
                   {doc.uploader?.full_name ? ` · ${doc.uploader.full_name}` : ""}
-                  {" · "}{doc.download_count} downloads · {doc.share_count} shares
+                  {" · "}{doc.download_count} {doc.kind === "file" ? "downloads" : "opens"} · {doc.share_count} shares
                 </p>
 
                 <div className="mt-auto flex gap-2 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => onDownload(doc)}
-                    className="inline-flex h-10 flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] text-sm text-[#F0F0FA] transition hover:border-[#3A3A52]"
-                  >
-                    <Download className="size-4" /> Download
-                  </button>
+                  {doc.kind === "pitch" ? (
+                    <button type="button" onClick={() => onCopyPitch(doc)} className="inline-flex h-10 flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] text-sm text-[#F0F0FA] transition hover:border-[#3A3A52]">
+                      <Copy className="size-4" /> Copy
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => onOpen(doc)} className="inline-flex h-10 flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-[#2A2A3C] bg-[#1A1A24] text-sm text-[#F0F0FA] transition hover:border-[#3A3A52]">
+                      {doc.kind === "link" ? <ExternalLink className="size-4" /> : <Download className="size-4" />}
+                      {doc.kind === "link" ? "Open" : "Download"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setSharing(doc)}
                     className="inline-flex h-10 flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg bg-[#3B82F6] text-sm font-medium text-white transition hover:bg-[#2563EB]"
                   >
-                    <Share2 className="size-4" /> Share
+                    <Share2 className="size-4" /> {doc.kind === "pitch" ? "Send" : "Share"}
                   </button>
+                  {canUpload && doc.kind !== "file" ? (
+                    <button
+                      type="button"
+                      onClick={() => onEdit(doc)}
+                      aria-label="Edit"
+                      className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#2A2A3C] text-[#9090A8] transition hover:text-[#F0F0FA]"
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                  ) : null}
                   {canArchive ? (
                     <button
                       type="button"
@@ -269,12 +398,9 @@ export default function DocumentsPage() {
         </div>
       )}
 
-      <UploadDocumentModal
-        open={uploadOpen}
-        onClose={() => setUploadOpen(false)}
-        onUploaded={() => queryClient.invalidateQueries({ queryKey: ["documents"] })}
-        existing={all}
-      />
+      <UploadDocumentModal open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={refresh} existing={all} />
+      <AddLinkModal open={linkOpen} onClose={() => setLinkOpen(false)} onSaved={refresh} editing={editingLink} />
+      <PitchEditorModal open={pitchOpen} onClose={() => setPitchOpen(false)} onSaved={refresh} pitch={editingPitch} />
       <ShareDocumentModal document={sharing} onClose={() => setSharing(null)} />
     </div>
   )
