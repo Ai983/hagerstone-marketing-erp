@@ -33,7 +33,7 @@ function iconFor(doc: CompanyDocument) {
 export default function DocumentsPage() {
   const queryClient = useQueryClient()
   const { profile } = useUser()
-  const role = (profile?.role as string | undefined) ?? "sales_rep"
+  const role = (profile?.role as string | undefined) ?? "sales_head"
   const canUpload = UPLOAD_ROLES.includes(role)
   const canArchive = DELETE_ROLES.includes(role)
 

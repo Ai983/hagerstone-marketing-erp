@@ -122,7 +122,7 @@ export default function SignupPage() {
           full_name: fullName.trim(),
           email: email.trim(),
           phone: phone.trim(),
-          role: "sales_rep",
+          role: "sales_head",
         }),
       })
 

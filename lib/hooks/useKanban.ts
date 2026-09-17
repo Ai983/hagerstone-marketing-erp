@@ -348,7 +348,7 @@ export function useKanban() {
     supabase
       .from("profiles")
       .select("id")
-      .in("role", ["admin", "manager"])
+      .in("role", ["admin", "sales_head"])
       .eq("is_active", true)
       .then(async ({ data: managers, error }) => {
         if (error) {

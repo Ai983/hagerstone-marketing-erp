@@ -37,7 +37,7 @@ import { EnrollLeadsModal } from "@/components/campaigns/EnrollLeadsModal"
 import { getScoreLabel } from "@/lib/utils/lead-scoring"
 import { cn } from "@/lib/utils"
 
-const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
+const WRITE_ROLES = new Set(["admin", "sales_head"])
 
 function formatProfileCategory(value: string) {
   return value

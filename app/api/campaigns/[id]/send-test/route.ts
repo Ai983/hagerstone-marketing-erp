@@ -7,7 +7,7 @@ import {
   sendWhatsAppWithButtons,
 } from "@/lib/utils/whatsapp"
 
-const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
+const WRITE_ROLES = new Set(["admin", "sales_head"])
 
 /**
  * Normalise an Indian phone number to 12 digits starting with "91".

@@ -84,7 +84,7 @@ export default function ActivitiesPage() {
       }
 
       const role = (profile?.role as string | undefined) ?? ""
-      const isManager = ["admin", "manager", "founder"].includes(role)
+      const isManager = ["admin", "sales_head"].includes(role)
 
       let query = supabase
         .from("tasks")

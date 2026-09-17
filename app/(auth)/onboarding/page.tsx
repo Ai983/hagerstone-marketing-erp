@@ -85,7 +85,7 @@ export default function OnboardingPage() {
       id: user.id,
       email: user.email ?? "",
       full_name: fullName.trim(),
-      role: "sales_rep",
+      role: "sales_head",
     })
 
     if (insertError) {

@@ -24,7 +24,7 @@ import {
 import type { AuditLog } from "@/lib/types"
 
 const PAGE_SIZE = 50
-const ALLOWED_ROLES = new Set(["admin", "founder"])
+const ALLOWED_ROLES = new Set(["admin", "sales_head"])
 const ALL_FILTER_VALUE = "__all__"
 
 const ACTION_COLORS: Record<string, { bg: string; color: string }> = {

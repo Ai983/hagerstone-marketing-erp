@@ -187,7 +187,7 @@ async function fetchProfiles(): Promise<ProfileOption[]> {
   const { data, error } = await supabase
     .from("profiles")
     .select("id, full_name, role, avatar_url")
-    .in("role", ["sales_rep", "manager", "admin", "founder"])
+    .in("role", ["admin", "sales_head"])
     .eq("is_active", true)
     .order("full_name", { ascending: true })
 

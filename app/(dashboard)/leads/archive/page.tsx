@@ -8,7 +8,7 @@ import { Archive, RotateCcw, Trash2, Loader2 } from "lucide-react"
 import { useLeads } from "@/lib/hooks/useLeads"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 
-const DELETE_ROLES = new Set(["admin", "founder", "manager"])
+const DELETE_ROLES = new Set(["admin", "sales_head"])
 
 function formatDate(value?: string | null) {
   if (!value) return "—"

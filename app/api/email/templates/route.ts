@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { createClient } from "@/lib/supabase/server"
 
-const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
+const WRITE_ROLES = new Set(["admin", "sales_head"])
 
 async function getUserAndRole() {
   const supabase = await createClient()

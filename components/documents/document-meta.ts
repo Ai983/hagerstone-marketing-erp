@@ -31,8 +31,9 @@ export const SERVICE_LINE_LABELS: Record<string, string> = {
   multiple: "Multiple",
 }
 
-export const UPLOAD_ROLES = ["admin", "manager", "marketing", "founder"]
-export const DELETE_ROLES = ["admin", "founder"]
+// The system has two roles and both have full access.
+export const UPLOAD_ROLES = ["admin", "sales_head"]
+export const DELETE_ROLES = ["admin", "sales_head"]
 
 export function formatBytes(bytes: number | null | undefined) {
   if (!bytes) return "—"

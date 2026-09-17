@@ -41,7 +41,7 @@ function cleanOptionalText(text?: string | null) {
 // and returns a final assistant message that mixes text blocks with
 // web_search_tool_result blocks. We only want the text.
 
-const ALLOWED_ROLES = new Set(["admin", "manager", "founder", "marketing"])
+const ALLOWED_ROLES = new Set(["admin", "sales_head"])
 
 const SYSTEM_PROMPT = `You are a B2B lead research specialist for Hagerstone International, an ISO-certified interior design and build firm in Noida, Delhi NCR, India. They offer:
 - Office interior fit-out and design

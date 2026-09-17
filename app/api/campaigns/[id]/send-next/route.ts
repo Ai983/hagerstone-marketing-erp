@@ -10,7 +10,7 @@ import {
 import { renderTemplate, sendEmail } from "@/lib/utils/resend"
 import { wrapInEmailTemplate } from "@/lib/utils/email-content"
 
-const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
+const WRITE_ROLES = new Set(["admin", "sales_head"])
 type WhatsAppButton = { id: string; title: string }
 type MaytapiMediaType = "image" | "document" | "media"
 

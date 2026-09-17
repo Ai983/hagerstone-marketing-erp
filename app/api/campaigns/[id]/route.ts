@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { createClient } from "@/lib/supabase/server"
 
-const WRITE_ROLES = new Set(["admin", "manager", "marketing", "founder"])
+const WRITE_ROLES = new Set(["admin", "sales_head"])
 
 async function requireUser() {
   const supabase = await createClient()

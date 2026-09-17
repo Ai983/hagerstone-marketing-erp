@@ -118,7 +118,7 @@ export default function EmailTemplatesPage() {
         return
       }
       const role = profile?.role as string | undefined
-      if (!role || !["admin", "manager", "marketing"].includes(role)) {
+      if (!role || !["admin", "sales_head"].includes(role)) {
         router.replace("/activities")
         return
       }
