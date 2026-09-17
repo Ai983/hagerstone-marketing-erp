@@ -38,6 +38,7 @@ export interface KanbanLead {
   priority_note?: string | null
   owner_name?: string | null
   data_set_id?: string | null
+  source_detail?: string | null
   score?: number | null
   category?: LeadCategory | null
   category_remarks?: string | null
@@ -122,7 +123,7 @@ async function fetchKanbanLeads() {
   const { data, error } = await supabase
     .from("leads")
     .select(
-      "id, full_name, company_name, phone, city, service_line, source, stage_id, stage_entered_at, assigned_to, estimated_budget, closure_value, proposal_estimated_cost, final_agreed_price, priority, priority_note, owner_name, data_set_id, score, category, category_remarks, category_updated_at, category_updated_by, boq_deadline, created_at, stage:stage_id(*), assignee:assigned_to(id, full_name, avatar_url, role), tasks:tasks!left(id, lead_id, title, type, due_at, completed_at, assigned_to)"
+      "id, full_name, company_name, phone, city, service_line, source, source_detail, stage_id, stage_entered_at, assigned_to, estimated_budget, closure_value, proposal_estimated_cost, final_agreed_price, priority, priority_note, owner_name, data_set_id, score, category, category_remarks, category_updated_at, category_updated_by, boq_deadline, created_at, stage:stage_id(*), assignee:assigned_to(id, full_name, avatar_url, role), tasks:tasks!left(id, lead_id, title, type, due_at, completed_at, assigned_to)"
     )
     .eq("is_archived", false)
     // Only open tasks — completed ones never affect the card, and they
@@ -143,6 +144,7 @@ async function fetchKanbanLeads() {
       city: lead.city,
       service_line: lead.service_line,
       source: lead.source,
+      source_detail: lead.source_detail,
       stage_id: lead.stage_id,
       stage_entered_at: lead.stage_entered_at,
       assigned_to: lead.assigned_to,

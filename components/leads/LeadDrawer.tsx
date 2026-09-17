@@ -1098,6 +1098,7 @@ function OverviewTab({
             <FieldRow label="Project Size" value={lead.project_size_sqft ? `${lead.project_size_sqft.toLocaleString()} sq ft` : null} />
             <FieldRow label="Expected Timeline" value={lead.expected_timeline} />
             <FieldRow label="Source" value={sourceLabel} />
+            <FieldRow label="Came in via" value={lead.source_detail} />
             <FieldRow label="WhatsApp Opted In" value={
               <span className={lead.whatsapp_opted_in ? "text-[#34D399]" : "text-[#9090A8]"}>
                 {lead.whatsapp_opted_in ? "Yes" : "No"}

@@ -64,6 +64,11 @@ export function MobileLeadCard({
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressTriggered = useRef(false)
   const currentStage = stages.find((stage) => stage.id === lead.stage_id)
+  const { byId: dataSetById } = useDataSets()
+  const mobileSurface = websiteSurface(
+    lead.data_set_id ? dataSetById.get(lead.data_set_id)?.key : null,
+    lead.source_detail
+  )
 
   const openLeadDrawer = (tab: string) => {
     setSelectedLeadId(lead.id)
@@ -141,6 +146,9 @@ export function MobileLeadCard({
             </h3>
             <div className="mt-1 flex items-center gap-1.5">
               <SourceTag dataSetId={lead.data_set_id} />
+              {mobileSurface ? (
+                <p className="shrink-0 text-xs text-[#67E8F9]">{mobileSurface}</p>
+              ) : null}
               {lead.company_name && lead.company_name !== lead.full_name ? (
                 <p className="truncate text-xs text-[#9090A8]">{lead.company_name}</p>
               ) : null}
@@ -252,6 +260,18 @@ export function MobileLeadCard({
 }
 
 
+/**
+ * Which part of the website captured the lead ("Cost estimator", "Website
+ * popup"). source_detail is "<surface> · <campaign>"; only the surface is
+ * shown. The webhook's generic fallback says so honestly.
+ */
+export function websiteSurface(dataSetKey?: string | null, sourceDetail?: string | null) {
+  if (dataSetKey !== "website") return null
+  const surface = sourceDetail?.split(" · ")[0]?.trim()
+  if (!surface || surface === "Website form") return "Form not identified"
+  return surface
+}
+
 function stageAgeClass(days: number) {
   if (days > 7) return "bg-[#3F161A] text-[#F87171]"
   if (days >= 3) return "bg-[#3F2A12] text-[#F59E0B]"
@@ -314,7 +334,8 @@ export function LeadCard({
   // One importance signal per card: the field priority (P1–P4) when set,
   // otherwise the Hot/Warm category. Score stays in the lead drawer.
   const category = !lead.priority && lead.category && categoryConfig[lead.category] ? categoryConfig[lead.category] : null
-  const subtitle = [lead.company_name && lead.company_name !== lead.full_name ? lead.company_name : null, lead.city]
+  const surface = websiteSurface(dataSet?.key, lead.source_detail)
+  const subtitle = [surface, lead.company_name && lead.company_name !== lead.full_name ? lead.company_name : null, lead.city]
     .filter(Boolean)
     .join(" · ")
 
