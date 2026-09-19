@@ -5,15 +5,20 @@ import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { format, formatDistanceToNowStrict, subDays } from "date-fns"
 import {
-  AlertTriangle, CalendarDays, Flame, Gauge, Globe, IndianRupee, Loader2,
+  AlertTriangle, CalendarDays, Flame, Gauge, Globe, IndianRupee, Layers, Loader2,
   Target, TrendingUp, UserCircle2, Users,
 } from "lucide-react"
 
 import { DataSetBadge, PriorityBadge } from "@/components/data/DataSetBadge"
 import { useDataSets } from "@/lib/hooks/useDataSets"
+import { useRelationshipGroups, useUniverseGroupSummary } from "@/lib/hooks/useRelationshipGroups"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { createClient } from "@/lib/supabase/client"
+import type { LeadRelationshipGroup } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import {
+  LEAD_GROUP_ORDER, LEAD_GROUPS, UNIVERSE_GROUP_ORDER, UNIVERSE_GROUPS, type GroupMeta,
+} from "@/lib/utils/relationship-group"
 
 // The founder's operating numbers (TEAM_PLAYBOOK): ₹20 Cr billed per month
 // needs ≥ ₹40 Cr weighted pipeline at a ~50% proposal→closure rate.
@@ -82,6 +87,22 @@ function inr(n: number) {
 
 function dealValue(l: LeadRow) {
   return l.final_agreed_price ?? l.closure_value ?? l.proposal_estimated_cost ?? 0
+}
+
+function GroupCount({ href, meta, value }: { href: string; meta: GroupMeta; value: number | null }) {
+  return (
+    <Link
+      href={href}
+      title={meta.hint}
+      className="rounded-lg border border-[#2A2A3C] bg-[#1A1A24] p-2.5 transition hover:border-[#3A3A52]"
+    >
+      <div className="flex items-center gap-1.5">
+        <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: meta.color }} />
+        <span className="truncate text-[11px] text-[#9090A8]">{meta.label}</span>
+      </div>
+      <p className="mt-1 text-lg font-semibold text-[#F0F0FA]">{value == null ? "…" : value.toLocaleString("en-IN")}</p>
+    </Link>
+  )
 }
 
 /** Deal owner as named by the source sheet — no ERP assignment exists. */
@@ -234,6 +255,17 @@ export default function SalesEnginePage() {
     }
   }, [summaryQuery.data])
 
+  const groupsQuery = useRelationshipGroups()
+  const universeGroups = useUniverseGroupSummary()
+  const leadGroupCounts = useMemo(() => {
+    const counts: Partial<Record<LeadRelationshipGroup, number>> = {}
+    for (const l of leads) {
+      const g = groupsQuery.byLeadId.get(l.id)?.relationship_group
+      if (g) counts[g] = (counts[g] ?? 0) + 1
+    }
+    return counts
+  }, [leads, groupsQuery.byLeadId])
+
   const weightedPct = Math.min(100, (m.weighted / WEIGHTED_TARGET) * 100)
   const billedPct = Math.min(100, (m.wonThisMonthValue / MONTHLY_TARGET) * 100)
   const card = "rounded-xl border border-[#2A2A3C] bg-[#111118] p-4"
@@ -308,6 +340,48 @@ export default function SalesEnginePage() {
           </div>
         </div>
       </div>
+
+      {/* Relationship groups — who is being neglected, pipeline and universe */}
+      <section className={cn(card, "mb-4")}>
+        <h2 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-[#F0F0FA]"><Layers className="size-4 text-[#8B5CF6]" />Relationship groups</h2>
+        <p className="mb-3 text-xs text-[#9090A8]">Different customers, different conversations. Worked out automatically from stage, won date and last client contact — click a group to open the list.</p>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <div>
+            <p className="mb-2 text-[11px] uppercase tracking-wider text-[#9090A8]">Pipeline</p>
+            {groupsQuery.isError ? (
+              <p className="text-sm text-[#9090A8]">Groups not available yet — migration 017 has not been run.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {LEAD_GROUP_ORDER.map((g) => (
+                  <GroupCount
+                    key={g}
+                    href={`/leads?group=${g}${dataSetKey ? `&ds=${dataSetKey}` : ""}`}
+                    meta={LEAD_GROUPS[g]}
+                    value={groupsQuery.isLoading ? null : leadGroupCounts[g] ?? 0}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="mb-2 text-[11px] uppercase tracking-wider text-[#9090A8]">Contact universe</p>
+            {universeGroups.isError ? (
+              <p className="text-sm text-[#9090A8]">Universe groups not available yet.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {UNIVERSE_GROUP_ORDER.filter((g) => g !== "audience" && g !== "in_pipeline").map((g) => (
+                  <GroupCount
+                    key={g}
+                    href={`/universe?group=${g}`}
+                    meta={UNIVERSE_GROUPS[g]}
+                    value={universeGroups.isLoading ? null : universeGroups.data?.[g] ?? 0}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Critical list */}

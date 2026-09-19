@@ -835,6 +835,8 @@ Added Sep 2026 to absorb the founder's standalone Sales Engine (`docs/founder-sa
 
 **Mobile:** `MobileBottomNav` centre ＋ opens quick actions (Log meeting, Add lead, Log call, Share profile) via `LeadPickerModal`; `uiStore.drawerOpenLogMeeting` opens the drawer straight into Log Meeting.
 
+**Relationship groups** (migration `017`): every open lead gets a computed group — `new_prospect`, `warm_prospect`, `proposal_pending`, `gone_quiet` (open deal, no client contact 30+ days), `active_client` / `dormant_client` (won ≤ / > 12 months), `lost` — from the view `marketing.lead_relationship_groups` (security_invoker). "Contact" excludes imports, AI-categorisation and system notes. Universe groups (`past_client`, `old_opportunity`…) are derived from funnel_stage/recency in `lib/utils/relationship-group.ts`; counts via `marketing.universe_group_summary()`. Nothing is stored. UI: `RelationshipGroupBadge`, `useRelationshipGroups()`, Group filter on All Leads (`?group=`) and Universe, panel on Sales Engine.
+
 **Imports** (`scripts/imports/*.mjs`, `--dry-run`, idempotent): `import-architect-meetings` → `import-founder-pipeline` → `import-founder-universe`, in that order.
 
 ---

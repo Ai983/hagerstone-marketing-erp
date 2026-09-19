@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
+import { RELATIONSHIP_GROUPS_KEY } from "@/lib/hooks/useRelationshipGroups"
 import { getCachedUser } from "@/lib/hooks/useUser"
 import type { Interaction, Task, Campaign, Profile } from "@/lib/types"
 
@@ -308,6 +309,7 @@ export function useActivities(leadId: string | null) {
     mutationFn: (notes: string) => addNote(leadId!, notes, currentUserQuery.data ?? null),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lead-interactions", leadId] })
+      queryClient.invalidateQueries({ queryKey: RELATIONSHIP_GROUPS_KEY })
     },
   })
 
@@ -364,6 +366,7 @@ export function useActivities(leadId: string | null) {
       queryClient.invalidateQueries({ queryKey: ["lead-interactions", leadId] })
       queryClient.invalidateQueries({ queryKey: ["lead-tasks", leadId] })
       queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
+      queryClient.invalidateQueries({ queryKey: RELATIONSHIP_GROUPS_KEY })
       // Auto-score after a call is logged (new interaction affects activity score)
       if (leadId) {
         fetch("/api/leads/score", {
@@ -398,6 +401,7 @@ export function useActivities(leadId: string | null) {
       queryClient.invalidateQueries({ queryKey: ["lead-tasks", leadId] })
       queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
       queryClient.invalidateQueries({ queryKey: ["meetings"] })
+      queryClient.invalidateQueries({ queryKey: RELATIONSHIP_GROUPS_KEY })
       // A meeting is a strong activity signal — rescore like logCall does.
       if (leadId) {
         fetch("/api/leads/score", {

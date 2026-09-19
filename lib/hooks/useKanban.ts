@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { createClient } from "@/lib/supabase/client"
+import { RELATIONSHIP_GROUPS_KEY } from "@/lib/hooks/useRelationshipGroups"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import type { LeadSource, PipelineStage, Profile, ServiceLine } from "@/lib/types"
@@ -392,6 +393,7 @@ export function useKanban() {
       queryClient.invalidateQueries({ queryKey: ["kanban-leads"] }),
       queryClient.invalidateQueries({ queryKey: ["leads"] }),
       queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+      queryClient.invalidateQueries({ queryKey: RELATIONSHIP_GROUPS_KEY }),
     ])
   }
 

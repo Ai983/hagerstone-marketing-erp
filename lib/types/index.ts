@@ -306,6 +306,22 @@ export interface UniverseContact {
   created_at: string
 }
 
+/** Where the relationship stands — computed by `marketing.lead_relationship_groups`. */
+export type LeadRelationshipGroup =
+  | 'new_prospect' | 'warm_prospect' | 'proposal_pending' | 'gone_quiet'
+  | 'active_client' | 'dormant_client' | 'lost'
+
+/** Same idea for a universe contact — see lib/utils/relationship-group.ts. */
+export type UniverseRelationshipGroup =
+  | 'past_client' | 'old_opportunity' | 'open_opportunity'
+  | 'engaged' | 'contacted' | 'audience' | 'in_pipeline'
+
+export interface LeadRelationshipRow {
+  lead_id: string
+  relationship_group: LeadRelationshipGroup
+  last_touch_at: string | null
+}
+
 export type DocumentCategory =
   | 'company_profile' | 'sales_pitch' | 'case_study' | 'brochure'
   | 'presentation' | 'rate_card' | 'certificate' | 'project_photos' | 'other'

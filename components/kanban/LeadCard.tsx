@@ -20,14 +20,20 @@ import {
 } from "lucide-react"
 
 import type { KanbanLead } from "@/lib/hooks/useKanban"
-import type { PipelineStage } from "@/lib/types"
+import type { LeadRelationshipGroup, PipelineStage } from "@/lib/types"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { PriorityBadge, SourceTag } from "@/components/data/DataSetBadge"
+import { RelationshipGroupBadge } from "@/components/data/RelationshipGroupBadge"
 import { formatInrShort, leadValue } from "@/components/kanban/lead-value"
 import { useDataSets } from "@/lib/hooks/useDataSets"
+import { useRelationshipGroups } from "@/lib/hooks/useRelationshipGroups"
 import { categoryConfig } from "@/lib/utils/lead-category"
 import { cn } from "@/lib/utils"
+
+// The column already says "proposal" or "won" — on the board, only the
+// groups a stage can't tell you are worth a chip.
+const KANBAN_GROUPS: LeadRelationshipGroup[] = ["gone_quiet", "dormant_client"]
 
 function getInitials(name?: string | null) {
   if (!name) {
@@ -167,6 +173,7 @@ export function MobileLeadCard({
         </div>
 
         <div className="mb-3 flex flex-wrap gap-2">
+          <RelationshipGroupBadge leadId={lead.id} only={KANBAN_GROUPS} />
           {lead.city && (
             <span className="flex items-center gap-1 text-xs text-[#9090A8]">
               <MapPin size={11} />
@@ -334,6 +341,9 @@ export function LeadCard({
   // One importance signal per card: the field priority (P1–P4) when set,
   // otherwise the Hot/Warm category. Score stays in the lead drawer.
   const category = !lead.priority && lead.category && categoryConfig[lead.category] ? categoryConfig[lead.category] : null
+  const { byLeadId: groupByLeadId } = useRelationshipGroups()
+  const group = groupByLeadId.get(lead.id)?.relationship_group
+  const showGroup = group != null && KANBAN_GROUPS.includes(group)
   const surface = websiteSurface(dataSet?.key, lead.source_detail)
   const subtitle = [surface, lead.company_name && lead.company_name !== lead.full_name ? lead.company_name : null, lead.city]
     .filter(Boolean)
@@ -390,9 +400,10 @@ export function LeadCard({
       ) : null}
 
       {/* Signals — only the ones that apply */}
-      {lead.priority || category || (boqDaysLeft !== null && boqDaysLeft <= 3) ? (
+      {lead.priority || category || showGroup || (boqDaysLeft !== null && boqDaysLeft <= 3) ? (
         <div className="mt-1.5 flex flex-wrap items-center gap-1">
           <PriorityBadge priority={lead.priority} note={lead.priority_note} />
+          <RelationshipGroupBadge leadId={lead.id} only={KANBAN_GROUPS} />
           {category ? (
             <span
               className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"

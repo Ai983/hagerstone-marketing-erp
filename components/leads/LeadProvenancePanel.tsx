@@ -2,13 +2,16 @@
 
 import { useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { format } from "date-fns"
+import { format, formatDistanceToNowStrict } from "date-fns"
 import { toast } from "sonner"
 import { FileText, UserCircle2 } from "lucide-react"
 
 import { WhereItStoppedCard } from "@/components/architect/WhereItStopped"
 import { DataSetBadge, PRIORITY_OPTIONS, PriorityBadge } from "@/components/data/DataSetBadge"
+import { RelationshipGroupBadge } from "@/components/data/RelationshipGroupBadge"
 import { useDataSets } from "@/lib/hooks/useDataSets"
+import { useRelationshipGroups } from "@/lib/hooks/useRelationshipGroups"
+import { LEAD_GROUPS } from "@/lib/utils/relationship-group"
 import { getCachedUser } from "@/lib/hooks/useUser"
 import { createClient } from "@/lib/supabase/client"
 import type { Lead } from "@/lib/types"
@@ -83,6 +86,8 @@ export function LeadProvenancePanel({ lead }: { lead: Lead }) {
     retry: false,
   })
   const { byId: dataSetById } = useDataSets()
+  const { byLeadId: groupByLeadId } = useRelationshipGroups()
+  const groupRow = groupByLeadId.get(lead.id)
 
   const setPriority = async (next: string) => {
     const value = lead.priority === next ? null : next
@@ -139,6 +144,21 @@ export function LeadProvenancePanel({ lead }: { lead: Lead }) {
             </span>
           ) : null}
         </div>
+
+        {groupRow ? (
+          <div className="mt-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] uppercase tracking-wider text-[#9090A8]">Relationship</p>
+              <RelationshipGroupBadge leadId={lead.id} size="sm" />
+              <span className="ml-auto text-[11px] text-[#9090A8]">
+                {groupRow.last_touch_at
+                  ? `Last client contact ${formatDistanceToNowStrict(new Date(groupRow.last_touch_at), { addSuffix: true })}`
+                  : "No client contact logged yet"}
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-[#5A5A72]">{LEAD_GROUPS[groupRow.relationship_group]?.hint}</p>
+          </div>
+        ) : null}
 
         <p className="mb-2 mt-3 text-[11px] uppercase tracking-wider text-[#9090A8]">Field Priority</p>
         <div className="flex flex-wrap gap-1.5">

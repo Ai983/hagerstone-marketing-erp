@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 import { DataSetBadge, PriorityBadge } from "@/components/data/DataSetBadge"
+import { RelationshipGroupBadge } from "@/components/data/RelationshipGroupBadge"
 import type { LeadSource, ServiceLine } from "@/lib/types"
 import type { LeadListItem } from "@/lib/hooks/useLeads"
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
@@ -293,6 +294,7 @@ export function LeadTable({
                         </p>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1">
                           <PriorityBadge priority={lead.priority} note={lead.priority_note} />
+                          <RelationshipGroupBadge leadId={lead.id} />
                           <DataSetBadge dataSetId={lead.data_set_id} />
                           {lead.owner_name ? (
                             <span className="text-[10px] text-[#9090A8]">Owner: {lead.owner_name}</span>
@@ -537,6 +539,7 @@ export function LeadTable({
                       </p>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1">
                         <PriorityBadge priority={lead.priority} note={lead.priority_note} />
+                        <RelationshipGroupBadge leadId={lead.id} />
                         <DataSetBadge dataSetId={lead.data_set_id} />
                         {lead.owner_name ? (
                           <span className="text-[10px] text-[#9090A8]">Owner: {lead.owner_name}</span>

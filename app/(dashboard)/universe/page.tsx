@@ -12,8 +12,12 @@ import { useLeads } from "@/lib/hooks/useLeads"
 import { getCachedUser } from "@/lib/hooks/useUser"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { createClient } from "@/lib/supabase/client"
-import type { FunnelStage, UniverseContact } from "@/lib/types"
+import { GroupBadge } from "@/components/data/RelationshipGroupBadge"
+import type { FunnelStage, UniverseContact, UniverseRelationshipGroup } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import {
+  applyUniverseGroupFilter, isUniverseGroup, UNIVERSE_GROUP_ORDER, UNIVERSE_GROUPS, universeGroupOf,
+} from "@/lib/utils/relationship-group"
 
 const PAGE_SIZE = 50
 
@@ -43,6 +47,8 @@ const FIELD_TO_SERVICE_LINE: Record<string, string> = {
 type Filters = {
   scope: "leads" | "audience" | "all"
   stage: FunnelStage | ""
+  /** Relationship group — overrides scope and stage while set. */
+  group: UniverseRelationshipGroup | ""
   persona: string
   region: string
   field: string
@@ -50,7 +56,7 @@ type Filters = {
   hideConverted: boolean
 }
 
-const EMPTY: Filters = { scope: "leads", stage: "", persona: "", region: "", field: "", recency: "", hideConverted: false }
+const EMPTY: Filters = { scope: "leads", stage: "", group: "", persona: "", region: "", field: "", recency: "", hideConverted: false }
 
 type SummaryRow = { dimension: string; bucket: string; total: number }
 
@@ -82,6 +88,14 @@ export default function UniversePage() {
 
   useEffect(() => setPage(0), [search, filters])
 
+  // Deep link from the Sales Engine groups panel: /universe?group=past_client.
+  // Read once on mount — plain window access keeps this page out of a
+  // Suspense boundary.
+  useEffect(() => {
+    const group = new URLSearchParams(window.location.search).get("group")
+    if (group && isUniverseGroup(group)) setFilters((f) => ({ ...f, group, stage: "", scope: "all" }))
+  }, [])
+
   const summary = useQuery({
     queryKey: ["universe-summary"],
     queryFn: async (): Promise<SummaryRow[]> => {
@@ -107,7 +121,8 @@ export default function UniversePage() {
         .from("universe_contacts")
         .select("*", { count: "estimated" })
 
-      if (filters.stage) q = q.eq("funnel_stage", filters.stage)
+      if (filters.group) q = applyUniverseGroupFilter(q, filters.group)
+      else if (filters.stage) q = q.eq("funnel_stage", filters.stage)
       else if (filters.scope === "leads") q = q.eq("is_lead", true)
       else if (filters.scope === "audience") q = q.eq("is_lead", false)
 
@@ -132,7 +147,7 @@ export default function UniversePage() {
   const rows = list.data?.rows ?? []
   const count = list.data?.count ?? 0
   const pages = Math.max(1, Math.ceil(count / PAGE_SIZE))
-  const activeFilterCount = [filters.persona, filters.region, filters.field, filters.recency].filter(Boolean).length + (filters.hideConverted ? 1 : 0)
+  const activeFilterCount = [filters.group, filters.persona, filters.region, filters.field, filters.recency].filter(Boolean).length + (filters.hideConverted ? 1 : 0)
 
   const convert = async (c: UniverseContact) => {
     setConverting(c.id)
@@ -206,6 +221,14 @@ export default function UniversePage() {
 
   const selects = (
     <>
+      <select
+        value={filters.group}
+        onChange={(e) => set({ group: e.target.value as UniverseRelationshipGroup | "", stage: "", scope: e.target.value ? "all" : "leads" })}
+        className="h-11 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none md:h-10"
+      >
+        <option value="">All groups</option>
+        {UNIVERSE_GROUP_ORDER.map((g) => <option key={g} value={g}>{UNIVERSE_GROUPS[g].label}</option>)}
+      </select>
       {[
         { key: "persona", label: "All personas", options: PERSONAS },
         { key: "region", label: "All regions", options: REGIONS },
@@ -249,7 +272,7 @@ export default function UniversePage() {
               key={s.value}
               type="button"
               title={s.hint}
-              onClick={() => set({ stage: active ? "" : s.value, scope: s.value === "1-AUDIENCE" ? "audience" : "leads" })}
+              onClick={() => set({ stage: active ? "" : s.value, group: "", scope: s.value === "1-AUDIENCE" ? "audience" : "leads" })}
               className={cn(
                 "min-w-[128px] shrink-0 rounded-xl border p-3 text-left transition",
                 active ? "bg-[#1A1A24]" : "border-[#2A2A3C] bg-[#111118] hover:border-[#3A3A52]"
@@ -279,10 +302,10 @@ export default function UniversePage() {
             <button
               key={o.v}
               type="button"
-              onClick={() => set({ scope: o.v, stage: "" })}
+              onClick={() => set({ scope: o.v, stage: "", group: "" })}
               className={cn(
                 "h-9 flex-1 whitespace-nowrap rounded-md px-3 text-sm transition md:flex-none",
-                filters.scope === o.v && !filters.stage ? "bg-[#3B82F6] text-white" : "text-[#9090A8] hover:text-[#F0F0FA]"
+                filters.scope === o.v && !filters.stage && !filters.group ?"bg-[#3B82F6] text-white" : "text-[#9090A8] hover:text-[#F0F0FA]"
               )}
             >
               {o.l}
@@ -313,7 +336,7 @@ export default function UniversePage() {
       <div className={cn("mb-4 grid grid-cols-2 gap-2 md:flex md:flex-wrap", showFilters ? "grid" : "hidden md:flex")}>
         {selects}
         {activeFilterCount ? (
-          <button type="button" onClick={() => setFilters((f) => ({ ...EMPTY, scope: f.scope, stage: f.stage }))} className="inline-flex h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs text-[#9090A8] hover:text-[#F0F0FA] md:h-10">
+          <button type="button" onClick={() => setFilters((f) => ({ ...EMPTY, scope: f.group ? "leads" : f.scope, stage: f.stage }))}className="inline-flex h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs text-[#9090A8] hover:text-[#F0F0FA] md:h-10">
             <X className="size-3.5" /> Clear
           </button>
         ) : null}
@@ -352,7 +375,7 @@ export default function UniversePage() {
                     </div>
                     {c.role ? <p className="truncate text-xs text-[#9090A8]">{c.role}</p> : null}
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
-                      <span className="rounded-full px-1.5 py-0.5" style={{ color: meta?.color, backgroundColor: `${meta?.color}1F` }}>{meta?.label}</span>
+                      <GroupBadge meta={UNIVERSE_GROUPS[universeGroupOf(c)]} />
                       {c.persona ? <span className="rounded-full bg-[#1F1F2E] px-1.5 py-0.5 text-[#9090A8]">{c.persona}</span> : null}
                       {c.field ? <span className="rounded-full bg-[#1F1F2E] px-1.5 py-0.5 text-[#9090A8]">{c.field}</span> : null}
                       {c.recency ? <span className="rounded-full bg-[#1F1F2E] px-1.5 py-0.5 text-[#9090A8]">{c.recency}</span> : null}

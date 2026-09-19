@@ -6,6 +6,7 @@ import { ChevronDown, Filter, Search, X } from "lucide-react"
 import { PRIORITY_OPTIONS, priorityLabel } from "@/components/data/DataSetBadge"
 import type { DataSet, LeadSource, PipelineStage, ServiceLine } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { LEAD_GROUP_ORDER, LEAD_GROUPS } from "@/lib/utils/relationship-group"
 
 export type ProfileCategoryFilter =
   | "all"
@@ -26,6 +27,8 @@ export interface LeadsFilterState {
   /** Data set keys — "architect-meetings-dec-2025", "founder-pipeline"… */
   dataSets: string[]
   priorities: string[]
+  /** Relationship groups — "gone_quiet", "proposal_pending"… */
+  groups: string[]
 }
 
 export const EMPTY_LEAD_FILTERS: LeadsFilterState = {
@@ -37,11 +40,18 @@ export const EMPTY_LEAD_FILTERS: LeadsFilterState = {
   profile: "all",
   dataSets: [],
   priorities: [],
+  groups: [],
 }
 
 const priorityOptions = PRIORITY_OPTIONS.map((p) => ({
   value: p,
   label: p === "dropped" ? "Dropped" : `${priorityLabel(p)} priority`,
+}))
+
+const groupOptions = LEAD_GROUP_ORDER.map((g) => ({
+  value: g,
+  label: LEAD_GROUPS[g].label,
+  color: LEAD_GROUPS[g].color,
 }))
 
 const profileFilterOptions: { value: ProfileCategoryFilter; label: string }[] = [
@@ -224,6 +234,7 @@ export function LeadFilters({
     (filters.category !== "all" ? 1 : 0) +
     (filters.profile !== "all" ? 1 : 0) +
     filters.priorities.length +
+    filters.groups.length +
     (filters.search ? 1 : 0)
 
   const hasActiveFilters = activeFilterCount > 0
@@ -296,6 +307,12 @@ export function LeadFilters({
             />
           </div>
           <MultiSelectDropdown
+            label="Group"
+            values={filters.groups}
+            options={groupOptions}
+            onChange={(values) => update({ groups: values })}
+          />
+          <MultiSelectDropdown
             label="Stage"
             values={filters.stages}
             options={stageOptions}
@@ -362,6 +379,12 @@ export function LeadFilters({
 
         {showMobileFilters ? (
           <div className="grid grid-cols-1 gap-3 md:hidden">
+            <MultiSelectDropdown
+              label="Group"
+              values={filters.groups}
+              options={groupOptions}
+              onChange={(values) => update({ groups: values })}
+            />
             <MultiSelectDropdown
               label="Stage"
               values={filters.stages}

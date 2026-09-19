@@ -15,6 +15,7 @@ import {
 import { LeadTable, type SortDirection, type SortKey } from "@/components/leads/LeadTable"
 import { useDataSets } from "@/lib/hooks/useDataSets"
 import { useLeads } from "@/lib/hooks/useLeads"
+import { useRelationshipGroups } from "@/lib/hooks/useRelationshipGroups"
 import type { LeadSource, ServiceLine } from "@/lib/types"
 
 const PAGE_SIZE = 25
@@ -56,6 +57,8 @@ export function LeadsPageContent() {
   // Not part of the loading gate: before migration 003 there is no
   // data_sets table, and the leads page must still work without tabs.
   const { dataSets, byId: dataSetById } = useDataSets()
+  // Same: before migration 017 there are no groups, and the filter just matches nothing.
+  const { byLeadId: groupByLeadId } = useRelationshipGroups()
 
   const filters = useMemo<LeadsFilterState>(
     () => ({
@@ -70,6 +73,7 @@ export function LeadsPageContent() {
         (searchParams.get("profile") as ProfileCategoryFilter | null) ?? "all",
       dataSets: searchParams.getAll("ds"),
       priorities: searchParams.getAll("priority"),
+      groups: searchParams.getAll("group"),
     }),
     [searchParams]
   )
@@ -92,6 +96,7 @@ export function LeadsPageContent() {
     }
     nextFilters.dataSets.forEach((value) => nextParams.append("ds", value))
     nextFilters.priorities.forEach((value) => nextParams.append("priority", value))
+    nextFilters.groups.forEach((value) => nextParams.append("group", value))
 
     const queryString = nextParams.toString()
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false })
@@ -109,6 +114,11 @@ export function LeadsPageContent() {
         filters.priorities.length === 0 ||
         (lead.priority ? filters.priorities.includes(lead.priority) : false)
       if (!matchesPriority) return false
+
+      if (filters.groups.length > 0) {
+        const group = groupByLeadId.get(lead.id)?.relationship_group
+        if (!group || !filters.groups.includes(group)) return false
+      }
 
       const matchesSearch =
         !normalizedSearch ||
@@ -153,7 +163,7 @@ export function LeadsPageContent() {
         matchesProfile
       )
     })
-  }, [filters, leadsQuery.data])
+  }, [filters, leadsQuery.data, groupByLeadId])
 
   const dataSetCounts = useMemo(() => {
     const counts: Record<string, number> = {}
