@@ -59,6 +59,7 @@ import { StageChangeModal } from "@/components/kanban/StageChangeModal"
 import { scoreLead, getScoreLabel, MAX_POINTS } from "@/lib/utils/lead-scoring"
 import { categoryConfig, type LeadCategory } from "@/lib/utils/lead-category"
 import { LeadProvenancePanel } from "@/components/leads/LeadProvenancePanel"
+import { winStoryColumns, type WinStory } from "@/lib/utils/win-story"
 import type { Lead, PipelineStage, PriceRevision, Profile, UserRole } from "@/lib/types"
 import type { KanbanLead } from "@/lib/hooks/useKanban"
 import type { TimelineInteraction } from "@/lib/hooks/useActivities"
@@ -3470,6 +3471,7 @@ export function LeadDrawer() {
     closureValue?: number
     lossReason?: string
     lostToCompetitor?: string
+    winStory?: WinStory
   }) => {
     if (!lead || !pendingToStage) return
     setIsMovingStage(true)
@@ -3502,6 +3504,7 @@ export function LeadDrawer() {
     if (toStage.slug === "won") {
       payload.closure_value = values.closureValue ?? null
       payload.closed_at = now
+      Object.assign(payload, winStoryColumns(values.winStory))
     } else if (toStage.slug === "lost") {
       payload.closure_reason = values.lossReason ?? null
       payload.lost_to_competitor = values.lostToCompetitor ?? null

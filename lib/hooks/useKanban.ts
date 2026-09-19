@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { createClient } from "@/lib/supabase/client"
+import { winStoryColumns, type WinStory } from "@/lib/utils/win-story"
 import { RELATIONSHIP_GROUPS_KEY } from "@/lib/hooks/useRelationshipGroups"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
@@ -250,7 +251,8 @@ export function useKanban() {
     note?: string,
     closureValue?: number,
     lossReason?: string,
-    lostToCompetitor?: string
+    lostToCompetitor?: string,
+    winStory?: WinStory
   ) => {
     const supabase = createClient()
     const lead = leads.find((item) => item.id === leadId)
@@ -294,6 +296,7 @@ export function useKanban() {
     if (toStage.slug === "won") {
       payload.closure_value = closureValue ?? null
       payload.closed_at = now
+      Object.assign(payload, winStoryColumns(winStory))
     } else if (toStage.slug === "lost") {
       payload.closure_reason = lossReason ?? null
       payload.lost_to_competitor = lostToCompetitor ?? null

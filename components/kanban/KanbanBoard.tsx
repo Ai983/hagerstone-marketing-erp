@@ -29,6 +29,7 @@ import { StageChangeModal } from "@/components/kanban/StageChangeModal"
 import { useKanban } from "@/lib/hooks/useKanban"
 import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import { useRealtime } from "@/lib/hooks/useRealtime"
+import type { WinStory } from "@/lib/utils/win-story"
 
 const SCROLL_STEP = 300
 
@@ -273,6 +274,7 @@ export function KanbanBoard({ isMobile }: { isMobile: boolean }) {
     closureValue?: number
     lossReason?: string
     lostToCompetitor?: string
+    winStory?: WinStory
   }) => {
     if (!pendingStageChange || !pendingLead || !pendingToStage) {
       clearPendingStageChange()
@@ -289,7 +291,8 @@ export function KanbanBoard({ isMobile }: { isMobile: boolean }) {
         values.note,
         values.closureValue,
         values.lossReason,
-        values.lostToCompetitor
+        values.lostToCompetitor,
+        values.winStory
       )
 
       toast.success(`${pendingLead.full_name} moved to ${pendingToStage.name}`)

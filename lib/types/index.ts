@@ -111,6 +111,10 @@ export interface Lead {
   lost_to_competitor?: string | null
   /** Ids from `marketing.tags`. */
   tag_ids?: string[]
+  /** Why they bought — captured on Won (migration 022). */
+  win_trigger?: string | null
+  win_why_us?: string | null
+  win_worry?: string | null
   closure_value?: number
   closed_at?: string
   initial_notes?: string
@@ -322,6 +326,23 @@ export interface Tag {
   /** Retired tags stay on records but leave the picker. */
   is_active: boolean
   position: number
+}
+
+/** A saved Claude review of losses, objections and wins (`marketing.ai_reviews.content`). */
+export interface FeedbackReview {
+  headline: string
+  patterns: { title: string; detail: string; evidence: string }[]
+  why_clients_buy: string[]
+  pitch_lines: string[]
+  actions: {
+    heard: string
+    objection_key: string | null
+    meaning: string
+    action: string
+    owner: "sales" | "marketing" | "founder"
+    due_in_days: number
+  }[]
+  data_note: string
 }
 
 /** Where the relationship stands — computed by `marketing.lead_relationship_groups`. */

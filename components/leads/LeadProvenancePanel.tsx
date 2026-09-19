@@ -10,6 +10,7 @@ import { WhereItStoppedCard } from "@/components/architect/WhereItStopped"
 import { DataSetBadge, PRIORITY_OPTIONS, PriorityBadge } from "@/components/data/DataSetBadge"
 import { RelationshipGroupBadge } from "@/components/data/RelationshipGroupBadge"
 import { TagChips } from "@/components/tags/TagChips"
+import { WinStoryCard } from "@/components/leads/WinStoryCard"
 import { TagPicker } from "@/components/tags/TagPicker"
 import { useDataSets } from "@/lib/hooks/useDataSets"
 import { useRelationshipGroups } from "@/lib/hooks/useRelationshipGroups"
@@ -204,6 +205,10 @@ export function LeadProvenancePanel({ lead }: { lead: Lead }) {
             </div>
             <p className="mt-1 text-[11px] text-[#5A5A72]">{LEAD_GROUPS[groupRow.relationship_group]?.hint}</p>
           </div>
+        ) : null}
+
+        {lead.stage?.stage_type === "won" || lead.win_trigger || lead.win_why_us || lead.win_worry ? (
+          <WinStoryCard lead={lead} />
         ) : null}
 
         {objectionCounts.length > 0 || lead.lost_to_competitor ? (

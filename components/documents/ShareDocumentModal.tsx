@@ -87,6 +87,7 @@ export function ShareDocumentModal({
     await supabase.rpc("bump_document_shares", { doc_id: document.id })
 
     queryClient.invalidateQueries({ queryKey: ["documents"] })
+    queryClient.invalidateQueries({ queryKey: ["document-performance"] })
     if (lead) {
       queryClient.invalidateQueries({ queryKey: ["document-shares", lead.id] })
       queryClient.invalidateQueries({ queryKey: ["lead-interactions", lead.id] })

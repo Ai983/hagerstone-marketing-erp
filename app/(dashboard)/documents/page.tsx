@@ -10,6 +10,9 @@ import {
 } from "lucide-react"
 
 import { AddLinkModal } from "@/components/documents/AddLinkModal"
+import {
+  DocumentOutcomeLine, DocumentPerformanceSection, useDocumentPerformance,
+} from "@/components/documents/DocumentPerformance"
 import { PitchEditorModal } from "@/components/documents/PitchEditorModal"
 import { ShareDocumentModal } from "@/components/documents/ShareDocumentModal"
 import { UploadDocumentModal } from "@/components/documents/UploadDocumentModal"
@@ -84,6 +87,7 @@ export default function DocumentsPage() {
   })
 
   const all = useMemo(() => documents ?? [], [documents])
+  const { byId: perfById } = useDocumentPerformance()
   const pinned = useMemo(() => all.filter((d) => d.is_pinned && d.kind === "link"), [all])
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["documents"] })
 
@@ -214,6 +218,8 @@ export default function DocumentsPage() {
         </div>
       ) : null}
 
+      <DocumentPerformanceSection documents={all} />
+
       {/* Category tabs — scroll sideways on phones */}
       <div className="thin-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
         {(["all", ...CATEGORY_ORDER] as const)
@@ -334,6 +340,7 @@ export default function DocumentsPage() {
                   {doc.uploader?.full_name ? ` · ${doc.uploader.full_name}` : ""}
                   {" · "}{doc.download_count} {doc.kind === "file" ? "downloads" : "opens"} · {doc.share_count} shares
                 </p>
+                <DocumentOutcomeLine stats={perfById.get(doc.id)} />
 
                 <div className="mt-auto flex gap-2 pt-3">
                   {doc.kind === "pitch" ? (

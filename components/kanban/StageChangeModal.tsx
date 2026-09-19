@@ -8,6 +8,8 @@ import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import type { KanbanLead } from "@/lib/hooks/useKanban"
 import type { PipelineStage, UserRole } from "@/lib/types"
 import { COMPETITOR_LOSS_REASON, LOSS_REASONS } from "@/lib/utils/objections"
+import { WinStoryFields } from "@/components/leads/WinStoryFields"
+import { EMPTY_WIN_STORY, type WinStory } from "@/lib/utils/win-story"
 
 interface StageChangeModalProps {
   open: boolean
@@ -22,6 +24,7 @@ interface StageChangeModalProps {
     closureValue?: number
     lossReason?: string
     lostToCompetitor?: string
+    winStory?: WinStory
   }) => Promise<void> | void
 }
 
@@ -50,6 +53,7 @@ export function StageChangeModal({
   const [closureValue, setClosureValue] = useState("")
   const [lossReason, setLossReason] = useState("")
   const [competitor, setCompetitor] = useState("")
+  const [winStory, setWinStory] = useState<WinStory>(EMPTY_WIN_STORY)
   const [error, setError] = useState<string | null>(null)
   const isMobile = useMediaQuery("(max-width: 768px)")
 
@@ -59,6 +63,7 @@ export function StageChangeModal({
       setClosureValue("")
       setLossReason("")
       setCompetitor("")
+      setWinStory(EMPTY_WIN_STORY)
       setError(null)
     }
   }, [open])
@@ -119,6 +124,7 @@ export function StageChangeModal({
       lossReason: lossReason || undefined,
       lostToCompetitor:
         lossReason === COMPETITOR_LOSS_REASON ? competitor.trim() || undefined : undefined,
+      winStory: toStage?.slug === "won" ? winStory : undefined,
     })
   }
 
@@ -200,6 +206,9 @@ export function StageChangeModal({
                   onChange={(event) => setClosureValue(event.target.value)}
                   className="w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 md:text-sm"
                 />
+                <div className="mt-4">
+                  <WinStoryFields value={winStory} onChange={setWinStory} />
+                </div>
               </div>
             ) : null}
 
