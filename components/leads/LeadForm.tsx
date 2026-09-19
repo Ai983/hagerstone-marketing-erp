@@ -10,6 +10,8 @@ import { z } from "zod"
 
 import { useLeads, type CreateLeadInput, type DuplicateLeadMatch } from "@/lib/hooks/useLeads"
 import { getCachedUser } from "@/lib/hooks/useUser"
+import { useUIStore } from "@/lib/stores/uiStore"
+import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 
 const companySizeOptions = ["1-10", "11-50", "51-200", "201-500", "500+"] as const
@@ -57,11 +59,15 @@ const leadFormSchema = z.object({
   company_name: z.preprocess(emptyToUndefined, z.string().optional()),
   company_size: z.preprocess(emptyToUndefined, z.enum(companySizeOptions).optional()),
   industry: z.preprocess(emptyToUndefined, z.string().optional()),
-  city: z.preprocess(emptyToUndefined, z.string().optional()),
+  // City and service line are required on manual entry — most leads were
+  // missing them, which broke filters and scoring (Data Health, Sep 2026).
+  city: z.preprocess(emptyToUndefined, z.string({ error: "City is required." })),
   state: z.string().trim().default("Delhi NCR"),
   service_line: z.preprocess(
     emptyToUndefined,
-    z.enum(serviceLineOptions.map((option) => option.value) as [string, ...string[]]).optional()
+    z.enum(serviceLineOptions.map((option) => option.value) as [string, ...string[]], {
+      error: "Choose a service line (pick Unknown if you really don't know).",
+    })
   ),
   estimated_budget: z.preprocess(emptyToUndefined, z.string().optional()),
   project_size_sqft: z.preprocess((value) => {
@@ -120,6 +126,7 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
   const router = useRouter()
   const isStandalone = !onSuccess
   const { createLead, checkDuplicate, getStageBySlug } = useLeads()
+  const { setLeadDrawerId } = useUIStore()
   const [formError, setFormError] = useState<string | null>(null)
   const [duplicateLead, setDuplicateLead] = useState<DuplicateLeadMatch | null>(null)
   const [pendingLeadData, setPendingLeadData] = useState<CreateLeadInput | null>(null)
@@ -166,9 +173,12 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
     }
 
     const company = duplicateLead.company_name ? ` at ${duplicateLead.company_name}` : ""
-    const stage = duplicateLead.stage?.name ? ` in stage ${duplicateLead.stage.name}` : ""
     const field = duplicateLead.duplicateField === "email" ? "email" : "phone"
-    return `A lead with this ${field} already exists: ${duplicateLead.full_name}${company}${stage}. Do you want to continue creating a new lead anyway?`
+    if (duplicateLead.universe) {
+      return `This ${field} is already in the Contact Universe: ${duplicateLead.full_name}${company}. Continue creates the lead and links it to that contact.`
+    }
+    const stage = duplicateLead.stage?.name ? ` in stage ${duplicateLead.stage.name}` : ""
+    return `A lead with this ${field} already exists: ${duplicateLead.full_name}${company}${stage}. Open it instead, or continue creating a new lead anyway?`
   }, [duplicateLead])
 
   const persistLead = async (data: CreateLeadInput) => {
@@ -177,6 +187,15 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
 
     try {
       const lead = await createLead(data)
+      // Known contact in the universe → link it, so it shows "In pipeline"
+      // there and is never pulled in a second time.
+      if (duplicateLead?.universe) {
+        const { error: linkError } = await createClient()
+          .from("universe_contacts")
+          .update({ converted_lead_id: lead.id, converted_at: new Date().toISOString(), converted_by: data.created_by })
+          .eq("id", duplicateLead.id)
+        if (linkError) console.error("Universe link failed:", linkError)
+      }
       // Fire-and-forget initial scoring (don't block navigation on it)
       fetch("/api/leads/score", {
         method: "POST",
@@ -306,6 +325,18 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
                   >
                     Cancel
                   </button>
+                  {duplicateLead && !duplicateLead.universe ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLeadDrawerId(duplicateLead.id)
+                        onSuccess?.(duplicateLead.id)
+                      }}
+                      className="inline-flex h-10 items-center justify-center rounded-lg border border-[#3B82F6]/50 bg-[#1E3A5F] px-4 text-sm text-[#93C5FD] transition hover:bg-[#1E3A5F]/80"
+                    >
+                      Open existing lead
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => pendingLeadData && persistLead(pendingLeadData)}
@@ -403,7 +434,7 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
           <SectionHeading>Section 3 — Location</SectionHeading>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className={labelClasses}>City</label>
+              <label className={labelClasses}>City *</label>
               <input {...register("city")} className={inputClasses} />
               <FieldError message={errors.city?.message} />
             </div>
@@ -419,7 +450,7 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
           <SectionHeading>Section 4 — Service Interest</SectionHeading>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className={labelClasses}>Service Line</label>
+              <label className={labelClasses}>Service Line *</label>
               <select {...register("service_line")} className={selectClasses} defaultValue="">
                 <option value="">Select service line</option>
                 {serviceLineOptions.map((option) => (

@@ -13,6 +13,14 @@ export interface DuplicateLeadMatch {
   email?: string | null
   duplicateField?: "phone" | "email"
   stage?: Pick<PipelineStage, "id" | "name" | "slug"> | null
+  /** Set when the match is a contact-universe row, not a pipeline lead. */
+  universe?: { funnel_stage: string } | null
+}
+
+/** Last 10 digits — the same rule as the phone_tail columns (migrations 004, 021). */
+export function phoneTail(phone?: string | null) {
+  const digits = (phone ?? "").replace(/\D/g, "")
+  return digits.length >= 10 ? digits.slice(-10) : null
 }
 
 export interface CreateLeadInput {
@@ -72,14 +80,17 @@ export function useLeads() {
     email?: string
   ): Promise<DuplicateLeadMatch | null> => {
     const supabase = createClient()
-    const normalizedPhone = phone?.trim()
+    const tail = phoneTail(phone)
     const normalizedEmail = email?.trim()
+    const leadColumns = "id, full_name, company_name, phone, phone_alt, email, stage:stage_id(id, name, slug)"
 
-    if (normalizedPhone) {
+    // Pipeline first, by the last 10 digits so "+91 98100 12345" matches
+    // "9810012345". Archived leads count too — restoring beats re-creating.
+    if (tail) {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, full_name, company_name, phone, phone_alt, email, stage:stage_id(id, name, slug)")
-        .or(`phone.eq.${normalizedPhone},phone_alt.eq.${normalizedPhone}`)
+        .select(leadColumns)
+        .or(`phone_tail.eq.${tail},phone_alt.ilike.%${tail}`)
         .limit(1)
         .maybeSingle()
 
@@ -95,7 +106,7 @@ export function useLeads() {
     if (normalizedEmail) {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, full_name, company_name, phone, phone_alt, email, stage:stage_id(id, name, slug)")
+        .select(leadColumns)
         .ilike("email", normalizedEmail)
         .limit(1)
         .maybeSingle()
@@ -106,6 +117,33 @@ export function useLeads() {
 
       if (data) {
         return { ...(data as unknown as DuplicateLeadMatch), duplicateField: "email" }
+      }
+    }
+
+    // Then the contact universe: not a duplicate lead, but the person is
+    // already known — creating the lead should link to that record.
+    const ors = [tail ? `phone_tail.eq.${tail}` : null, normalizedEmail ? `email.ilike.${normalizedEmail}` : null]
+      .filter(Boolean)
+      .join(",")
+    if (ors) {
+      const { data } = await supabase
+        .from("universe_contacts")
+        .select("id, name, company, phone, email, funnel_stage, phone_tail")
+        .is("converted_lead_id", null)
+        .or(ors)
+        .limit(1)
+        .maybeSingle()
+
+      if (data) {
+        return {
+          id: data.id,
+          full_name: data.name || data.company || "Unnamed contact",
+          company_name: data.company,
+          phone: data.phone,
+          email: data.email,
+          duplicateField: tail && data.phone_tail === tail ? "phone" : "email",
+          universe: { funnel_stage: data.funnel_stage },
+        }
       }
     }
 

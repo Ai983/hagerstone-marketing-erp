@@ -843,6 +843,8 @@ Added Sep 2026 to absorb the founder's standalone Sales Engine (`docs/founder-sa
 
 **Tags** (migration `020`): shared list in `marketing.tags` (name unique ignoring case, colour, `is_important` = shown on Kanban cards, `is_active` = retire instead of delete). Records hold ids: `leads.tag_ids` and `universe_contacts.tag_ids` (UUID[], GIN-indexed). Anyone can add a tag from `TagPicker` (`useTags().createTag` reuses a same-name tag); tidy at `/admin/tags`. Bulk add/remove on All Leads via RPCs `add_tag_to_leads` / `remove_tag_from_leads`. Tag filter on All Leads (`?tag=`) and Universe; "Add to pipeline" copies a contact's tags.
 
+**Data Health** (migration `021`, `/admin/data-health`): `leads.phone_tail` (last 10 digits, same rule as the universe) backs duplicate detection. Tabs: Overview (score per data set over five checks — phone/email, company, city, service line, budget/value — in `useDataHealth`), Complete leads (one lead at a time, only its missing fields, P1/P2 and near-money first), Duplicates (merge via RPC `merge_leads(keep, merge)` — moves every child row, fills blanks, unions tags, archives the duplicate with `duplicate_of`; plus `lead_universe_matches()` to link unlinked universe contacts), Unreachable (open or archive). Universe counts come from `universe_health_summary()` and are display-only. The add-lead form now requires city and service line, and its duplicate check matches on phone tail and also looks in the universe (linking on create).
+
 **Imports** (`scripts/imports/*.mjs`, `--dry-run`, idempotent): `import-architect-meetings` → `import-founder-pipeline` → `import-founder-universe`, in that order.
 
 ---
