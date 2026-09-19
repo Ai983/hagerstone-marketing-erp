@@ -173,6 +173,7 @@ async function logCall(
     outcome: string
     notes: string
     duration_minutes: number | null
+    objections?: string[]
   }
 ) {
   const supabase = createClient()
@@ -183,6 +184,7 @@ async function logCall(
     outcome: data.outcome,
     notes: data.notes || null,
     duration_minutes: data.duration_minutes,
+    objections: data.objections ?? [],
   })
   if (error) throw error
 }
@@ -197,6 +199,8 @@ export type MeetingInput = {
   attendees: string | null
   /** When the meeting actually took place — may be backdated. */
   occurred_at: string
+  /** Keys from lib/utils/objections.ts. */
+  objections?: string[]
   follow_up?: { due_at: string; type: string }
 }
 
@@ -217,6 +221,7 @@ async function logMeeting(
     location: data.location,
     attendees: data.attendees,
     occurred_at: data.occurred_at,
+    objections: data.objections ?? [],
   })
   if (error) throw error
 }
@@ -345,6 +350,7 @@ export function useActivities(leadId: string | null) {
       outcome: string
       notes: string
       duration_minutes: number | null
+      objections?: string[]
       follow_up?: { due_at: string; type: string }
     }) => {
       const currentUserId = currentUserQuery.data ?? null

@@ -3469,6 +3469,7 @@ export function LeadDrawer() {
     note?: string
     closureValue?: number
     lossReason?: string
+    lostToCompetitor?: string
   }) => {
     if (!lead || !pendingToStage) return
     setIsMovingStage(true)
@@ -3503,11 +3504,13 @@ export function LeadDrawer() {
       payload.closed_at = now
     } else if (toStage.slug === "lost") {
       payload.closure_reason = values.lossReason ?? null
+      payload.lost_to_competitor = values.lostToCompetitor ?? null
       payload.closed_at = now
     } else if (toStage.stage_type === "active" && (fromStageType === "won" || fromStageType === "lost")) {
       payload.closed_at = null
       payload.closure_value = null
       payload.closure_reason = null
+      payload.lost_to_competitor = null
     }
 
     try {

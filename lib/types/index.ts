@@ -108,6 +108,7 @@ export interface Lead {
   won_date: string | null
   won_by: string | null
   closure_reason?: string
+  lost_to_competitor?: string | null
   closure_value?: number
   closed_at?: string
   initial_notes?: string
@@ -166,6 +167,8 @@ export interface Interaction {
   location?: string | null
   attendees?: string | null
   occurred_at?: string | null
+  /** Objections raised on a call / meeting — keys from lib/utils/objections.ts. */
+  objections?: string[]
   stage_from_id?: string
   stage_from?: PipelineStage
   stage_to_id?: string

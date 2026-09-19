@@ -272,6 +272,7 @@ export function KanbanBoard({ isMobile }: { isMobile: boolean }) {
     note?: string
     closureValue?: number
     lossReason?: string
+    lostToCompetitor?: string
   }) => {
     if (!pendingStageChange || !pendingLead || !pendingToStage) {
       clearPendingStageChange()
@@ -287,7 +288,8 @@ export function KanbanBoard({ isMobile }: { isMobile: boolean }) {
         pendingStageChange.toStageId,
         values.note,
         values.closureValue,
-        values.lossReason
+        values.lossReason,
+        values.lostToCompetitor
       )
 
       toast.success(`${pendingLead.full_name} moved to ${pendingToStage.name}`)

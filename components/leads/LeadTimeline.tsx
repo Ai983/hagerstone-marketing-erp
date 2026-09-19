@@ -21,6 +21,7 @@ import type { InteractionType } from "@/lib/types"
 import type { TimelineInteraction } from "@/lib/hooks/useActivities"
 import { useUser } from "@/lib/hooks/useUser"
 import { canChangeInteraction } from "@/lib/utils/interaction-edit"
+import { objectionLabel } from "@/lib/utils/objections"
 import { TimelineEntryActions } from "@/components/leads/TimelineEntryActions"
 
 // ── Icon map ────────────────────────────────────────────────────────
@@ -267,13 +268,22 @@ export function LeadTimeline({ interactions, isLoading, onAddNote, isAddingNote 
                       <Icon className="size-3.5 text-[#9090A8]" />
                     </div>
                     <div className="flex-1 pt-0.5">
-                      <div className="-mt-1 flex min-h-8 items-center gap-2">
+                      <div className="-mt-1 flex min-h-8 flex-wrap items-center gap-2">
                         <span className="text-xs font-medium text-[#F0F0FA]">
                           {getTypeLabel(interaction.type)}
                         </span>
                         {interaction.outcome && (
                           <OutcomeBadge outcome={interaction.outcome} />
                         )}
+                        {interaction.objections?.map((key) => (
+                          <span
+                            key={key}
+                            title="Objection heard"
+                            className="inline-flex rounded-full border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2 py-0.5 text-[11px] text-[#FBBF24]"
+                          >
+                            {objectionLabel(key)}
+                          </span>
+                        ))}
                         {canChangeInteraction(interaction, me) ? (
                           <TimelineEntryActions interaction={interaction} />
                         ) : null}

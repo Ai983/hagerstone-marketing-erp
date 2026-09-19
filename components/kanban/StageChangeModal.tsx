@@ -7,6 +7,7 @@ import { AlertTriangle } from "lucide-react"
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import type { KanbanLead } from "@/lib/hooks/useKanban"
 import type { PipelineStage, UserRole } from "@/lib/types"
+import { COMPETITOR_LOSS_REASON, LOSS_REASONS } from "@/lib/utils/objections"
 
 interface StageChangeModalProps {
   open: boolean
@@ -20,17 +21,9 @@ interface StageChangeModalProps {
     note?: string
     closureValue?: number
     lossReason?: string
+    lostToCompetitor?: string
   }) => Promise<void> | void
 }
-
-const lossReasonOptions = [
-  "Budget constraints",
-  "Chose competitor",
-  "No response",
-  "Timeline mismatch",
-  "Project cancelled",
-  "Other",
-] as const
 
 function StagePill({ label, color }: { label: string; color: string }) {
   return (
@@ -56,6 +49,7 @@ export function StageChangeModal({
   const [note, setNote] = useState("")
   const [closureValue, setClosureValue] = useState("")
   const [lossReason, setLossReason] = useState("")
+  const [competitor, setCompetitor] = useState("")
   const [error, setError] = useState<string | null>(null)
   const isMobile = useMediaQuery("(max-width: 768px)")
 
@@ -64,6 +58,7 @@ export function StageChangeModal({
       setNote("")
       setClosureValue("")
       setLossReason("")
+      setCompetitor("")
       setError(null)
     }
   }, [open])
@@ -122,6 +117,8 @@ export function StageChangeModal({
       note: note.trim() || undefined,
       closureValue: closureValue ? Number(closureValue) : undefined,
       lossReason: lossReason || undefined,
+      lostToCompetitor:
+        lossReason === COMPETITOR_LOSS_REASON ? competitor.trim() || undefined : undefined,
     })
   }
 
@@ -217,12 +214,20 @@ export function StageChangeModal({
                   className="w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 md:text-sm"
                 >
                   <option value="">Select a reason</option>
-                  {lossReasonOptions.map((option) => (
+                  {LOSS_REASONS.map((option) => (
                     <option key={option} value={option}>
                       {option}
                     </option>
                   ))}
                 </select>
+                {lossReason === COMPETITOR_LOSS_REASON ? (
+                  <input
+                    value={competitor}
+                    onChange={(event) => setCompetitor(event.target.value)}
+                    placeholder="Lost to which competitor? (optional)"
+                    className="mt-2 w-full rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 py-3 text-base text-[#F0F0FA] placeholder-[#5A5A72] outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 md:text-sm"
+                  />
+                ) : null}
               </div>
             ) : null}
 

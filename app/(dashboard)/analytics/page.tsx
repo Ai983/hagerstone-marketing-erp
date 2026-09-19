@@ -25,6 +25,7 @@ import { createClient } from "@/lib/supabase/client"
 import { getCachedUserAndProfile } from "@/lib/hooks/useUser"
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { FunnelChart } from "@/components/analytics/FunnelChart"
+import { ObjectionsCard } from "@/components/analytics/ObjectionsCard"
 import { LeadSourceChart } from "@/components/analytics/LeadSourceChart"
 import { RepProductivityTable } from "@/components/analytics/RepProductivityTable"
 import { StageAgeHeatmap } from "@/components/analytics/StageAgeHeatmap"
@@ -84,7 +85,7 @@ async function fetchKpis(from: Date, to: Date) {
       .lte("closed_at", to.toISOString()),
     supabase
       .from("leads")
-      .select("id, closure_reason, stage:stage_id(slug)")
+      .select("id, closure_reason, lost_to_competitor, stage:stage_id(slug)")
       .eq("stage.slug", "lost")
       .eq("is_archived", false)
       .gte("closed_at", from.toISOString())
@@ -124,6 +125,14 @@ async function fetchKpis(from: Date, to: Date) {
   const topLossReasons = Array.from(lossReasons.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
+  const competitors = new Map<string, number>()
+  for (const lead of lostLeads) {
+    const name = lead.lost_to_competitor?.trim()
+    if (name) competitors.set(name, (competitors.get(name) ?? 0) + 1)
+  }
+  const topCompetitors = Array.from(competitors.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
 
   // Follow-up compliance: completed on time vs total due in window
   const tasks = tasksRes.data ?? []
@@ -141,6 +150,7 @@ async function fetchKpis(from: Date, to: Date) {
     wonValue,
     lostCount,
     topLossReasons,
+    topCompetitors,
     compliance,
   }
 }
@@ -540,9 +550,25 @@ export default function AnalyticsPage() {
                     ))}
                   </ul>
                 )}
+                {kpis.topCompetitors.length > 0 && (
+                  <p className="mt-2 text-[11px] text-[#9090A8]">
+                    Lost to:{" "}
+                    {kpis.topCompetitors.map(([name, count]) => `${name}${count > 1 ? ` ×${count}` : ""}`).join(" · ")}
+                  </p>
+                )}
               </div>
             </div>
           )}
+        </SectionCard>
+      </div>
+
+      {/* 7. Objections — the playbook's feedback loop */}
+      <div className="mt-3 px-4 md:mt-4 md:px-0">
+        <SectionCard
+          title="Top objections"
+          subtitle="What clients pushed back with on calls and meetings this period · arrow = change vs the period before"
+        >
+          <ObjectionsCard from={range.from} to={range.to} />
         </SectionCard>
       </div>
     </main>

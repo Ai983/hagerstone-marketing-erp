@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { format, formatDistanceToNowStrict } from "date-fns"
 import { toast } from "sonner"
@@ -11,6 +11,7 @@ import { DataSetBadge, PRIORITY_OPTIONS, PriorityBadge } from "@/components/data
 import { RelationshipGroupBadge } from "@/components/data/RelationshipGroupBadge"
 import { useDataSets } from "@/lib/hooks/useDataSets"
 import { useRelationshipGroups } from "@/lib/hooks/useRelationshipGroups"
+import { objectionLabel } from "@/lib/utils/objections"
 import { LEAD_GROUPS } from "@/lib/utils/relationship-group"
 import { getCachedUser } from "@/lib/hooks/useUser"
 import { createClient } from "@/lib/supabase/client"
@@ -89,6 +90,26 @@ export function LeadProvenancePanel({ lead }: { lead: Lead }) {
   const { byLeadId: groupByLeadId } = useRelationshipGroups()
   const groupRow = groupByLeadId.get(lead.id)
 
+  // Under the timeline's key, so logging a call or meeting refreshes it too.
+  const objectionsQuery = useQuery({
+    queryKey: ["lead-interactions", lead.id, "objections"],
+    queryFn: async (): Promise<string[][]> => {
+      const { data, error } = await createClient()
+        .from("interactions")
+        .select("objections")
+        .eq("lead_id", lead.id)
+        .not("objections", "eq", "{}")
+      if (error) throw error
+      return (data ?? []).map((r) => (r.objections ?? []) as string[])
+    },
+    retry: false,
+  })
+  const objectionCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const list of objectionsQuery.data ?? []) for (const k of list) counts.set(k, (counts.get(k) ?? 0) + 1)
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])
+  }, [objectionsQuery.data])
+
   const setPriority = async (next: string) => {
     const value = lead.priority === next ? null : next
     setSaving(true)
@@ -157,6 +178,22 @@ export function LeadProvenancePanel({ lead }: { lead: Lead }) {
               </span>
             </div>
             <p className="mt-1 text-[11px] text-[#5A5A72]">{LEAD_GROUPS[groupRow.relationship_group]?.hint}</p>
+          </div>
+        ) : null}
+
+        {objectionCounts.length > 0 || lead.lost_to_competitor ? (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <p className="mr-0.5 text-[11px] uppercase tracking-wider text-[#9090A8]">Objections heard</p>
+            {objectionCounts.map(([key, n]) => (
+              <span key={key} className="rounded-full border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2 py-0.5 text-[11px] text-[#FBBF24]">
+                {objectionLabel(key)}{n > 1 ? ` ×${n}` : ""}
+              </span>
+            ))}
+            {lead.lost_to_competitor ? (
+              <span className="text-[11px] text-[#9090A8]">
+                Lost to <span className="text-[#F0F0FA]">{lead.lost_to_competitor}</span>
+              </span>
+            ) : null}
           </div>
         ) : null}
 

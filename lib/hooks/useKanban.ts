@@ -248,7 +248,8 @@ export function useKanban() {
     newStageId: string,
     note?: string,
     closureValue?: number,
-    lossReason?: string
+    lossReason?: string,
+    lostToCompetitor?: string
   ) => {
     const supabase = createClient()
     const lead = leads.find((item) => item.id === leadId)
@@ -294,11 +295,13 @@ export function useKanban() {
       payload.closed_at = now
     } else if (toStage.slug === "lost") {
       payload.closure_reason = lossReason ?? null
+      payload.lost_to_competitor = lostToCompetitor ?? null
       payload.closed_at = now
     } else if (toStage.stage_type === "active") {
       payload.closed_at = null
       payload.closure_value = null
       payload.closure_reason = null
+      payload.lost_to_competitor = null
     }
 
     const { error: updateError } = await supabase

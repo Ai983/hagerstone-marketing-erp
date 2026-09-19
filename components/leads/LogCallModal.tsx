@@ -4,6 +4,7 @@ import { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
 import { X, Phone, Loader2 } from "lucide-react"
+import { ObjectionPicker } from "@/components/leads/ObjectionPicker"
 import { createClient } from "@/lib/supabase/client"
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { cn } from "@/lib/utils"
@@ -56,9 +57,13 @@ interface LogCallModalProps {
     outcome: string
     notes: string
     duration_minutes: number | null
+    objections: string[]
     follow_up?: { due_at: string; type: string }
   }) => Promise<void>
 }
+
+// Outcomes where nobody actually spoke — there is nothing to object to.
+const NO_CONVERSATION = new Set(["no_answer", "busy", "wrong_number", "voicemail"])
 
 export function LogCallModal({
   open,
@@ -73,6 +78,7 @@ export function LogCallModal({
   const [duration, setDuration] = useState("")
   const [outcome, setOutcome] = useState("")
   const [notes, setNotes] = useState("")
+  const [objections, setObjections] = useState<string[]>([])
   const [scheduleFollowUp, setScheduleFollowUp] = useState(false)
   const [followUpDate, setFollowUpDate] = useState("")
   const [followUpType, setFollowUpType] = useState("call")
@@ -80,6 +86,7 @@ export function LogCallModal({
   const isMobile = useMediaQuery("(max-width: 768px)")
 
   const requiresNotes = outcome === "interested" || outcome === "callback_requested"
+  const spokeToClient = callType !== "call_missed" && !NO_CONVERSATION.has(outcome)
 
   const canSubmit =
     outcome !== "" &&
@@ -96,6 +103,7 @@ export function LogCallModal({
         outcome,
         notes: trimmedNotes,
         duration_minutes: duration ? parseInt(duration, 10) : null,
+        objections: spokeToClient ? objections : [],
         follow_up: scheduleFollowUp && followUpDate
           ? { due_at: new Date(followUpDate).toISOString(), type: followUpType }
           : undefined,
@@ -145,6 +153,7 @@ export function LogCallModal({
     setDuration("")
     setOutcome("")
     setNotes("")
+    setObjections([])
     setScheduleFollowUp(false)
     setFollowUpDate("")
     setFollowUpType("call")
@@ -256,6 +265,8 @@ export function LogCallModal({
                     ))}
                   </select>
                 </div>
+
+                {spokeToClient ? <ObjectionPicker value={objections} onChange={setObjections} /> : null}
 
                 {/* Notes */}
                 <div>

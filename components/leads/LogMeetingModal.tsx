@@ -4,6 +4,7 @@ import { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
 import { X, Users, Loader2 } from "lucide-react"
+import { ObjectionPicker } from "@/components/leads/ObjectionPicker"
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { cn } from "@/lib/utils"
 
@@ -64,6 +65,7 @@ export type MeetingSubmission = {
   location: string | null
   attendees: string | null
   occurred_at: string
+  objections: string[]
   follow_up?: { due_at: string; type: string }
 }
 
@@ -88,6 +90,7 @@ export function LogMeetingModal({
   const [outcome, setOutcome] = useState("")
   const [notes, setNotes] = useState("")
   const [nextSteps, setNextSteps] = useState("")
+  const [objections, setObjections] = useState<string[]>([])
   const [scheduleFollowUp, setScheduleFollowUp] = useState(false)
   const [followUpDate, setFollowUpDate] = useState("")
   const [followUpType, setFollowUpType] = useState("meeting")
@@ -110,6 +113,7 @@ export function LogMeetingModal({
     setOutcome("")
     setNotes("")
     setNextSteps("")
+    setObjections([])
     setScheduleFollowUp(false)
     setFollowUpDate("")
     setFollowUpType("meeting")
@@ -138,6 +142,7 @@ export function LogMeetingModal({
         location: location.trim() || null,
         attendees: attendees.trim() || null,
         occurred_at: new Date(occurredAt).toISOString(),
+        objections,
         follow_up:
           scheduleFollowUp && followUpDate
             ? { due_at: new Date(followUpDate).toISOString(), type: followUpType }
@@ -289,6 +294,8 @@ export function LogMeetingModal({
                   ))}
                 </select>
               </div>
+
+              <ObjectionPicker value={objections} onChange={setObjections} />
 
               <div>
                 <label className={labelClass}>

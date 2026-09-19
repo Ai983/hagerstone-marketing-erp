@@ -839,6 +839,8 @@ Added Sep 2026 to absorb the founder's standalone Sales Engine (`docs/founder-sa
 
 **Follow-up rhythm** (migration `018`): view `marketing.lead_follow_ups` gives each lead a `due_at` = clock start (last contact / win / loss) + its group's rhythm — proposal pending 10d, warm 20d, new prospect 4d (only leads added from 19 Sep 2026; older ones are `is_backlog`), gone quiet due now, active client 60d, dormant 120d, lost 180d. `leads.follow_up_snoozed_until` pushes it. Mirrored in `FOLLOW_UP_DAYS`. UI: "Follow-ups due" at the top of My Schedule (`FollowUpsDue`), sidebar badge, daily `follow_ups_due` notification from `check-stale`. The old per-lead `lead_stale` alerts are gone.
 
+**Objections** (migration `019`): `interactions.objections TEXT[]` holds keys from `lib/utils/objections.ts` (`price_high`, `has_vendor`, `need_to_think`, `not_now`, `send_details`, `want_proof`, `no_decision_maker`, `other`) — tapped via `ObjectionPicker` in Log Call (hidden for missed / no-answer calls) and Log Meeting, always optional. Never rename a key. Loss reasons (`LOSS_REASONS`) are stored as text in `leads.closure_reason`; "Chose competitor" can fill `leads.lost_to_competitor`. Shown as chips on the timeline, a summary in the lead drawer, and the "Top objections" card on Analytics (vs previous period, with the group that raises each most).
+
 **Imports** (`scripts/imports/*.mjs`, `--dry-run`, idempotent): `import-architect-meetings` → `import-founder-pipeline` → `import-founder-universe`, in that order.
 
 ---
