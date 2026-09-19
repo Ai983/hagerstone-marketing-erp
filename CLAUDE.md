@@ -535,7 +535,7 @@ All protected by `Authorization: Bearer ${CRON_SECRET}` header check.
 |-------|---------|-----------|
 | `/api/cron/campaign-drip` | Send next campaign messages | Hourly |
 | `/api/cron/check-overdue` | Mark overdue tasks | Daily |
-| `/api/cron/check-stale` | Flag stale leads | Daily |
+| `/api/cron/check-stale` | Daily follow-ups digest (one notification per sales head → My Schedule) | Daily 9:00 IST |
 | `/api/cron/daily-summary` | Generate + send daily briefing | Daily morning |
 | `/api/cron/overdue-notifications` | Create overdue notifications | Daily |
 
@@ -836,6 +836,8 @@ Added Sep 2026 to absorb the founder's standalone Sales Engine (`docs/founder-sa
 **Mobile:** `MobileBottomNav` centre ＋ opens quick actions (Log meeting, Add lead, Log call, Share profile) via `LeadPickerModal`; `uiStore.drawerOpenLogMeeting` opens the drawer straight into Log Meeting.
 
 **Relationship groups** (migration `017`): every open lead gets a computed group — `new_prospect`, `warm_prospect`, `proposal_pending`, `gone_quiet` (open deal, no client contact 30+ days), `active_client` / `dormant_client` (won ≤ / > 12 months), `lost` — from the view `marketing.lead_relationship_groups` (security_invoker). "Contact" excludes imports, AI-categorisation and system notes. Universe groups (`past_client`, `old_opportunity`…) are derived from funnel_stage/recency in `lib/utils/relationship-group.ts`; counts via `marketing.universe_group_summary()`. Nothing is stored. UI: `RelationshipGroupBadge`, `useRelationshipGroups()`, Group filter on All Leads (`?group=`) and Universe, panel on Sales Engine.
+
+**Follow-up rhythm** (migration `018`): view `marketing.lead_follow_ups` gives each lead a `due_at` = clock start (last contact / win / loss) + its group's rhythm — proposal pending 10d, warm 20d, new prospect 4d (only leads added from 19 Sep 2026; older ones are `is_backlog`), gone quiet due now, active client 60d, dormant 120d, lost 180d. `leads.follow_up_snoozed_until` pushes it. Mirrored in `FOLLOW_UP_DAYS`. UI: "Follow-ups due" at the top of My Schedule (`FollowUpsDue`), sidebar badge, daily `follow_ups_due` notification from `check-stale`. The old per-lead `lead_stale` alerts are gone.
 
 **Imports** (`scripts/imports/*.mjs`, `--dry-run`, idempotent): `import-architect-meetings` → `import-founder-pipeline` → `import-founder-universe`, in that order.
 

@@ -43,7 +43,7 @@ import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { createClient } from "@/lib/supabase/client"
 
-type BadgeKey = "activities" | "adminTasks"
+type BadgeKey = "activities" | "adminTasks" | "followUps"
 
 type Role = "admin" | "sales_head"
 
@@ -69,7 +69,7 @@ const primaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/website-leads", label: "Website Leads", icon: Globe, roles: ALL_ROLES, daily: true },
   { href: "/sales-bd", label: "Sales BD", icon: MailIcon, roles: ALL_ROLES, daily: true },
   { href: "/activities", label: "My Tasks", icon: CheckSquare, badgeKey: "activities", roles: ALL_ROLES, daily: true },
-  { href: "/schedule", label: "My Schedule", icon: CalendarClock, roles: ALL_ROLES, daily: true },
+  { href: "/schedule", label: "My Schedule", icon: CalendarClock, badgeKey: "followUps", roles: ALL_ROLES, daily: true },
   { href: "/meetings", label: "Meetings", icon: CalendarDays, roles: ALL_ROLES, daily: true },
   { href: "/documents", label: "Profiles & Pitches", icon: FileText, roles: ALL_ROLES, daily: true },
   { href: "/sales-engine", label: "Sales Engine", icon: Gauge, roles: ALL_ROLES, daily: true },
@@ -102,6 +102,8 @@ interface SidebarProps {
   badges?: {
     activities?: number
     adminTasks?: number
+    /** Leads due a follow-up today. */
+    followUps?: number
   }
 }
 
@@ -209,7 +211,7 @@ interface SidebarBodyProps {
   collapsed: boolean
   fullName: string
   role: string
-  badges?: { activities?: number; adminTasks?: number }
+  badges?: { activities?: number; adminTasks?: number; followUps?: number }
   isSigningOut: boolean
   onLogout: () => void
   onToggleCollapse?: () => void

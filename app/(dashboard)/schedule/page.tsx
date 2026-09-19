@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner"
 import { CalendarClock, Check, ChevronLeft, ChevronRight, Loader2, Plus, Repeat, UserRound } from "lucide-react"
 
+import { FollowUpsDue } from "@/components/schedule/FollowUpsDue"
 import { ScheduleItemModal } from "@/components/schedule/ScheduleItemModal"
 import { getCachedUser, useUser } from "@/lib/hooks/useUser"
 import { useUIStore } from "@/lib/stores/uiStore"
@@ -196,7 +197,7 @@ export default function SchedulePage() {
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="font-[family-name:var(--font-heading)] text-xl font-bold text-[#F0F0FA] md:text-2xl">My Schedule</h1>
-          <p className="mt-1 text-sm text-[#9090A8]">Your own daily, weekly and monthly plan.</p>
+          <p className="mt-1 text-sm text-[#9090A8]">Who to follow up with today, and your own daily, weekly and monthly plan.</p>
         </div>
         <button
           type="button"
@@ -251,6 +252,7 @@ export default function SchedulePage() {
         </div>
       ) : view === "today" ? (
         <div className="space-y-5">
+          <FollowUpsDue />
           {missed.length > 0 ? (
             <section>
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#F59E0B]">

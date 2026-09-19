@@ -66,6 +66,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           badges={{
             activities: counts?.overdueTasks,
             adminTasks: counts?.adminOverdueTasks,
+            followUps: counts?.followUpsDue,
           }}
         />
       )}

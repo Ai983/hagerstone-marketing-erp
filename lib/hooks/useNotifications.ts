@@ -12,6 +12,7 @@ export type NotificationType =
   | "new_website_lead"
   | "campaign_reply"
   | "lead_stale"
+  | "follow_ups_due"
 
 export interface Notification {
   id: string

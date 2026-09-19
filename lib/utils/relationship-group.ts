@@ -33,6 +33,26 @@ export const LEAD_GROUPS: Record<LeadRelationshipGroup, GroupMeta> = {
   lost: { label: "Lost", color: "#6B7280", hint: "Said no — re-approach later with something new" },
 }
 
+/**
+ * Follow-up rhythm in days per group — mirrors migration 018. Gone quiet
+ * uses the gone-quiet line itself, so it is always already due.
+ */
+export const FOLLOW_UP_DAYS: Record<LeadRelationshipGroup, number> = {
+  proposal_pending: 10,
+  warm_prospect: 20,
+  new_prospect: 4,
+  gone_quiet: GONE_QUIET_DAYS,
+  active_client: 60,
+  dormant_client: 120,
+  lost: 180,
+}
+
+/** Order the follow-up list is worked in: closest to money first. */
+export const FOLLOW_UP_ORDER: LeadRelationshipGroup[] = [
+  "proposal_pending", "gone_quiet", "warm_prospect", "new_prospect",
+  "active_client", "dormant_client", "lost",
+]
+
 /** Display order: what needs attention first. */
 export const LEAD_GROUP_ORDER: LeadRelationshipGroup[] = [
   "gone_quiet", "proposal_pending", "warm_prospect", "new_prospect",

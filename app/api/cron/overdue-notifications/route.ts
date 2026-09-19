@@ -72,62 +72,9 @@ export async function GET(request: NextRequest) {
       notified++
     }
 
-    const staleDate = new Date()
-    staleDate.setDate(staleDate.getDate() - 7)
-
-    const { data: terminalStages, error: stagesError } = await supabase
-      .from("pipeline_stages")
-      .select("id")
-      .in("slug", ["won", "lost"])
-
-    if (stagesError) throw stagesError
-
-    const terminalStageIds = (terminalStages ?? []).map((stage) => stage.id)
-
-    let staleQuery = supabase
-      .from("leads")
-      .select("id, full_name, assigned_to, updated_at")
-      .eq("is_archived", false)
-      .not("stage_id", "is", null)
-      .lt("updated_at", staleDate.toISOString())
-
-    if (terminalStageIds.length > 0) {
-      staleQuery = staleQuery.not(
-        "stage_id",
-        "in",
-        `(${terminalStageIds.join(",")})`
-      )
-    }
-
-    const { data: staleLeads, error: staleError } = await staleQuery
-
-    if (staleError) throw staleError
-
-    for (const lead of staleLeads ?? []) {
-      if (!lead.assigned_to) continue
-
-      const { data: existing } = await supabase
-        .from("notifications")
-        .select("id")
-        .eq("user_id", lead.assigned_to)
-        .eq("type", "lead_stale")
-        .eq("lead_id", lead.id)
-        .gte("created_at", today.toISOString())
-        .limit(1)
-        .maybeSingle()
-
-      if (existing) continue
-
-      await supabase.from("notifications").insert({
-        user_id: lead.assigned_to,
-        type: "lead_stale",
-        title: "Lead Going Cold",
-        body: `${lead.full_name} has had no activity for 7+ days`,
-        lead_id: lead.id,
-        is_read: false,
-      })
-      notified++
-    }
+    // Quiet-lead alerts used to be sent here too, one per lead after 7
+    // days. They are replaced by the single daily follow-ups digest in
+    // /api/cron/check-stale, which uses each relationship group's rhythm.
 
     return NextResponse.json({ notified })
   } catch (error) {

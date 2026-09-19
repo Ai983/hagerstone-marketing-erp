@@ -1,13 +1,26 @@
 import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 
-type StaleLead = {
-  id: string
-  full_name: string
-  assigned_to: string
-  updated_at: string
+import type { LeadRelationshipGroup } from "@/lib/types"
+import { FOLLOW_UP_ORDER, LEAD_GROUPS } from "@/lib/utils/relationship-group"
+
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
+
+/** Start of today and of tomorrow in India time, as UTC instants. */
+function istDayBounds(now = new Date()) {
+  const ist = new Date(now.getTime() + IST_OFFSET_MS)
+  ist.setUTCHours(0, 0, 0, 0)
+  const start = new Date(ist.getTime() - IST_OFFSET_MS)
+  return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1000) }
 }
 
+/**
+ * Daily follow-ups digest. One notification per salesperson per day —
+ * "12 follow-ups due: 5 proposal pending · 4 gone quiet · 3 warm" — that
+ * opens My Schedule. Replaces the old one-alert-per-lead "no activity for
+ * 7 days" rule; due dates now come from each relationship group's rhythm
+ * (migration 018, `marketing.lead_follow_ups`).
+ */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization")
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -20,67 +33,66 @@ export async function GET(request: NextRequest) {
     { db: { schema: "marketing" } }
   )
 
-  const sevenDaysAgo = new Date(
-    Date.now() - 7 * 24 * 60 * 60 * 1000
-  ).toISOString()
+  const { start, end } = istDayBounds()
 
-  const { data: closedStages, error: stageError } = await supabase
-    .from("pipeline_stages")
+  const { data: due, error: dueError } = await supabase
+    .from("lead_follow_ups")
+    .select("relationship_group")
+    .lt("due_at", end.toISOString())
+
+  if (dueError) {
+    console.error("follow-ups digest query failed:", dueError)
+    return NextResponse.json({ error: dueError.message }, { status: 500 })
+  }
+
+  const total = due?.length ?? 0
+  if (total === 0) return NextResponse.json({ notified: 0, due: 0 })
+
+  const counts = new Map<LeadRelationshipGroup, number>()
+  for (const row of due as { relationship_group: LeadRelationshipGroup }[]) {
+    counts.set(row.relationship_group, (counts.get(row.relationship_group) ?? 0) + 1)
+  }
+  const body = FOLLOW_UP_ORDER.filter((g) => counts.get(g))
+    .map((g) => `${counts.get(g)} ${LEAD_GROUPS[g].label.toLowerCase()}`)
+    .join(" · ")
+
+  // Leads are not assigned — every salesperson works the same book, so
+  // each gets the same digest.
+  const { data: people, error: peopleError } = await supabase
+    .from("profiles")
     .select("id")
-    .in("slug", ["won", "lost"])
+    .eq("is_active", true)
+    .eq("role", "sales_head")
 
-  if (stageError) {
-    console.error("check-stale stage lookup failed:", stageError)
-    return NextResponse.json({ error: stageError.message }, { status: 500 })
-  }
-
-  let query = supabase
-    .from("leads")
-    .select("id, full_name, assigned_to, updated_at")
-    .not("assigned_to", "is", null)
-    .eq("is_archived", false)
-    .lt("updated_at", sevenDaysAgo)
-
-  const closedStageIds = (closedStages ?? []).map((stage) => stage.id)
-  if (closedStageIds.length > 0) {
-    query = query.not("stage_id", "in", `(${closedStageIds.join(",")})`)
-  }
-
-  const { data: staleLeads, error: staleError } = await query
-
-  if (staleError) {
-    console.error("check-stale query failed:", staleError)
-    return NextResponse.json({ error: staleError.message }, { status: 500 })
-  }
-
-  if (!staleLeads || staleLeads.length === 0) {
-    return NextResponse.json({ notified: 0 })
+  if (peopleError) {
+    console.error("follow-ups digest recipients failed:", peopleError)
+    return NextResponse.json({ error: peopleError.message }, { status: 500 })
   }
 
   let notified = 0
-
-  for (const lead of staleLeads as StaleLead[]) {
+  for (const person of people ?? []) {
     const { data: existing } = await supabase
       .from("notifications")
       .select("id")
-      .eq("lead_id", lead.id)
-      .eq("type", "lead_stale")
-      .gte("created_at", sevenDaysAgo)
+      .eq("user_id", person.id)
+      .eq("type", "follow_ups_due")
+      .gte("created_at", start.toISOString())
+      .limit(1)
       .maybeSingle()
 
     if (existing) continue
 
-    await supabase.from("notifications").insert({
-      user_id: lead.assigned_to,
-      type: "lead_stale",
-      title: "Lead Going Stale",
-      body: `${lead.full_name} has had no activity for 7+ days`,
-      lead_id: lead.id,
+    const { error } = await supabase.from("notifications").insert({
+      user_id: person.id,
+      type: "follow_ups_due",
+      title: `${total} follow-up${total === 1 ? "" : "s"} due today`,
+      body: `${body} — open My Schedule`,
+      lead_id: null,
       is_read: false,
     })
-
-    notified++
+    if (error) console.error("follow-ups digest insert failed:", error)
+    else notified++
   }
 
-  return NextResponse.json({ notified })
+  return NextResponse.json({ notified, due: total })
 }

@@ -322,6 +322,22 @@ export interface LeadRelationshipRow {
   last_touch_at: string | null
 }
 
+/** A row of `marketing.lead_follow_ups` — when this lead is next due a contact. */
+export interface LeadFollowUp extends LeadRelationshipRow {
+  full_name: string
+  company_name: string | null
+  phone: string | null
+  priority: string | null
+  data_set_id: string | null
+  stage_name: string | null
+  stage_color: string | null
+  follow_up_snoozed_until: string | null
+  rhythm_days: number
+  is_backlog: boolean
+  /** Null for the pre-rhythm new-prospect backlog. */
+  due_at: string | null
+}
+
 export type DocumentCategory =
   | 'company_profile' | 'sales_pitch' | 'case_study' | 'brochure'
   | 'presentation' | 'rate_card' | 'certificate' | 'project_photos' | 'other'

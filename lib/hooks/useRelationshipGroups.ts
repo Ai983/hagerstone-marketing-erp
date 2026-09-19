@@ -2,9 +2,11 @@
 
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { endOfToday } from "date-fns"
 
 import { createClient } from "@/lib/supabase/client"
-import type { LeadRelationshipRow, UniverseRelationshipGroup } from "@/lib/types"
+import type { LeadFollowUp, LeadRelationshipRow, UniverseRelationshipGroup } from "@/lib/types"
+import { FOLLOW_UP_ORDER } from "@/lib/utils/relationship-group"
 
 export const RELATIONSHIP_GROUPS_KEY = ["relationship-groups"] as const
 
@@ -37,6 +39,47 @@ export function useRelationshipGroups() {
   )
 
   return { ...query, byLeadId }
+}
+
+const PRIORITY_RANK: Record<string, number> = { P1: 1, P2: 2, P3: 3, P4: 4 }
+function priorityRank(p: string | null) {
+  return (p && PRIORITY_RANK[p]) || 5
+}
+
+/**
+ * Leads due a follow-up by the end of today, closest-to-money first, plus
+ * the size of the pre-rhythm backlog. Keyed under RELATIONSHIP_GROUPS_KEY
+ * so every place that refreshes groups (logged call, stage move) also
+ * refreshes this list.
+ */
+export function useFollowUpsDue() {
+  return useQuery({
+    queryKey: [...RELATIONSHIP_GROUPS_KEY, "follow-ups"],
+    queryFn: async () => {
+      const supabase = createClient()
+      const [dueRes, backlogRes] = await Promise.all([
+        supabase
+          .from("lead_follow_ups")
+          .select("*")
+          .lte("due_at", endOfToday().toISOString())
+          .limit(1000),
+        supabase
+          .from("lead_follow_ups")
+          .select("lead_id", { count: "exact", head: true })
+          .eq("is_backlog", true),
+      ])
+      if (dueRes.error) throw dueRes.error
+      const due = ((dueRes.data ?? []) as LeadFollowUp[]).sort(
+        (a, b) =>
+          FOLLOW_UP_ORDER.indexOf(a.relationship_group) - FOLLOW_UP_ORDER.indexOf(b.relationship_group) ||
+          priorityRank(a.priority) - priorityRank(b.priority) ||
+          (a.due_at ?? "").localeCompare(b.due_at ?? "")
+      )
+      return { due, backlog: backlogRes.count ?? 0 }
+    },
+    staleTime: 60 * 1000,
+    retry: false,
+  })
 }
 
 /** Universe contact counts per group, for the Sales Engine panel. */

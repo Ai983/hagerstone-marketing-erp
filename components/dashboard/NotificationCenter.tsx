@@ -1,8 +1,10 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { formatDistanceToNow } from "date-fns"
 import {
   Bell,
+  BellRing,
   CheckCheck,
   Loader2,
   UserPlus,
@@ -29,6 +31,7 @@ const typeIcons: Record<string, typeof Bell> = {
   campaign_reply: MessageSquare,
   new_website_lead: Globe,
   lead_stale: AlertTriangle,
+  follow_ups_due: BellRing,
 }
 
 function NotificationRow({
@@ -85,6 +88,7 @@ function NotificationRow({
 }
 
 export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
+  const router = useRouter()
   const { setLeadDrawerId } = useUIStore()
   const { notifications, unreadCount, isLoading, markAsRead, isMarking } =
     useNotifications()
@@ -94,7 +98,10 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
       // Fire-and-forget — don't block the navigation on the mark-read
       markAsRead(n.id).catch(() => {})
     }
-    if (n.lead_id) {
+    if (n.type === "follow_ups_due") {
+      // The daily digest is about the list, not one lead.
+      router.push("/schedule")
+    } else if (n.lead_id) {
       setLeadDrawerId(n.lead_id)
     }
     onClose?.()

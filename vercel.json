@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/check-stale",
-      "schedule": "0 10 * * *"
+      "schedule": "30 3 * * *"
     },
     {
       "path": "/api/cron/campaign-drip",
