@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { format, formatDistanceToNowStrict } from "date-fns"
 import { toast } from "sonner"
@@ -9,6 +9,8 @@ import { FileText, UserCircle2 } from "lucide-react"
 import { WhereItStoppedCard } from "@/components/architect/WhereItStopped"
 import { DataSetBadge, PRIORITY_OPTIONS, PriorityBadge } from "@/components/data/DataSetBadge"
 import { RelationshipGroupBadge } from "@/components/data/RelationshipGroupBadge"
+import { TagChips } from "@/components/tags/TagChips"
+import { TagPicker } from "@/components/tags/TagPicker"
 import { useDataSets } from "@/lib/hooks/useDataSets"
 import { useRelationshipGroups } from "@/lib/hooks/useRelationshipGroups"
 import { objectionLabel } from "@/lib/utils/objections"
@@ -90,6 +92,23 @@ export function LeadProvenancePanel({ lead }: { lead: Lead }) {
   const { byLeadId: groupByLeadId } = useRelationshipGroups()
   const groupRow = groupByLeadId.get(lead.id)
 
+  // Local copy so a tap shows at once; re-synced when the lead reloads.
+  const [tagIds, setTagIds] = useState<string[]>(lead.tag_ids ?? [])
+  useEffect(() => setTagIds(lead.tag_ids ?? []), [lead.id, lead.tag_ids])
+  const saveTags = async (next: string[]) => {
+    const previous = tagIds
+    setTagIds(next)
+    const { error } = await createClient().from("leads").update({ tag_ids: next }).eq("id", lead.id)
+    if (error) {
+      setTagIds(previous)
+      toast.error(error.message)
+      return
+    }
+    queryClient.invalidateQueries({ queryKey: ["lead-drawer-detail", lead.id] })
+    queryClient.invalidateQueries({ queryKey: ["leads"] })
+    queryClient.invalidateQueries({ queryKey: ["kanban-leads"] })
+  }
+
   // Under the timeline's key, so logging a call or meeting refreshes it too.
   const objectionsQuery = useQuery({
     queryKey: ["lead-interactions", lead.id, "objections"],
@@ -164,6 +183,12 @@ export function LeadProvenancePanel({ lead }: { lead: Lead }) {
               Owner: <span className="text-[#F0F0FA]">{lead.owner_name}</span>
             </span>
           ) : null}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <p className="mr-0.5 text-[11px] uppercase tracking-wider text-[#9090A8]">Tags</p>
+          <TagChips tagIds={tagIds} size="sm" />
+          <TagPicker value={tagIds} onChange={saveTags} label={tagIds.length ? "Edit" : "Add tag"} />
         </div>
 
         {groupRow ? (

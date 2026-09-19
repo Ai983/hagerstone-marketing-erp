@@ -109,6 +109,8 @@ export interface Lead {
   won_by: string | null
   closure_reason?: string
   lost_to_competitor?: string | null
+  /** Ids from `marketing.tags`. */
+  tag_ids?: string[]
   closure_value?: number
   closed_at?: string
   initial_notes?: string
@@ -305,8 +307,21 @@ export interface UniverseContact {
   data_set_id: string | null
   converted_lead_id: string | null
   converted_at: string | null
+  tag_ids: string[]
   is_lead: boolean
   created_at: string
+}
+
+/** A shared label from `marketing.tags` — what the salesperson knows (VIP, referral source…). */
+export interface Tag {
+  id: string
+  name: string
+  color: string
+  /** Shown on Kanban cards too. */
+  is_important: boolean
+  /** Retired tags stay on records but leave the picker. */
+  is_active: boolean
+  position: number
 }
 
 /** Where the relationship stands — computed by `marketing.lead_relationship_groups`. */

@@ -841,6 +841,8 @@ Added Sep 2026 to absorb the founder's standalone Sales Engine (`docs/founder-sa
 
 **Objections** (migration `019`): `interactions.objections TEXT[]` holds keys from `lib/utils/objections.ts` (`price_high`, `has_vendor`, `need_to_think`, `not_now`, `send_details`, `want_proof`, `no_decision_maker`, `other`) — tapped via `ObjectionPicker` in Log Call (hidden for missed / no-answer calls) and Log Meeting, always optional. Never rename a key. Loss reasons (`LOSS_REASONS`) are stored as text in `leads.closure_reason`; "Chose competitor" can fill `leads.lost_to_competitor`. Shown as chips on the timeline, a summary in the lead drawer, and the "Top objections" card on Analytics (vs previous period, with the group that raises each most).
 
+**Tags** (migration `020`): shared list in `marketing.tags` (name unique ignoring case, colour, `is_important` = shown on Kanban cards, `is_active` = retire instead of delete). Records hold ids: `leads.tag_ids` and `universe_contacts.tag_ids` (UUID[], GIN-indexed). Anyone can add a tag from `TagPicker` (`useTags().createTag` reuses a same-name tag); tidy at `/admin/tags`. Bulk add/remove on All Leads via RPCs `add_tag_to_leads` / `remove_tag_from_leads`. Tag filter on All Leads (`?tag=`) and Universe; "Add to pipeline" copies a contact's tags.
+
 **Imports** (`scripts/imports/*.mjs`, `--dry-run`, idempotent): `import-architect-meetings` → `import-founder-pipeline` → `import-founder-universe`, in that order.
 
 ---

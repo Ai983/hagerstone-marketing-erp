@@ -7,6 +7,7 @@ import { PRIORITY_OPTIONS, priorityLabel } from "@/components/data/DataSetBadge"
 import type { DataSet, LeadSource, PipelineStage, ServiceLine } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { LEAD_GROUP_ORDER, LEAD_GROUPS } from "@/lib/utils/relationship-group"
+import { useTags } from "@/lib/hooks/useTags"
 
 export type ProfileCategoryFilter =
   | "all"
@@ -29,6 +30,8 @@ export interface LeadsFilterState {
   priorities: string[]
   /** Relationship groups — "gone_quiet", "proposal_pending"… */
   groups: string[]
+  /** Tag ids — a lead matches if it has any of them. */
+  tags: string[]
 }
 
 export const EMPTY_LEAD_FILTERS: LeadsFilterState = {
@@ -41,6 +44,7 @@ export const EMPTY_LEAD_FILTERS: LeadsFilterState = {
   dataSets: [],
   priorities: [],
   groups: [],
+  tags: [],
 }
 
 const priorityOptions = PRIORITY_OPTIONS.map((p) => ({
@@ -202,6 +206,11 @@ export function LeadFilters({
 }: LeadFiltersProps) {
   const [searchInput, setSearchInput] = useState(filters.search)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
+  const { active: activeTags } = useTags()
+  const tagOptions = useMemo<MultiSelectOption[]>(
+    () => activeTags.map((t) => ({ value: t.id, label: t.name, color: t.color })),
+    [activeTags]
+  )
 
   useEffect(() => {
     setSearchInput(filters.search)
@@ -235,6 +244,7 @@ export function LeadFilters({
     (filters.profile !== "all" ? 1 : 0) +
     filters.priorities.length +
     filters.groups.length +
+    filters.tags.length +
     (filters.search ? 1 : 0)
 
   const hasActiveFilters = activeFilterCount > 0
@@ -312,6 +322,14 @@ export function LeadFilters({
             options={groupOptions}
             onChange={(values) => update({ groups: values })}
           />
+          {tagOptions.length > 0 ? (
+            <MultiSelectDropdown
+              label="Tags"
+              values={filters.tags}
+              options={tagOptions}
+              onChange={(values) => update({ tags: values })}
+            />
+          ) : null}
           <MultiSelectDropdown
             label="Stage"
             values={filters.stages}
@@ -343,7 +361,7 @@ export function LeadFilters({
                 category: event.target.value as LeadsFilterState["category"],
               })
             }
-            className="h-10 rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none transition hover:border-[#4A4A62] sm:min-w-[160px]"
+            className="h-10rounded-lg border border-[#3A3A52] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none transition hover:border-[#4A4A62] sm:min-w-[160px]"
           >
             <option value="all">All Categories</option>
             <option value="hot">Hot</option>
@@ -385,6 +403,14 @@ export function LeadFilters({
               options={groupOptions}
               onChange={(values) => update({ groups: values })}
             />
+            {tagOptions.length > 0 ? (
+              <MultiSelectDropdown
+                label="Tags"
+                values={filters.tags}
+                options={tagOptions}
+                onChange={(values) => update({ tags: values })}
+              />
+            ) : null}
             <MultiSelectDropdown
               label="Stage"
               values={filters.stages}

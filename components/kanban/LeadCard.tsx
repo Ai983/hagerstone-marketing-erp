@@ -25,9 +25,11 @@ import { useKanbanStore } from "@/lib/stores/kanbanStore"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { PriorityBadge, SourceTag } from "@/components/data/DataSetBadge"
 import { RelationshipGroupBadge } from "@/components/data/RelationshipGroupBadge"
+import { TagChips } from "@/components/tags/TagChips"
 import { formatInrShort, leadValue } from "@/components/kanban/lead-value"
 import { useDataSets } from "@/lib/hooks/useDataSets"
 import { useRelationshipGroups } from "@/lib/hooks/useRelationshipGroups"
+import { useTags } from "@/lib/hooks/useTags"
 import { categoryConfig } from "@/lib/utils/lead-category"
 import { cn } from "@/lib/utils"
 
@@ -173,6 +175,7 @@ export function MobileLeadCard({
         </div>
 
         <div className="mb-3 flex flex-wrap gap-2">
+          <TagChips tagIds={lead.tag_ids} onlyImportant />
           <RelationshipGroupBadge leadId={lead.id} only={KANBAN_GROUPS} />
           {lead.city && (
             <span className="flex items-center gap-1 text-xs text-[#9090A8]">
@@ -344,6 +347,8 @@ export function LeadCard({
   const { byLeadId: groupByLeadId } = useRelationshipGroups()
   const group = groupByLeadId.get(lead.id)?.relationship_group
   const showGroup = group != null && KANBAN_GROUPS.includes(group)
+  const { byId: tagById } = useTags()
+  const hasImportantTag = (lead.tag_ids ?? []).some((id) => tagById.get(id)?.is_important)
   const surface = websiteSurface(dataSet?.key, lead.source_detail)
   const subtitle = [surface, lead.company_name && lead.company_name !== lead.full_name ? lead.company_name : null, lead.city]
     .filter(Boolean)
@@ -400,9 +405,10 @@ export function LeadCard({
       ) : null}
 
       {/* Signals — only the ones that apply */}
-      {lead.priority || category || showGroup || (boqDaysLeft !== null && boqDaysLeft <= 3) ? (
+      {lead.priority || category || showGroup || hasImportantTag || (boqDaysLeft !== null && boqDaysLeft <= 3) ? (
         <div className="mt-1.5 flex flex-wrap items-center gap-1">
           <PriorityBadge priority={lead.priority} note={lead.priority_note} />
+          <TagChips tagIds={lead.tag_ids} onlyImportant />
           <RelationshipGroupBadge leadId={lead.id} only={KANBAN_GROUPS} />
           {category ? (
             <span

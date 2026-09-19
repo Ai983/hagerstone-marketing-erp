@@ -13,6 +13,9 @@ import { getCachedUser } from "@/lib/hooks/useUser"
 import { useUIStore } from "@/lib/stores/uiStore"
 import { createClient } from "@/lib/supabase/client"
 import { GroupBadge } from "@/components/data/RelationshipGroupBadge"
+import { TagChips } from "@/components/tags/TagChips"
+import { TagPicker } from "@/components/tags/TagPicker"
+import { useTags } from "@/lib/hooks/useTags"
 import type { FunnelStage, UniverseContact, UniverseRelationshipGroup } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import {
@@ -49,6 +52,8 @@ type Filters = {
   stage: FunnelStage | ""
   /** Relationship group — overrides scope and stage while set. */
   group: UniverseRelationshipGroup | ""
+  /** Tag id. */
+  tag: string
   persona: string
   region: string
   field: string
@@ -56,7 +61,7 @@ type Filters = {
   hideConverted: boolean
 }
 
-const EMPTY: Filters = { scope: "leads", stage: "", group: "", persona: "", region: "", field: "", recency: "", hideConverted: false }
+const EMPTY: Filters = { scope: "leads", stage: "", group: "", tag: "", persona: "", region: "", field: "", recency: "", hideConverted: false }
 
 type SummaryRow = { dimension: string; bucket: string; total: number }
 
@@ -80,6 +85,25 @@ export default function UniversePage() {
   const [page, setPage] = useState(0)
   const [showFilters, setShowFilters] = useState(false)
   const [converting, setConverting] = useState<string | null>(null)
+  const { active: activeTags } = useTags()
+  // Tags just changed on a row, shown before the list refetches.
+  const [tagEdits, setTagEdits] = useState<Record<string, string[]>>({})
+  const tagsOf = (c: UniverseContact) => tagEdits[c.id] ?? c.tag_ids ?? []
+
+  const saveContactTags = async (c: UniverseContact, next: string[]) => {
+    setTagEdits((m) => ({ ...m, [c.id]: next }))
+    const { error } = await createClient().from("universe_contacts").update({ tag_ids: next }).eq("id", c.id)
+    if (error) {
+      setTagEdits((m) => {
+        const rest = { ...m }
+        delete rest[c.id]
+        return rest
+      })
+      toast.error(error.message)
+      return
+    }
+    queryClient.invalidateQueries({ queryKey: ["universe"] })
+  }
 
   useEffect(() => {
     const t = window.setTimeout(() => setSearch(input.trim().toLowerCase()), 350)
@@ -130,6 +154,7 @@ export default function UniversePage() {
       if (filters.region) q = q.eq("region", filters.region)
       if (filters.field) q = q.eq("field", filters.field)
       if (filters.recency) q = q.eq("recency", filters.recency)
+      if (filters.tag) q = q.contains("tag_ids", [filters.tag])
       if (filters.hideConverted) q = q.is("converted_lead_id", null)
       if (search) q = q.ilike("search_text", `%${search}%`)
 
@@ -147,7 +172,7 @@ export default function UniversePage() {
   const rows = list.data?.rows ?? []
   const count = list.data?.count ?? 0
   const pages = Math.max(1, Math.ceil(count / PAGE_SIZE))
-  const activeFilterCount = [filters.group, filters.persona, filters.region, filters.field, filters.recency].filter(Boolean).length + (filters.hideConverted ? 1 : 0)
+  const activeFilterCount = [filters.group, filters.tag, filters.persona, filters.region, filters.field, filters.recency].filter(Boolean).length + (filters.hideConverted ? 1 : 0)
 
   const convert = async (c: UniverseContact) => {
     setConverting(c.id)
@@ -190,6 +215,8 @@ export default function UniversePage() {
           assigned_to: user.id,
           data_set_id: ds?.id ?? null,
           external_ref: c.serial,
+          // What we knew about the contact comes along into the pipeline.
+          tag_ids: tagsOf(c),
           initial_notes: [
             `[Pulled from the founder's contact universe — ${stageMeta(c.funnel_stage)?.label ?? c.funnel_stage}]`,
             c.persona ? `Persona: ${c.persona}` : null,
@@ -229,6 +256,16 @@ export default function UniversePage() {
         <option value="">All groups</option>
         {UNIVERSE_GROUP_ORDER.map((g) => <option key={g} value={g}>{UNIVERSE_GROUPS[g].label}</option>)}
       </select>
+      {activeTags.length > 0 ? (
+        <select
+          value={filters.tag}
+          onChange={(e) => set({ tag: e.target.value })}
+          className="h-11 rounded-lg border border-[#2A2A3C] bg-[#1F1F2E] px-3 text-sm text-[#F0F0FA] outline-none md:h-10"
+        >
+          <option value="">Any tag</option>
+          {activeTags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+      ) : null}
       {[
         { key: "persona", label: "All personas", options: PERSONAS },
         { key: "region", label: "All regions", options: REGIONS },
@@ -376,6 +413,7 @@ export default function UniversePage() {
                     {c.role ? <p className="truncate text-xs text-[#9090A8]">{c.role}</p> : null}
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
                       <GroupBadge meta={UNIVERSE_GROUPS[universeGroupOf(c)]} />
+                      <TagChips tagIds={tagsOf(c)} />
                       {c.persona ? <span className="rounded-full bg-[#1F1F2E] px-1.5 py-0.5 text-[#9090A8]">{c.persona}</span> : null}
                       {c.field ? <span className="rounded-full bg-[#1F1F2E] px-1.5 py-0.5 text-[#9090A8]">{c.field}</span> : null}
                       {c.recency ? <span className="rounded-full bg-[#1F1F2E] px-1.5 py-0.5 text-[#9090A8]">{c.recency}</span> : null}
@@ -388,7 +426,8 @@ export default function UniversePage() {
                   </div>
                 </div>
 
-                <div className="mt-2.5 flex flex-wrap gap-2 pl-5">
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-5">
+                  <TagPicker value={tagsOf(c)} onChange={(next) => saveContactTags(c, next)} label={tagsOf(c).length ? "Tags" : "Tag"} />
                   {phone ? (
                     <>
                       <a href={`tel:${phone}`} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#2A2A3C] px-3 text-xs text-[#F0F0FA]"><Phone className="size-3.5" />Call</a>

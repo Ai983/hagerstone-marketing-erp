@@ -24,6 +24,7 @@ import { toast } from "sonner"
 
 import { DataSetBadge, PriorityBadge } from "@/components/data/DataSetBadge"
 import { RelationshipGroupBadge } from "@/components/data/RelationshipGroupBadge"
+import { TagChips } from "@/components/tags/TagChips"
 import type { LeadSource, ServiceLine } from "@/lib/types"
 import type { LeadListItem } from "@/lib/hooks/useLeads"
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
@@ -52,6 +53,9 @@ interface LeadTableProps {
   currentPage: number
   totalPages: number
   onPageChange: (page: number) => void
+  /** Ticked leads for bulk tagging (desktop table). */
+  selectedIds?: Set<string>
+  onSelectionChange?: (next: Set<string>) => void
 }
 
 const PAGE_SIZE = 25
@@ -228,6 +232,8 @@ export function LeadTable({
   currentPage,
   totalPages,
   onPageChange,
+  selectedIds,
+  onSelectionChange,
 }: LeadTableProps) {
   const router = useRouter()
   const isMobile = useMediaQuery("(max-width: 768px)")
@@ -238,6 +244,25 @@ export function LeadTable({
     const startIndex = (currentPage - 1) * PAGE_SIZE
     return leads.slice(startIndex, startIndex + PAGE_SIZE)
   }, [currentPage, leads])
+
+  const selectable = Boolean(selectedIds && onSelectionChange)
+  const pageAllSelected = selectable && paginatedLeads.length > 0 && paginatedLeads.every((l) => selectedIds!.has(l.id))
+  const toggleOne = (id: string) => {
+    if (!selectedIds || !onSelectionChange) return
+    const next = new Set(selectedIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    onSelectionChange(next)
+  }
+  const togglePage = () => {
+    if (!selectedIds || !onSelectionChange) return
+    const next = new Set(selectedIds)
+    for (const l of paginatedLeads) {
+      if (pageAllSelected) next.delete(l.id)
+      else next.add(l.id)
+    }
+    onSelectionChange(next)
+  }
 
   const copyPhone = async (event: React.MouseEvent, leadId: string, phone?: string | null) => {
     event.stopPropagation()
@@ -296,6 +321,7 @@ export function LeadTable({
                           <PriorityBadge priority={lead.priority} note={lead.priority_note} />
                           <RelationshipGroupBadge leadId={lead.id} />
                           <DataSetBadge dataSetId={lead.data_set_id} />
+                          <TagChips tagIds={lead.tag_ids} />
                           {lead.owner_name ? (
                             <span className="text-[10px] text-[#9090A8]">Owner: {lead.owner_name}</span>
                           ) : null}
@@ -441,6 +467,17 @@ export function LeadTable({
         <table className="min-w-full">
           <thead className="bg-[#1A1A24]">
             <tr>
+              {selectable ? (
+                <th className="w-10 py-3 pl-4">
+                  <input
+                    type="checkbox"
+                    checked={pageAllSelected}
+                    onChange={togglePage}
+                    aria-label="Select all leads on this page"
+                    className="size-4 cursor-pointer accent-[#3B82F6]"
+                  />
+                </th>
+              ) : null}
               <th className="px-4 py-3">
                 <SortableHeader
                   label="Name + Company"
@@ -531,6 +568,17 @@ export function LeadTable({
                   onClick={() => router.push(`/leads/${lead.id}`)}
                   className="cursor-pointer border-b border-[#2A2A3C] transition hover:bg-[#1A1A24]"
                 >
+                  {selectable ? (
+                    <td className="w-10 py-4 pl-4" onClick={(event) => event.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds!.has(lead.id)}
+                        onChange={() => toggleOne(lead.id)}
+                        aria-label={`Select ${lead.full_name}`}
+                        className="size-4 cursor-pointer accent-[#3B82F6]"
+                      />
+                    </td>
+                  ) : null}
                   <td className="px-4 py-4">
                     <div className="min-w-[180px]">
                       <p className="font-medium text-[#F0F0FA]">{lead.full_name}</p>
@@ -541,6 +589,7 @@ export function LeadTable({
                         <PriorityBadge priority={lead.priority} note={lead.priority_note} />
                         <RelationshipGroupBadge leadId={lead.id} />
                         <DataSetBadge dataSetId={lead.data_set_id} />
+                        <TagChips tagIds={lead.tag_ids} />
                         {lead.owner_name ? (
                           <span className="text-[10px] text-[#9090A8]">Owner: {lead.owner_name}</span>
                         ) : null}

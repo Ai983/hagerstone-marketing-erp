@@ -13,6 +13,7 @@ import {
   type ProfileCategoryFilter,
 } from "@/components/leads/LeadFilters"
 import { LeadTable, type SortDirection, type SortKey } from "@/components/leads/LeadTable"
+import { BulkTagBar } from "@/components/tags/BulkTagBar"
 import { useDataSets } from "@/lib/hooks/useDataSets"
 import { useLeads } from "@/lib/hooks/useLeads"
 import { useRelationshipGroups } from "@/lib/hooks/useRelationshipGroups"
@@ -31,6 +32,8 @@ export function LeadsPageContent() {
   const [sortKey, setSortKey] = useState<SortKey>("created_at")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [currentPage, setCurrentPage] = useState(1)
+  // Ticked leads for bulk tagging; kept across pages until cleared.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const { getLeads, getStages, getCurrentProfile, getOverdueLeadIds } = useLeads()
 
@@ -74,6 +77,7 @@ export function LeadsPageContent() {
       dataSets: searchParams.getAll("ds"),
       priorities: searchParams.getAll("priority"),
       groups: searchParams.getAll("group"),
+      tags: searchParams.getAll("tag"),
     }),
     [searchParams]
   )
@@ -97,6 +101,7 @@ export function LeadsPageContent() {
     nextFilters.dataSets.forEach((value) => nextParams.append("ds", value))
     nextFilters.priorities.forEach((value) => nextParams.append("priority", value))
     nextFilters.groups.forEach((value) => nextParams.append("group", value))
+    nextFilters.tags.forEach((value) => nextParams.append("tag", value))
 
     const queryString = nextParams.toString()
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false })
@@ -118,6 +123,10 @@ export function LeadsPageContent() {
       if (filters.groups.length > 0) {
         const group = groupByLeadId.get(lead.id)?.relationship_group
         if (!group || !filters.groups.includes(group)) return false
+      }
+
+      if (filters.tags.length > 0 && !(lead.tag_ids ?? []).some((id) => filters.tags.includes(id))) {
+        return false
       }
 
       const matchesSearch =
@@ -326,8 +335,17 @@ export function LeadsPageContent() {
         totalCount={leadsBeforeDataSet.length}
       />
 
+      {selectedIds.size > 0 ? (
+        <BulkTagBar
+          leadIds={Array.from(selectedIds)}
+          onClear={() => setSelectedIds(new Set())}
+        />
+      ) : null}
+
       <div className="md:mt-6">
         <LeadTable
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
           leads={sortedLeads}
           loading={isLoading}
           sortKey={sortKey}
