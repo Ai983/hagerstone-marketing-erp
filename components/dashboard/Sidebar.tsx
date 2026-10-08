@@ -24,6 +24,7 @@ import {
   Mail,
   Megaphone,
   RefreshCcwDot,
+  PhoneCall,
   Settings,
   Shield,
   Sparkles,
@@ -74,6 +75,7 @@ const primaryNavigation: ReadonlyArray<NavItem> = [
   { href: "/activities", label: "My Tasks", icon: CheckSquare, badgeKey: "activities", roles: ALL_ROLES, daily: true },
   { href: "/schedule", label: "My Schedule", icon: CalendarClock, badgeKey: "followUps", roles: ALL_ROLES, daily: true },
   { href: "/meetings", label: "Meetings", icon: CalendarDays, roles: ALL_ROLES, daily: true },
+  { href: "/runo", label: "Runo Calls", icon: PhoneCall, roles: ALL_ROLES, daily: true },
   { href: "/documents", label: "Profiles & Pitches", icon: FileText, roles: ALL_ROLES, daily: true },
   { href: "/sales-engine", label: "Sales Engine", icon: Gauge, roles: ALL_ROLES, daily: true },
   // More

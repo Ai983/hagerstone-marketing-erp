@@ -10,7 +10,7 @@ import { z } from "zod"
 
 import { useLeads, type CreateLeadInput, type DuplicateLeadMatch } from "@/lib/hooks/useLeads"
 import { getCachedUser } from "@/lib/hooks/useUser"
-import { useUIStore } from "@/lib/stores/uiStore"
+import { useUIStore, type NewLeadPrefill } from "@/lib/stores/uiStore"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 
@@ -120,9 +120,11 @@ interface LeadFormProps {
    * lead's detail page. Used when the form is rendered inside a modal.
    */
   onSuccess?: (leadId: string) => void
+  /** Starting values, e.g. the number and note for a call Runo logged. */
+  initialValues?: NewLeadPrefill | null
 }
 
-export function LeadForm({ onSuccess }: LeadFormProps = {}) {
+export function LeadForm({ onSuccess, initialValues }: LeadFormProps = {}) {
   const router = useRouter()
   const isStandalone = !onSuccess
   const { createLead, checkDuplicate, getStageBySlug } = useLeads()
@@ -161,6 +163,7 @@ export function LeadForm({ onSuccess }: LeadFormProps = {}) {
       whatsapp_opted_in: true,
       email_opted_in: true,
       initial_notes: "",
+      ...initialValues,
     },
   })
 

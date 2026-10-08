@@ -2,6 +2,12 @@
 
 import { create } from "zustand"
 
+export interface NewLeadPrefill {
+  full_name?: string
+  phone?: string
+  initial_notes?: string
+}
+
 interface UIState {
   isSidebarCollapsed: boolean
   isMobileNavOpen: boolean
@@ -13,6 +19,8 @@ interface UIState {
   /** Open the drawer straight into Log Meeting — the phone quick action. */
   drawerOpenLogMeeting: boolean
   isNewLeadModalOpen: boolean
+  /** Fields to start the New Lead form with (e.g. a number Runo called). */
+  newLeadPrefill: NewLeadPrefill | null
   isBulkImportModalOpen: boolean
   /** Hides the sidebar and top bar so a page (the pipeline) gets the whole screen. */
   isFocusMode: boolean
@@ -29,6 +37,8 @@ interface UIState {
   setDrawerOpenLogCall: (open: boolean) => void
   setDrawerOpenLogMeeting: (open: boolean) => void
   openNewLeadModal: () => void
+  /** Kept separate from openNewLeadModal, which is passed straight to onClick. */
+  openNewLeadModalWith: (prefill: NewLeadPrefill) => void
   closeNewLeadModal: () => void
   openBulkImportModal: () => void
   closeBulkImportModal: () => void
@@ -44,6 +54,7 @@ export const useUIStore = create<UIState>((set) => ({
   drawerOpenLogCall: false,
   drawerOpenLogMeeting: false,
   isNewLeadModalOpen: false,
+  newLeadPrefill: null,
   isBulkImportModalOpen: false,
   isFocusMode: false,
   setFocusMode: (on) => set({ isFocusMode: on }),
@@ -64,8 +75,9 @@ export const useUIStore = create<UIState>((set) => ({
   setDrawerActiveTab: (tab) => set({ drawerActiveTab: tab }),
   setDrawerOpenLogCall: (open) => set({ drawerOpenLogCall: open }),
   setDrawerOpenLogMeeting: (open) => set({ drawerOpenLogMeeting: open }),
-  openNewLeadModal: () => set({ isNewLeadModalOpen: true }),
-  closeNewLeadModal: () => set({ isNewLeadModalOpen: false }),
+  openNewLeadModal: () => set({ isNewLeadModalOpen: true, newLeadPrefill: null }),
+  openNewLeadModalWith: (prefill) => set({ isNewLeadModalOpen: true, newLeadPrefill: prefill }),
+  closeNewLeadModal: () => set({ isNewLeadModalOpen: false, newLeadPrefill: null }),
   openBulkImportModal: () => set({ isBulkImportModalOpen: true }),
   closeBulkImportModal: () => set({ isBulkImportModalOpen: false }),
 }))

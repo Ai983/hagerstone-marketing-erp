@@ -1,7 +1,10 @@
 # Runo ↔ Hagerstone ERP — Integration Plan
 
-Status: **plan / not implemented**
-Last updated: 2026-09-07
+Status: **implemented 2026-10-08** — inbound calls (daily pull + recording webhook), `/runo` page.
+Not built yet: ERP → Runo lead push (§4.6), Runo card on `/admin/integrations`.
+What actually shipped differs from this plan in places (Runo's real OpenAPI spec arrived
+later) — CLAUDE.md §27 "Runo calls" is the current description.
+Last updated: 2026-10-08
 
 ---
 

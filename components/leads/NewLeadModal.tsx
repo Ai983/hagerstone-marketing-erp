@@ -14,7 +14,7 @@ import { LeadForm } from "@/components/leads/LeadForm"
  * (or programmatically via uiStore.openNewLeadModal).
  */
 export function NewLeadModal() {
-  const { isNewLeadModalOpen, closeNewLeadModal } = useUIStore()
+  const { isNewLeadModalOpen, closeNewLeadModal, newLeadPrefill } = useUIStore()
   const queryClient = useQueryClient()
 
   // Esc key closes the modal
@@ -101,7 +101,7 @@ export function NewLeadModal() {
 
               {/* Scrollable body with the existing LeadForm */}
               <div className="thin-scrollbar flex-1 overflow-y-auto p-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:p-6">
-                <LeadForm onSuccess={handleSuccess} />
+                <LeadForm onSuccess={handleSuccess} initialValues={newLeadPrefill} />
               </div>
             </div>
           </motion.div>

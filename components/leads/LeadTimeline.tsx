@@ -50,6 +50,12 @@ function getIcon(type: InteractionType) {
   return typeIconMap[type] ?? Pencil
 }
 
+function formatSeconds(total: number): string {
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return m ? `${m}m ${s}s` : `${s}s`
+}
+
 function getTypeLabel(type: InteractionType): string {
   return type
     .split("_")
@@ -272,7 +278,11 @@ export function LeadTimeline({ interactions, isLoading, onAddNote, isAddingNote 
                         <span className="text-xs font-medium text-[#F0F0FA]">
                           {getTypeLabel(interaction.type)}
                         </span>
-                        {interaction.outcome && (
+                        {interaction.outcome === "other" && interaction.call_disposition ? (
+                          <span className="inline-flex rounded-full bg-[#1A1A24] px-2 py-0.5 text-[11px] font-medium text-[#9090A8]">
+                            {interaction.call_disposition}
+                          </span>
+                        ) : interaction.outcome && (
                           <OutcomeBadge outcome={interaction.outcome} />
                         )}
                         {interaction.objections?.map((key) => (
@@ -300,13 +310,32 @@ export function LeadTimeline({ interactions, isLoading, onAddNote, isAddingNote 
                             { addSuffix: true }
                           )}
                         </span>
-                        {interaction.duration_minutes != null && interaction.duration_minutes > 0 && (
+                        {interaction.duration_seconds != null && interaction.duration_seconds > 0 ? (
+                          <>
+                            <span>·</span>
+                            <span>{formatSeconds(interaction.duration_seconds)}</span>
+                          </>
+                        ) : interaction.duration_minutes != null && interaction.duration_minutes > 0 && (
                           <>
                             <span>·</span>
                             <span>{interaction.duration_minutes}m</span>
                           </>
                         )}
+                        {interaction.external_source === "runo" && (
+                          <>
+                            <span>·</span>
+                            <span title="Logged automatically from the Runo app">via Runo</span>
+                          </>
+                        )}
                       </div>
+                      {interaction.media_type === "audio" && interaction.media_url && (
+                        <audio
+                          src={interaction.media_url}
+                          controls
+                          preload="none"
+                          className="mt-2 h-8 w-full max-w-sm"
+                        />
+                      )}
                       {(interaction.location || interaction.attendees) && (
                         <div className="mt-1.5 space-y-0.5">
                           {interaction.location && (

@@ -168,6 +168,13 @@ export interface Interaction {
   media_type: string | null
   outcome?: string
   duration_minutes?: number
+  /** Exact call length — set on calls imported from Runo. */
+  duration_seconds?: number | null
+  /** Where an automatic row came from ('runo') and that system's id for it. */
+  external_source?: string | null
+  external_id?: string | null
+  /** Runo's own disposition string, kept as typed by the rep. */
+  call_disposition?: string | null
   /** Meeting fields — where it happened, who was there, and when it took
    *  place (which can predate `created_at` if written up afterwards). */
   location?: string | null
