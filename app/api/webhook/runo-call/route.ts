@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { RUNO_SOURCE } from "@/lib/utils/runo-ingest"
+import { ingestRunoWebhookCall } from "@/lib/utils/runo-ingest"
+import type { RunoCallLog } from "@/lib/utils/runo"
 
-// Runo → ERP webhook (Runo admin → Integrations → Webhooks).
+// Runo → ERP "Call Event" webhook (Runo admin → Integrations → Webhooks).
 //
-// Runo doesn't publish its webhook payload, so for now this route:
-//  1. stores every payload in runo_sync_log (that's how we learn the shape), and
-//  2. if it can find a call id and a recording link in it, attaches the
-//     recording to the call the daily sync already imported (or will).
-// Calls themselves still come from the daily pull (api/cron/runo-sync),
-// which is the documented, reliable path.
+// Runo doesn't publish this payload. Its admin app lists the fields it can
+// send: createdAt, customerId, name, phoneNumber, leadPhone, startTime,
+// duration, recordingUrl, type, callId, callerId, calledBy, userPhone, tag,
+// processId, triggerType — the call-log fields plus the recording.
+//
+// So each hit:
+//  1. is stored raw in runo_sync_log (to confirm the real shape), and
+//  2. puts the call on the lead's timeline right away, recording included
+//     (or adds the recording to a call the daily pull already imported).
+// The daily pull (api/cron/runo-sync) stays the safety net.
 //
 // Auth: Runo may not support custom headers, so the secret is accepted
 // either as `x-runo-secret` or as `?secret=` on the URL.
@@ -22,28 +27,60 @@ function getServiceClient() {
   )
 }
 
-const AUDIO_URL = /^https:\/\/\S+\.(mp3|aac|m4a|wav|ogg|amr|3gp)(\?\S*)?$/i
+type Json = Record<string, unknown>
 
-/** Every string in a JSON value, paired with the key it sits under. */
-function stringFields(value: unknown, key = "", out: [string, string][] = []): [string, string][] {
-  if (typeof value === "string") out.push([key, value])
-  else if (Array.isArray(value)) value.forEach((v) => stringFields(v, key, out))
-  else if (value && typeof value === "object")
-    Object.entries(value).forEach(([k, v]) => stringFields(v, k, out))
-  return out
+/** The object carrying `callId` — top level, or nested (e.g. under `data`). */
+function findCallObject(value: unknown, depth = 0): Json | null {
+  if (!value || typeof value !== "object" || depth > 4) return null
+  if (Array.isArray(value)) {
+    for (const v of value) {
+      const hit = findCallObject(v, depth + 1)
+      if (hit) return hit
+    }
+    return null
+  }
+  const obj = value as Json
+  if (typeof obj.callId === "string" || typeof obj.callId === "number") return obj
+  for (const v of Object.values(obj)) {
+    const hit = findCallObject(v, depth + 1)
+    if (hit) return hit
+  }
+  return null
 }
 
-function findCallIdAndRecording(payload: unknown) {
-  let callId: string | null = null
-  let recordingUrl: string | null = null
-  for (const [key, value] of stringFields(payload)) {
-    const k = key.toLowerCase()
-    if (!callId && (k === "callid" || k === "call_id")) callId = value
-    if (!recordingUrl && (k.includes("record") || AUDIO_URL.test(value)) && value.startsWith("https://")) {
-      recordingUrl = value
-    }
+const str = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : null)
+
+/** Epoch seconds from seconds, milliseconds, a numeric string or an ISO date. */
+function toEpochSeconds(v: unknown): number {
+  if (typeof v === "number") return v > 1e12 ? Math.round(v / 1000) : v
+  if (typeof v === "string") {
+    const n = Number(v)
+    if (Number.isFinite(n) && v.trim() !== "") return n > 1e12 ? Math.round(n / 1000) : n
+    const t = Date.parse(v)
+    if (!Number.isNaN(t)) return Math.round(t / 1000)
   }
-  return { callId, recordingUrl }
+  return 0
+}
+
+function toRunoCall(o: Json): RunoCallLog & { userPhone: string | null; recordingUrl: string | null } {
+  const type = str(o.type)?.toLowerCase()
+  const tag = str(o.tag)?.toLowerCase()
+  return {
+    callId: str(o.callId)!,
+    callerId: str(o.callerId) ?? "",
+    calledBy: str(o.calledBy) ?? "",
+    name: str(o.name),
+    customerId: str(o.customerId),
+    phoneNumber: str(o.phoneNumber) ?? str(o.leadPhone) ?? "",
+    startTime: toEpochSeconds(o.startTime ?? o.createdAt),
+    duration: Number(o.duration) || 0,
+    type: type === "incoming" || type === "outgoing" || type === "missed" ? type : null,
+    status: str(o.status) ?? str(o.disposition),
+    tag: tag === "personal" || tag === "unanswered" ? tag : null,
+    createdAt: toEpochSeconds(o.createdAt),
+    userPhone: str(o.userPhone),
+    recordingUrl: str(o.recordingUrl),
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -62,31 +99,29 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = getServiceClient()
-  const { callId, recordingUrl } = findCallIdAndRecording(payload)
+  const callObj = findCallObject(payload)
+  const call = callObj ? toRunoCall(callObj) : null
 
-  let attached = false
+  let result: string = "no_call_id"
   let error: string | null = null
-  if (callId && recordingUrl) {
-    const { data, error: updateError } = await supabase
-      .from("interactions")
-      .update({ media_url: recordingUrl, media_type: "audio" })
-      .eq("external_source", RUNO_SOURCE)
-      .eq("external_id", callId)
-      .select("id")
-    if (updateError) error = updateError.message
-    attached = Boolean(data?.length)
+  if (call) {
+    const outcome = await ingestRunoWebhookCall(supabase, call)
+    result = outcome.result
+    error = outcome.error ?? null
   }
 
   await supabase.from("runo_sync_log").insert({
     direction: "inbound",
     event_type: "webhook",
     status: error ? "error" : "ok",
-    summary: { callId, recordingUrl, attached },
+    // callId + recordingUrl here also let a later daily pull pick up the
+    // recording if this call couldn't be placed yet.
+    summary: { callId: call?.callId ?? null, recordingUrl: call?.recordingUrl ?? null, result },
     error,
     raw_payload: payload,
   })
 
   // Always 200 once the secret is valid — an error here would only make
   // Runo retry the same payload.
-  return NextResponse.json({ received: true, attached })
+  return NextResponse.json({ received: true, result })
 }

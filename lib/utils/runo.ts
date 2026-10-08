@@ -39,9 +39,10 @@ export interface RunoCallLog {
   phoneNumber: string
   /** epoch seconds */
   startTime: number
-  /** seconds */
-  duration: number
-  type: "incoming" | "outgoing" | "missed"
+  /** seconds — null on the marker rows described below */
+  duration: number | null
+  /** null on marker rows Runo logs a second after some calls */
+  type: "incoming" | "outgoing" | "missed" | null
   /** Disposition the caller picked, e.g. "Appointment Fixed". */
   status: string | null
   tag: "personal" | "unanswered" | null

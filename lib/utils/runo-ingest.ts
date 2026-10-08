@@ -134,6 +134,134 @@ interface LeadRow {
   updated_at: string | null
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyClient = SupabaseClient<any, any, any>
+
+/** Active ERP users keyed by the last 10 digits of their phone. */
+async function loadProfilesByTail(supabase: AnyClient): Promise<Map<string, string>> {
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, phone")
+    .eq("is_active", true)
+  const byTail = new Map<string, string>()
+  for (const p of profiles ?? []) {
+    const tail = phoneTail(p.phone)
+    if (tail) byTail.set(tail, p.id)
+  }
+  return byTail
+}
+
+/**
+ * Leads keyed by phone_tail. Several leads can share a number: prefer an
+ * open (non-archived) one, then the most recently touched.
+ */
+async function loadLeadsByTail(
+  supabase: AnyClient,
+  tails: string[]
+): Promise<{ leads: Map<string, LeadRow> } | { error: string }> {
+  const leads = new Map<string, LeadRow>()
+  for (let i = 0; i < tails.length; i += 200) {
+    const { data, error } = await supabase
+      .from("leads")
+      .select("id, phone_tail, is_archived, updated_at")
+      .in("phone_tail", tails.slice(i, i + 200))
+    if (error) return { error: error.message }
+    for (const lead of (data ?? []) as LeadRow[]) {
+      const current = leads.get(lead.phone_tail)
+      const better =
+        !current ||
+        (current.is_archived && !lead.is_archived) ||
+        (Boolean(current.is_archived) === Boolean(lead.is_archived) &&
+          (lead.updated_at ?? "") > (current.updated_at ?? ""))
+      if (better) leads.set(lead.phone_tail, lead)
+    }
+  }
+  return { leads }
+}
+
+/** The interactions row for one Runo call (shared by the pull and the webhook). */
+function buildCallRow(call: RunoCallLog, leadId: string, userId: string | null): Record<string, unknown> {
+  const type = mapCallType(call)
+  const seconds = Math.max(0, Math.round(call.duration || 0))
+  const label =
+    type === "call_missed"
+      ? call.type === "missed" ? "Missed call" : "Call not answered"
+      : `${type === "call_inbound" ? "Incoming" : "Outgoing"} call · ${formatDuration(seconds)}`
+  return {
+    lead_id: leadId,
+    user_id: userId,
+    type,
+    title: call.status ? `${label} (${call.status})` : label,
+    outcome: mapDisposition(call.status, type),
+    call_disposition: call.status || null,
+    duration_seconds: seconds,
+    duration_minutes: Math.round(seconds / 60),
+    occurred_at: new Date(call.startTime * 1000).toISOString(),
+    is_automated: true,
+    external_source: RUNO_SOURCE,
+    external_id: call.callId,
+  }
+}
+
+export type RunoWebhookResult =
+  | "created" // new call on a lead (with its recording, if sent)
+  | "recording_attached" // call already imported; recording added
+  | "exists" // call already imported, nothing new
+  | "personal" // marked personal in Runo — never imported
+  | "no_lead" // number isn't a lead; the daily pull reports it
+  | "incomplete" // not enough in the payload to make a call
+
+/**
+ * One call pushed by Runo's Call Event webhook, so it shows on the lead
+ * straight away instead of the next morning. The daily pull later sees the
+ * same callId and skips it.
+ */
+export async function ingestRunoWebhookCall(
+  supabase: AnyClient,
+  call: RunoCallLog & { userPhone?: string | null; recordingUrl?: string | null }
+): Promise<{ result: RunoWebhookResult; error?: string }> {
+  const recording = call.recordingUrl?.startsWith("https://") ? call.recordingUrl : null
+
+  // Already there? Then only the recording can be new.
+  const { data: existing } = await supabase
+    .from("interactions")
+    .select("id, media_url")
+    .eq("external_source", RUNO_SOURCE)
+    .eq("external_id", call.callId)
+    .maybeSingle()
+  if (existing) {
+    if (!recording || existing.media_url === recording) return { result: "exists" }
+    const { error } = await supabase
+      .from("interactions")
+      .update({ media_url: recording, media_type: "audio" })
+      .eq("id", existing.id)
+    return error ? { result: "exists", error: error.message } : { result: "recording_attached" }
+  }
+
+  if (call.tag === "personal") return { result: "personal" }
+  if (!call.type || !call.startTime) return { result: "incomplete" }
+
+  const tail = phoneTail(call.phoneNumber)
+  if (!tail) return { result: "incomplete" }
+  const lookup = await loadLeadsByTail(supabase, [tail])
+  if ("error" in lookup) return { result: "incomplete", error: lookup.error }
+  const lead = lookup.leads.get(tail)
+  if (!lead) return { result: "no_lead" }
+
+  const profiles = await loadProfilesByTail(supabase)
+  const userId = profiles.get(phoneTail(call.userPhone) ?? "") ?? null
+
+  const row = buildCallRow(call, lead.id, userId)
+  if (recording) {
+    row.media_url = recording
+    row.media_type = "audio"
+  }
+  const { error } = await supabase.from("interactions").insert(row)
+  // 23505 = Runo sent the same call twice at once; the other insert won.
+  if (error && error.code !== "23505") return { result: "incomplete", error: error.message }
+  return { result: error ? "exists" : "created" }
+}
+
 /** Imports each date in turn and records every real run in runo_sync_log. */
 export async function syncRunoDates(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -199,15 +327,7 @@ export async function ingestRunoDay(
   summary.callsFetched = calls.length
 
   // ── Runo caller → ERP profile ─────────────────────────────────────
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, phone")
-    .eq("is_active", true)
-  const profileByTail = new Map<string, string>()
-  for (const p of profiles ?? []) {
-    const tail = phoneTail(p.phone)
-    if (tail) profileByTail.set(tail, p.id)
-  }
+  const profileByTail = await loadProfilesByTail(supabase)
   const profileByRunoUser = new Map<string, string>()
   for (const u of usersRes.data ?? []) {
     const profileId = profileByTail.get(phoneTail(u.phoneNumber) ?? "")
@@ -225,29 +345,12 @@ export async function ingestRunoDay(
     if (t) tails.add(t)
   }
 
-  const leadByTail = new Map<string, LeadRow>()
-  const tailList = Array.from(tails)
-  for (let i = 0; i < tailList.length; i += 200) {
-    const { data: leads, error } = await supabase
-      .from("leads")
-      .select("id, phone_tail, is_archived, updated_at")
-      .in("phone_tail", tailList.slice(i, i + 200))
-    if (error) {
-      summary.errors.push(`Lead lookup: ${error.message}`)
-      return summary
-    }
-    // Several leads can share a number: prefer an open (non-archived) one,
-    // then the most recently touched.
-    for (const lead of (leads ?? []) as LeadRow[]) {
-      const current = leadByTail.get(lead.phone_tail)
-      const better =
-        !current ||
-        (current.is_archived && !lead.is_archived) ||
-        (Boolean(current.is_archived) === Boolean(lead.is_archived) &&
-          (lead.updated_at ?? "") > (current.updated_at ?? ""))
-      if (better) leadByTail.set(lead.phone_tail, lead)
-    }
+  const leadLookup = await loadLeadsByTail(supabase, Array.from(tails))
+  if ("error" in leadLookup) {
+    summary.errors.push(`Lead lookup: ${leadLookup.error}`)
+    return summary
   }
+  const leadByTail = leadLookup.leads
 
   // ── Already imported? ─────────────────────────────────────────────
   const callIds = calls.map((c) => c.callId).filter(Boolean)
@@ -289,32 +392,10 @@ export async function ingestRunoDay(
       continue
     }
 
-    const type = mapCallType(call)
-    const seconds = Math.max(0, Math.round(call.duration || 0))
     const userId = profileByRunoUser.get(call.callerId) ?? null
     if (!userId && call.calledBy) unmappedCallers.add(call.calledBy)
 
-    const label =
-      type === "call_missed"
-        ? call.type === "missed" ? "Missed call" : "Call not answered"
-        : `${type === "call_inbound" ? "Incoming" : "Outgoing"} call · ${formatDuration(seconds)}`
-
-    rows.push({
-      _tail: tail,
-      _start: call.startTime,
-      lead_id: lead.id,
-      user_id: userId,
-      type,
-      title: call.status ? `${label} (${call.status})` : label,
-      outcome: mapDisposition(call.status, type),
-      call_disposition: call.status || null,
-      duration_seconds: seconds,
-      duration_minutes: Math.round(seconds / 60),
-      occurred_at: new Date(call.startTime * 1000).toISOString(),
-      is_automated: true,
-      external_source: RUNO_SOURCE,
-      external_id: call.callId,
-    })
+    rows.push({ _tail: tail, _start: call.startTime, ...buildCallRow(call, lead.id, userId) })
   }
 
   // ── Recordings that arrived by webhook before this import ─────────
